@@ -1,222 +1,118 @@
 # PROJECT_CONTEXT: troop-api
 
-This file is a project memory file for AI-assisted work. It exists to carry forward the user’s intent, goals, decisions, and trade-offs when the active chat context is not available.
-
-Its purpose is intentionally broader than the code itself. It should capture the project’s trajectory, not just the current implementation.
+This file is a project memory file for AI-assisted work. It exists to carry forward the user’s intent, goals, decisions, trade-offs, and historical context across development sessions, ensuring that any AI working on this codebase understands the full trajectory and doesn't introduce architectural or functional regressions.
 
 ---
 
-## 1. Project purpose and original intent
-The project began as a practical need: the troop wanted a lightweight backend service that could automate access to TroopWebHost data without paying for a heavy infrastructure stack.
+## 1. Project Purpose & Original Intent
+The project was born out of a practical operational need: Troop 402 needed a lightweight backend service to automate access to TroopWebHost (TWH) roster and membership data without manual spreadsheet downloads and without incurring recurring infrastructure costs.
 
-The user’s recurring goals across the Gemini brainstorm and this chat can be summarized as:
-
-- Build a low-cost, lightweight backend that can live on free-tier hosting.
-- Avoid heavy browser automation and Docker unless absolutely necessary.
-- Use TroopWebHost as the system of record rather than manual spreadsheet work.
-- Keep the service flexible enough to support future troop tooling and endpoints.
-- Stay in a Node.js environment that is easy to reason about and deploy.
-- Prefer in-memory caching first, with database options kept as future considerations.
-- Keep the project easy to hand off to future maintainers and future AI sessions.
-
-This project is not a production-ready SaaS product yet. It is intentionally alpha.
+The core vision established during early brainstorming:
+- **Zero-Cost Operation:** Run indefinitely on free-tier hosting (Render web service) without subscription fees.
+- **No Heavy Browser Automation:** Avoid resource-heavy headless browser frameworks (Playwright, Puppeteer, Chromium) or Docker containers. Maintain a tiny footprint (<50 MB RAM) to comfortably survive Render's 512 MB ceiling and 0.1 vCPU limits.
+- **TroopWebHost as System of Record:** Read data from TWH directly rather than replacing it.
+- **In-Memory Cache First:** Use a 12-hour in-memory TTL cache with request coalescing/de-duplication to prevent duplicate logins and external load. Permanent serverless database solutions (e.g. Neon.tech PostgreSQL) are deferred until historical persistence or relational querying is genuinely needed.
+- **Developer Workflow:** Developed in VS Code (GitHub Codespaces) with AI pair programming, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render.
+- **Alpha Framing:** The project is in early development (`0.1.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
 
 ---
 
-## 2. Evolution of the idea through the chat history
-The project started from a simple question: is there a public API for TroopWebHost? The answer was effectively no, and the brainstorm then shifted toward a custom backend proxy that does the data access work.
+## 2. Evolution of the Architecture Through Development
 
-The important progression of the conversation was:
+### 2.1 The Direct HTTP Breakthrough
+Initially, browser automation seemed required because TroopWebHost is a legacy ASP.NET WebForms application dependent on hidden form state (`__VIEWSTATE`, `__EVENTVALIDATION`, `__VIEWSTATEGENERATOR`) and session cookies (`ASP.NET_SessionId`, `.ASPXAUTH`).
 
-- TroopWebHost does not offer a clean public API.
-- The user considered using browser automation (Playwright/Puppeteer) to log in and export data.
-- The user then identified the specific export-link pattern and discovered that the roster export may be handled as a direct HTTP GET rather than a browser-driven dynamic postback.
-- This became the key breakthrough: a pure Node.js HTTP scraper may be enough.
-- The project direction shifted toward a lightweight Node + Express service with neat hosting constraints.
-- The user expressed concern about free hosting limits and wanted to keep the app small enough to survive Render’s limits.
-- The project moved away from heavy Docker/Playwright and toward direct HTTP + in-memory caching.
-- The long-term architecture discussion included Render, Koyeb, Neon, and future DB-backed persistence.
-
-This is the core historical signal: the architecture and intent settled around a lightweight, direct-HTTP backend, not a full browser automation stack.
-
----
-
-## 3. What we believe TroopWebHost is doing
-TroopWebHost is a legacy ASP.NET WebForms app. That matters because the site relies on server-generated state and cookies, including things like:
-
-- `__VIEWSTATE`
-- `__EVENTVALIDATION`
-- `__VIEWSTATEGENERATOR`
-- ASP.NET session cookies such as `ASP.NET_SessionId` and `.ASPXAUTH`
-
-The user discovered a key fact in the roster export flow: the export link is generated as a JavaScript wrapper that resolves to a direct GET URL, which makes it plausible to access without needing a full browser VM.
-
-The relevant pattern is conceptually:
-
+However, inspection of the "Export Roster to Excel" link revealed it was a client-side wrapper:
 ```html
 <a href="javascript:LinkTo('FormReport.aspx?Menu_Item_ID=45897&amp;Stack=1&amp;ReportFormat=XLS','');">Export Roster to Excel</a>
 ```
+This is an ordinary HTTP `GET` request, not an asynchronous AJAX `__doPostBack`. This made pure HTTP scraping viable using lightweight Node.js libraries (`got-scraping`, `cheerio`, `tough-cookie`).
 
-This effectively becomes a standard HTTP request to:
+### 2.2 Root URL Redirection & Frameset Traversal
+The service was updated to accept the troop's base URL (e.g., `https://www.troopwebhost.org/Troop402lafayette`). TroopWebHost does not serve the login form directly at `Index.htm`; it loads a frameset and redirects to `FormLandingPage.aspx`. The scraper was built to follow redirects, parse the landing page, extract ASP.NET hidden fields, submit credentials, and maintain the authenticated cookie jar.
 
-`FormReport.aspx?Menu_Item_ID=45897&Stack=1&ReportFormat=XLS`
+### 2.3 The CSV Format Discovery & Fallback Strategy
+When live-testing against real credentials in PR #2, inspecting the raw bytes returned by `ReportFormat=XLS` revealed a surprise:
+* TroopWebHost returned a **UTF-8 CSV payload with a Byte Order Mark (BOM)**, not a binary `.xls` or `.xlsx` workbook.
+* Testing `ReportFormat=CSV` returned the exact same clean CSV export (~204 KB).
+* Testing `ReportFormat=XLSX` resulted in an HTTP 500 server error from TroopWebHost.
 
-This is the main technical fact that drives the current architecture. It is the reason the project can remain lightweight and avoid a browser-based stack for the first implementation.
+**Decision**: The service requests `ReportFormat=CSV` first. If that request fails or returns unusable data (empty, non-200, or HTML login bounce), it retries once with `ReportFormat=XLS`. Regardless of which upstream format succeeded, the service normalizes the response to `text/csv` and delivers `troop_roster.csv`.
 
----
-
-## 4. Architectural decisions considered and rejected or deferred
-
-### 4.1 Browser automation as the first path
-The first instinct was to use Playwright or Puppeteer. That is a valid way to interact with a legacy web form and may be the most reliable approach on a complex site.
-
-Why it was not chosen as the first path:
-
-- It is memory-heavy.
-- It is slower to deploy.
-- It requires Docker or a larger environment in many free hosting scenarios.
-- It increases complexity and maintenance burden.
-- The user strongly wanted to stay lightweight and low-overhead.
-
-This alternative remains valid as a reliability fallback if the direct HTTP login/export flow proves too fragile later.
-
-### 4.2 Pure Node.js direct HTTP approach
-This is the current preferred approach.
-
-The project assumes:
-
-- `express` as the server
-- `got-scraping` or equivalent HTTP client behavior
-- `cheerio` to parse hidden form fields and relevant login page state
-- `tough-cookie` for preserving cookies across auth flow
-- direct report GET after login
-- lightweight deploys and low memory consumption
-
-This matches the project’s free-tier and simplicity goals and is considered the best path forward for the next iteration.
-
-### 4.3 Render vs Koyeb
-The user explored both hosting options.
-
-The key conclusions were:
-
-- Render is simpler and fully workable with the Node-only approach.
-- Koyeb was discussed as an alternative, but the platform situation changed and free-tier assumptions were not something to rely on long-term.
-- Render became the stable target for the project after the direct HTTP approach was favored.
-
-Key Render constraints that matter:
-
-- 512 MB RAM ceiling
-- 0.1 vCPU
-- spin-down after inactivity
-- no persistent local disk
-- free service quotas and cold starts
-
-### 4.4 Database strategy
-The project has explicitly been designed around a memory-first model.
-
-Current thinking:
-
-- In-memory cache is the first layer.
-- The app should avoid heavier database setup during alpha.
-- The cache should reduce duplicate logins and repeated TroopWebHost exports.
-- Future persistent storage would likely be Neon or another managed Postgres option if historical data or richer APIs are required.
-
-Important principle: the service does not need a database just to work in the early stage. The database is a future enhancement, not a current requirement.
-
-### 4.5 CI and API documentation
-The user later decided this project should keep a contract and documentation structure in the repo as a visible “truth source.”
-
-This includes:
-
-- a plain-language project contract file
-- machine-readable API docs via OpenAPI
-- eventual CI validation for the API contract and endpoint smoke tests
-
-This is not a production requirement today, but it is a deliberate framework choice to keep the project maintainable and guard against regressions.
+### 2.4 Server-Managed Credentials
+The initial prototype accepted credentials in the request body from the frontend. This was quickly deprecated for security:
+* Production credentials live in server environment variables: `TWH_TROOP_URL`, `TWH_USERNAME`, `TWH_PASSWORD`.
+* The browser UI (`public/index.html`) simply triggers the export without handling sensitive credentials.
+* Secret environments are segregated: Codespaces secrets (local development/testing), GitHub Actions repository secrets (CI validation), and Render environment variables (production).
 
 ---
 
-## 5. Current technical constraints
-These are the constraints the project should keep in mind when writing code or AI-generated changes.
+## 3. CI, Testing & Deployment Architecture
 
-- Runtime must be lightweight enough for free hosting.
-- Avoid heavy browser automation unless absolutely necessary.
-- Stay in Node.js with a simple app structure.
-- Prefer direct HTTP requests to TroopWebHost over a headless browser stack.
-- Use in-memory caching as the default storage model.
-- Do not assume persistent file writes or local DB state are available.
-- Keep project files small and understandable.
-- Keep API behavior documented and reviewable.
+### 3.1 Two-Tiered Test Suite
+To prevent AI regressions while keeping CI fast and independent:
+1. **Deterministic Smoke Tests (`tests/smoke.test.js`):**
+   - Runs completely offline against an in-process ephemeral Express server.
+   - Verifies `GET /healthz` returns `200 OK`.
+   - Verifies that missing server credentials return an immediate `500` JSON error without attempting external network calls.
+2. **Live Integration Tests (`tests/twh-integration.test.js`):**
+   - Conditioned on the presence of `TWH_USERNAME` and `TWH_PASSWORD`.
+   - Tests are decoupled:
+     - Test 1 verifies authentication and confirms the resulting page displays "Log Off".
+     - Test 2 executes the full export flow via the running API server and validates CSV content.
+   - Generates JUnit XML test results and visual GitHub Actions summaries via `dorny/test-reporter`.
 
----
-
-## 6. Current intended architecture
-The current intended architecture is intentionally modest:
-
-- Node.js server using Express
-- direct HTTP login and export flow to TroopWebHost
-- request coalescing to avoid duplicate work when multiple requests overlap
-- in-memory TTL cache for recent export data
-- optional JSON conversion layer later via `xlsx`
-- later optional DB integration if persistent data is needed
-- Render deployment using native Node runtime
-
-This is the architecture that best fits the user’s goals and constraints.
+### 3.2 Deployment Pipeline (Render + GitHub Actions)
+* Changes are developed on feature branches and merged via Pull Requests.
+* GitHub Actions (`.github/workflows/validate.yml`) runs on PRs and on pushes to `main`.
+* A GitHub branch ruleset protects `main`, requiring the `validate` check to pass before merging.
+* Render is configured with **Auto-Deploy: After CI Checks Pass**. It deploys only after GitHub Actions succeeds.
+* Render pings `GET /healthz` to confirm the new container booted before routing live traffic.
 
 ---
 
-## 7. Non-goals and boundaries
-The project is not currently trying to be:
+## 4. Documentation & Contract System
 
-- a full troop CRM
-- a browser-based automation platform
-- a heavy enterprise backend framework
-- a multi-tenant SaaS platform
-- a database-first app with permanent state on day one
+To prevent architectural drift and regressions across sessions, the repository maintains a strict documentation hierarchy:
 
-These are not wrong ideas in the future, but they are not the current objective.
+* **`PROJECT_CONTEXT.md` (this file):** The historical memory of decisions, discoveries, architecture, and trade-offs.
+* **`PROJECT_CONTRACT.md`:** The plain-language, numbered contract specifying active behavioral promises and endpoint requirements.
+* **`openapi/openapi.yaml`:** Machine-readable API contract (OpenAPI 3.0), validated during CI via Redocly.
+* **`README.md`:** Minimal, public-facing project description. (Hands-off for AI unless explicitly instructed).
 
 ---
 
-## 8. Guardrails for future AI sessions
-This file should serve as the reference point for any AI that joins the project later.
+## 5. Current State & Roadmap
 
-The AI should treat the following as important truths:
-
-- The project is lightweight by design.
-- The project is alpha and may break APIs intentionally.
-- TroopWebHost is the source of truth for roster/export data.
-- The service should use direct HTTP where possible rather than browser automation.
-- Keep the project grounded in low-cost hosting and low memory use.
-- Preserve the project’s contract and docs alongside the code.
-- Keep the project’s human-readable promises and the implementation aligned.
-
-This document is intended to be updated as the project evolves. It should grow with the project rather than remain a fixed design spec.
-
----
-
-## 9. File conventions to preserve
-The project should keep a predictable naming and structure pattern:
-
-- `PROJECT_CONTEXT.md` — long-lived AI memory and project history
-- `PROJECT_CONTRACT.md` — current plain-language promises and requirements
-- `openapi/openapi.yaml` — machine-readable API contract
-- `README.md` — public-facing summary only
-- `server.js` — runtime implementation
-
-This makes the project easier to navigate and reduces the chance of conflicting interpretations between AI sessions.
+### Current Version: `0.2.0-alpha` (PR #3)
+* **Live Roster Summary (`GET /api/roster/summary`)**: Zero-dependency RFC 4180 CSV parser extracts active member, scout, and adult leader counts with TTL cache and raw CSV export.
+* **Upcoming Events Feed (`GET /api/events`)**: Calendar scraping with date-window filtering (`?days=N`, defaults to 90 days).
+* **Carpool & Attendance Drill-Down (`GET /api/events/:id/carpool`)**: Reverse-engineered TWH FormReport section endpoints:
+  - `SectionID=38199`: Drivers table (direction, seat capacity, vehicle, notes)
+  - `SectionID=730`: Attending adults (leadership roles, SYT status)
+  - `SectionID=967`: Attending scouts (patrol, permission status, swim test)
+  - Computes net vehicle seat balance (surplus/deficit) and cross-references roster for driver phone/email.
+* **Operations Hub & Departure Clipboard (`public/index.html`)**: Interactive dashboard with event selector, capacity banner, driver logistics, roster tables, and single-page `@media print` layout for parking lot departures.
+* **Hosting & Environment**:
+  - Target Troop: `https://www.troopwebhost.org/Troop402lafayette/` (Troop 402 Lafayette, CA).
+  - Production secrets (`TWH_TROOP_URL`, `TWH_USERNAME`, `TWH_PASSWORD`) configured in Render environment.
+  - Automated CI check passes on PR #3.
 
 ---
 
-## 10. Current status summary
-The project is in an early alpha phase, with a clear direction but not yet a fully hardened production app.
+## 6. Long-Term Architecture & Strategic Roadmap
 
-Current state:
+### Phase 4: Free Database Backing & Asynchronous Sync
+To enable the application to behave like a fast, responsive website without user-facing Render cold starts:
+1. **Free-Tier Database**: Introduce a zero-cost managed database (e.g. Supabase, Turso SQLite, or Neon PostgreSQL) for persistent storage of rosters, events, and carpool logs.
+2. **Asynchronous Background Ingestion**: 
+   - Public frontend / user queries read directly from the database or lightweight edge functions with instantaneous sub-second response times and zero cold starts.
+   - The Render Node.js instance functions as an on-demand scraper/worker: it only needs to spin up when an explicit refresh or scheduled sync runs in the background to ingest updated tables from TroopWebHost into the database.
+3. **Data History & Analytics**: Store historical attendance and driver metrics across past events to better plan carpool needs and monitor scout participation over time.
 
-- direct HTTP approach is favored over headless browser automation
-- Render is the deployment target of choice
-- in-memory caching is the default data strategy
-- the API contract and docs are being formalized in repo files
-- future improvements may include DB persistence, CI smoke tests, and richer API endpoints
-
-The project is intentionally narrow in scope but flexible enough to expand later.
+### Phase 5: Architectural Decoupling (Frontend Extraction)
+* **Current Monorepo Strategy (Phases 1–3)**: Kept `public/index.html` in the same repository as Express and `server.js` to maximize "vibe coding" iteration speed with AI assistants. This allows full-stack changes, live Codespace testing with secrets, OpenAPI spec validation, and PR creation in single conversational turns.
+* **Planned Frontend Extraction (Phase 5)**: 
+  - Once the data schema and database backing stabilize, extract the user-facing web interface into its own repository (e.g. hosted on GitHub Pages or Vercel).
+  - The OpenAPI contract (`openapi/openapi.yaml`) and database schema will serve as the decoupled boundary between the frontend UI repo and the backend TWH ingestion engine.
+  - AI tooling will assist in smoothly migrating the frontend into a standalone application without disrupting the core API.

@@ -50,6 +50,26 @@ B.5 It should set reasonable response headers for file download behavior.
 B.6 It should return clear JSON errors for missing fields and request failures.
 B.7 It should use caching and in-flight de-duping to avoid repeated expensive requests.
 
+### C. GET /api/roster/summary
+C.1 This endpoint returns summary statistics of the troop membership roster.
+C.2 It returns JSON with `totalMembers`, `scoutsCount`, `adultsCount`, and cache status (`cachedAt`, `fresh`).
+C.3 It reuses the cached roster data when available or fetches fresh data when expired.
+C.4 It returns HTTP 500 if server credentials are not configured.
+
+### D. GET /api/events
+D.1 This endpoint returns upcoming troop events.
+D.2 It accepts an optional `days` query parameter (default 90 days) to filter events by date range.
+D.3 It returns an array of events: `id`, `title`, `eventType`, `location`, `start`, and `end`.
+D.4 It caches the events list in memory to minimize load on TroopWebHost.
+
+### E. GET /api/events/:id/carpool
+E.1 This endpoint returns combined carpool and attendance details for a specific event ID.
+E.2 It retrieves driver registrations (`SectionID=38199`), attending adults (`SectionID=730`), and attending scouts (`SectionID=967`).
+E.3 It calculates carpool statistics: total drivers, total seats offered, total passengers needing rides, and seat balance (surplus/deficit).
+E.4 It cross-references driver contact details (phone, email) from the cached roster where matched.
+E.5 It returns 400 for invalid or missing event IDs, and 500 if TroopWebHost retrieval fails.
+
+
 ## 5. Operational promises
 5.1 Sensitive credentials should not be committed to the repository.
 5.2 Secret values should live in environment variables or host-managed secrets.

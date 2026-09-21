@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { after, before, describe, it } from 'node:test';
-import { app, authenticateTroopWebHost, downloadRosterExport } from '../server.js';
+import { app, authenticateTroopWebHost } from '../server.js';
 
 let server;
 let baseUrl;
@@ -51,5 +51,49 @@ describe('TroopWebHost integration', () => {
     if (process.env.TWH_EXPORT_OUTPUT_PATH) {
       await writeFile(process.env.TWH_EXPORT_OUTPUT_PATH, body);
     }
+  });
+
+  it('returns roster summary statistics', async () => {
+    const response = await fetch(`${baseUrl}/api/roster/summary`, {
+      signal: AbortSignal.timeout(60_000),
+    });
+    assert.equal(response.status, 200);
+    const data = await response.json();
+
+    assert.ok(typeof data.totalMembers === 'number' && data.totalMembers > 0);
+    assert.ok(typeof data.scoutsCount === 'number');
+    assert.ok(typeof data.adultsCount === 'number');
+    assert.equal(data.totalMembers, data.scoutsCount + data.adultsCount);
+    assert.ok(data.cachedAt);
+  });
+
+  it('retrieves upcoming troop events and carpool details', async () => {
+    const eventsResponse = await fetch(`${baseUrl}/api/events?days=120`, {
+      signal: AbortSignal.timeout(60_000),
+    });
+    assert.equal(eventsResponse.status, 200);
+    const eventsData = await eventsResponse.json();
+
+    assert.ok(Array.isArray(eventsData.events));
+    assert.ok(eventsData.events.length > 0, 'Should find at least one event in 120 days');
+
+    const firstEvent = eventsData.events[0];
+    assert.ok(firstEvent.id);
+    assert.ok(firstEvent.title);
+
+    // Test carpool endpoint for the first event
+    const carpoolResponse = await fetch(`${baseUrl}/api/events/${firstEvent.id}/carpool`, {
+      signal: AbortSignal.timeout(60_000),
+    });
+    assert.equal(carpoolResponse.status, 200);
+    const carpoolData = await carpoolResponse.json();
+
+    assert.equal(carpoolData.eventId, firstEvent.id);
+    assert.ok(carpoolData.stats);
+    assert.ok(typeof carpoolData.stats.totalSeatsOffered === 'number');
+    assert.ok(typeof carpoolData.stats.totalAttendees === 'number');
+    assert.ok(Array.isArray(carpoolData.drivers));
+    assert.ok(Array.isArray(carpoolData.scouts));
+    assert.ok(Array.isArray(carpoolData.adults));
   });
 });
