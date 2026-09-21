@@ -31,3 +31,11 @@ jobs:
 
       - name: Validate OpenAPI contract
         run: npm run api:validate
+
+      - name: Test live TroopWebHost export
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        run: npm run test:integration
+        env:
+          TWH_TROOP_URL: ${{ secrets.TWH_TROOP_URL }}
+          TWH_USERNAME: ${{ secrets.TWH_USERNAME }}
+          TWH_PASSWORD: ${{ secrets.TWH_PASSWORD }}

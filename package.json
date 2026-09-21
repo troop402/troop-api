@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --check server.js && node --test tests/*.test.js",
+    "test": "node --check server.js && node --test tests/smoke.test.js",
+    "test:integration": "node --test tests/twh-integration.test.js",
     "api:validate": "redocly lint openapi/openapi.yaml",
     "docs:build": "redocly build-docs openapi/openapi.yaml --output docs/index.html",
     "docs:serve": "serve docs"
