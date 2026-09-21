@@ -42,12 +42,24 @@
 * **Scraping / HTTP:** `got-scraping` (manages browser headers/TLS fingerprinting), `tough-cookie` (cookie jar persistence), `cheerio` (HTML parsing to extract ASP.NET hidden fields).
 * **Data Processing (Phase 2):** `xlsx` (SheetJS) to parse binary Excel buffers into JSON arrays.
 
+### API Contract & Documentation Policy
+* The service should maintain a plain-language API contract in the repository so the intended behavior is explicit and reviewable.
+* This should be treated as the contract source of truth for human users and AI-assisted coding.
+* OpenAPI is the preferred machine-readable format for any future formal API docs and CI checks.
+* The API contract and the implementation should evolve together; documentation is not optional.
+* The project is alpha, so breaking changes are allowed, but they must be intentional and documented.
+
 ### Recommended File Structure
 ```text
 troop-api/
-├── Context.md           # This specification
+├── CONTEXT.md           # Project intent and requirements
+├── API_CONTRACT.md      # Human-readable API promises and endpoint expectations
 ├── .gitignore           # node_modules, .env
 ├── package.json         # Scripts and dependencies
 ├── server.js            # Express app, auth scraper, caching, API routes
-└── public/
-    └── index.html       # Lightweight test harness UI
+├── openapi/
+│   └── openapi.yaml     # Future machine-readable API contract
+├── public/
+│   └── index.html       # Lightweight test harness UI
+└── docs/
+    └── generated/       # Generated docs output (optional)

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Troop Roster Export</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #f4f7fb;
+        color: #1f2937;
+      }
+
+      .panel {
+        width: min(420px, calc(100vw - 32px));
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        padding: 24px;
+      }
+
+      h1 {
+        margin-top: 0;
+        font-size: 1.6rem;
+      }
+
+      label {
+        display: block;
+        margin-top: 16px;
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        margin-top: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 1rem;
+      }
+
+      button {
+        width: 100%;
+        margin-top: 22px;
+        padding: 12px 16px;
+        border: none;
+        border-radius: 10px;
+        background: #2563eb;
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.7;
+        cursor: wait;
+      }
+
+      #status {
+        margin-top: 16px;
+        min-height: 22px;
+        color: #374151;
+        font-size: 0.93rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel">
+      <h1>Export Troop Roster</h1>
+      <form id="exportForm">
+        <label>
+          Troop URL
+          <input id="troopUrl" value="https://www.troopwebhost.org/Troop402lafayette/Index.htm" required />
+        </label>
+
+        <label>
+          Username
+          <input id="username" required />
+        </label>
+
+        <label>
+          Password
+          <input id="password" type="password" required />
+        </label>
+
+        <button id="submitButton" type="submit">Download .xlsx</button>
+      </form>
+      <div id="status"></div>
+    </main>
+
+    <script>
+      const form = document.getElementById('exportForm');
+      const status = document.getElementById('status');
+      const submitButton = document.getElementById('submitButton');
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        submitButton.disabled = true;
+        status.textContent = 'Logging in and requesting the roster export...';
+
+        try {
+          const response = await fetch('/api/export-roster', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              troopUrl: document.getElementById('troopUrl').value,
+              username: document.getElementById('username').value,
+              password: document.getElementById('password').value,
+            }),
+          });
+
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || 'Request failed');
+          }
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = 'troop_roster.xlsx';
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          window.URL.revokeObjectURL(url);
+
+          status.textContent = 'Download complete.';
+        } catch (error) {
+          status.textContent = `Error: ${error.message}`;
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

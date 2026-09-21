@@ -1,0 +1,91 @@
+openapi: 3.0.3
+info:
+  title: troop-api
+  version: 0.1.0-alpha
+  description: |
+    Alpha API for troop data integration and TroopWebHost export workflows.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://troop-api.internal
+    description: Internal deployment URL
+
+security: []
+
+paths:
+  /healthz:
+    get:
+      operationId: getHealthz
+      summary: App health check
+      description: Returns a basic success signal to confirm the service is running.
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+        '500':
+          description: Unexpected internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /api/export-roster:
+    post:
+      operationId: exportRoster
+      summary: Export the roster from TroopWebHost
+      description: Authenticates to TroopWebHost and returns the roster export as an Excel file.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - troopUrl
+                - username
+                - password
+              properties:
+                troopUrl:
+                  type: string
+                  example: https://www.troopwebhost.org/Troop402lafayette/Index.htm
+                username:
+                  type: string
+                  example: troopadmin
+                password:
+                  type: string
+                  example: secret
+                forceRefresh:
+                  type: boolean
+                  example: false
+      responses:
+        '200':
+          description: Excel roster export returned successfully
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Missing required request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Export or auth failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string

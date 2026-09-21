@@ -1,0 +1,24 @@
+{
+  "name": "troop-api",
+  "version": "0.1.0-alpha",
+  "description": "Alpha troop data integration and API proxy for TroopWebHost export workflows.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --check server.js && node --test tests/*.test.js",
+    "api:validate": "redocly lint openapi/openapi.yaml",
+    "docs:build": "redocly build-docs openapi/openapi.yaml --output docs/index.html",
+    "docs:serve": "serve docs"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "express": "^4.19.2",
+    "got-scraping": "^4.0.5",
+    "tough-cookie": "^4.1.4"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^2.53.3",
+    "serve": "^14.2.4"
+  }
+}
