@@ -77,16 +77,39 @@ async function fetchRosterFromTroopWebHost({ troopUrl, username, password }) {
   const rootUrl = getTroopWebHostRootUrl(troopUrl);
 
   const homeResponse = await client.get(`${rootUrl}/Index.htm`);
-  const html = typeof homeResponse.body === 'string' ? homeResponse.body : String(homeResponse.body ?? '');
+  let html = typeof homeResponse.body === 'string' ? homeResponse.body : String(homeResponse.body ?? '');
 
   if (!html) {
     throw new Error('Unable to load TroopWebHost landing page.');
   }
 
-  const $ = cheerio.load(html);
+  let $ = cheerio.load(html);
+  let loginResponse = homeResponse;
+
+  if ($('form').length === 0) {
+    const redirectResponse = await client.get(`${rootUrl}/Redirect.htm`);
+    const $redirect = cheerio.load(String(redirectResponse.body ?? ''));
+    const redirectAction = $redirect('form').attr('action');
+    if (!redirectAction) {
+      throw new Error('TroopWebHost landing page did not provide a login redirect.');
+    }
+
+    const loginUrl = new URL(redirectAction, redirectResponse.url).toString();
+    loginResponse = await client.get(loginUrl);
+    html = typeof loginResponse.body === 'string'
+      ? loginResponse.body
+      : String(loginResponse.body ?? '');
+    $ = cheerio.load(html);
+  }
+
+  const loginForm = $('form').first();
+  if (loginForm.length === 0) {
+    throw new Error('TroopWebHost login form was not found.');
+  }
+
   const loginPayload = {};
 
-  $('form input').each((_, element) => {
+  loginForm.find('input').each((_, element) => {
     const name = $(element).attr('name');
     if (!name) {
       return;
@@ -95,26 +118,40 @@ async function fetchRosterFromTroopWebHost({ troopUrl, username, password }) {
     loginPayload[name] = $(element).attr('value') || '';
   });
 
-  const userInputName = $('input[type="text"][name*="User" i]').attr('name') || 'txtUser';
-  const passInputName = $('input[type="password"]').attr('name') || 'txtPassword';
-  const submitName = $('input[type="submit"][value*="Log On" i]').attr('name') || 'btnLogOn';
+  const userInputName = loginForm.find('input[type="text"][name*="User" i]').attr('name') || 'txtUser';
+  const passInputName = loginForm.find('input[type="password"]').attr('name') || 'txtPassword';
 
   loginPayload[userInputName] = username;
   loginPayload[passInputName] = password;
-  loginPayload[submitName] = 'Log On';
+  loginPayload.Selected_Action = 'login';
+  loginPayload.Selected_Button_ID = loginForm.find('input[name="login"]').attr('id') || 'login';
 
-  const formAction = $('form').attr('action') || 'Index.htm';
-  const postUrl = formAction.startsWith('http') ? formAction : `${rootUrl}/${formAction}`;
+  const formAction = loginForm.attr('action') || loginResponse.url;
+  const postUrl = new URL(formAction, loginResponse.url).toString();
 
-  await client.post(postUrl, {
+  const loginPostResponse = await client.post(postUrl, {
     form: loginPayload,
-    followRedirect: true,
+    followRedirect: false,
     headers: {
       Referer: `${rootUrl}/Index.htm`,
     },
   });
 
-  const reportUrl = `${rootUrl}/FormReport.aspx?Menu_Item_ID=45897&Stack=1&ReportFormat=XLS`;
+  if (loginPostResponse.statusCode >= 300 && loginPostResponse.statusCode < 400) {
+    const redirectUrl = loginPostResponse.headers.location;
+    if (!redirectUrl) {
+      throw new Error('TroopWebHost login did not provide a redirect.');
+    }
+
+    await client.get(new URL(redirectUrl, postUrl).toString(), {
+      followRedirect: false,
+    });
+  }
+
+  const reportUrl = new URL(
+    '/FormReport.aspx?Menu_Item_ID=45897&Stack=1&ReportFormat=XLS',
+    loginResponse.url,
+  ).toString();
   const reportResponse = await client.get(reportUrl, {
     responseType: 'buffer',
     headers: {
