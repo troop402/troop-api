@@ -154,29 +154,43 @@ async function authenticateTroopWebHost({ troopUrl, username, password }) {
 }
 
 async function downloadRosterExport({ client, rootUrl, loginUrl }) {
-  const reportUrl = new URL(
-    '/FormReport.aspx?Menu_Item_ID=45897&Stack=1&ReportFormat=CSV',
-    loginUrl,
-  ).toString();
-  const reportResponse = await client.get(reportUrl, {
-    responseType: 'buffer',
-    headers: {
-      Referer: `${rootUrl}/Index.htm`,
-    },
-  });
+  let lastError;
 
-  const reportBody = reportResponse.body ?? reportResponse.rawBody;
-  const reportBuffer = Buffer.isBuffer(reportBody)
-    ? reportBody
-    : Buffer.from(reportBody ?? '');
+  for (const format of ['CSV', 'XLS']) {
+    try {
+      const reportUrl = new URL(
+        `/FormReport.aspx?Menu_Item_ID=45897&Stack=1&ReportFormat=${format}`,
+        loginUrl,
+      ).toString();
+      const reportResponse = await client.get(reportUrl, {
+        responseType: 'buffer',
+        headers: {
+          Referer: `${rootUrl}/Index.htm`,
+        },
+      });
 
-  const contentType = String(reportResponse.headers['content-type'] || '');
+      const reportBody = reportResponse.body ?? reportResponse.rawBody;
+      const reportBuffer = Buffer.isBuffer(reportBody)
+        ? reportBody
+        : Buffer.from(reportBody ?? '');
+      const contentType = String(reportResponse.headers['content-type'] || '');
 
-  if (reportBuffer.length === 0 || contentType.includes('text/html')) {
-    throw new Error('Authentication failed or the export could not be retrieved.');
+      if (
+        reportResponse.statusCode >= 200
+        && reportResponse.statusCode < 300
+        && reportBuffer.length > 0
+        && !contentType.includes('text/html')
+      ) {
+        return reportBuffer;
+      }
+
+      lastError = new Error(`TroopWebHost returned an unusable ${format} export response.`);
+    } catch (error) {
+      lastError = error;
+    }
   }
 
-  return reportBuffer;
+  throw new Error(lastError?.message || 'Authentication failed or the export could not be retrieved.');
 }
 
 async function fetchRosterFromTroopWebHost(config) {
