@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
 import { after, before, describe, it } from 'node:test';
-import { app } from '../server.js';
+import { app, authenticateTroopWebHost, downloadRosterExport } from '../server.js';
 
 let server;
 let baseUrl;
@@ -16,7 +17,19 @@ after(() => new Promise((resolve, reject) => {
 }));
 
 describe('TroopWebHost integration', () => {
-  it('downloads the configured roster export', async () => {
+  it('authenticates with the configured TroopWebHost account', async () => {
+    const session = await authenticateTroopWebHost({
+      troopUrl: process.env.TWH_TROOP_URL,
+      username: process.env.TWH_USERNAME,
+      password: process.env.TWH_PASSWORD,
+    });
+    const body = String(session.authenticatedResponse.body ?? '');
+
+    assert.equal(session.authenticatedResponse.statusCode, 200);
+    assert.match(body, /Log Off/i);
+  });
+
+  it('downloads the configured roster export through the API', async () => {
     const response = await fetch(`${baseUrl}/api/export-roster`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -34,5 +47,9 @@ describe('TroopWebHost integration', () => {
     assert.doesNotMatch(response.headers.get('content-type') || '', /text\/html/i);
     assert.match(response.headers.get('content-disposition') || '', /attachment/);
     assert.ok(body.length > 0);
+
+    if (process.env.TWH_EXPORT_OUTPUT_PATH) {
+      await writeFile(process.env.TWH_EXPORT_OUTPUT_PATH, body);
+    }
   });
 });

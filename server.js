@@ -68,7 +68,7 @@ function getTroopWebHostRootUrl(troopUrl) {
   return `${url.origin}${pathname}`;
 }
 
-async function fetchRosterFromTroopWebHost({ troopUrl, username, password }) {
+async function authenticateTroopWebHost({ troopUrl, username, password }) {
   if (!troopUrl || !username || !password) {
     throw new Error('Missing troopUrl, username, or password.');
   }
@@ -143,14 +143,20 @@ async function fetchRosterFromTroopWebHost({ troopUrl, username, password }) {
       throw new Error('TroopWebHost login did not provide a redirect.');
     }
 
-    await client.get(new URL(redirectUrl, postUrl).toString(), {
+    const authenticatedResponse = await client.get(new URL(redirectUrl, postUrl).toString(), {
       followRedirect: false,
     });
+
+    return { client, rootUrl, loginUrl: authenticatedResponse.url, authenticatedResponse };
   }
 
+  return { client, rootUrl, loginUrl: loginResponse.url, authenticatedResponse: loginPostResponse };
+}
+
+async function downloadRosterExport({ client, rootUrl, loginUrl }) {
   const reportUrl = new URL(
     '/FormReport.aspx?Menu_Item_ID=45897&Stack=1&ReportFormat=XLS',
-    loginResponse.url,
+    loginUrl,
   ).toString();
   const reportResponse = await client.get(reportUrl, {
     responseType: 'buffer',
@@ -171,6 +177,11 @@ async function fetchRosterFromTroopWebHost({ troopUrl, username, password }) {
   }
 
   return reportBuffer;
+}
+
+async function fetchRosterFromTroopWebHost(config) {
+  const session = await authenticateTroopWebHost(config);
+  return downloadRosterExport(session);
 }
 
 app.post('/api/export-roster', async (req, res) => {
@@ -210,7 +221,7 @@ app.post('/api/export-roster', async (req, res) => {
   }
 });
 
-export { app };
+export { app, authenticateTroopWebHost, downloadRosterExport };
 
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
 
