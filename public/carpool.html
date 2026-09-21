@@ -335,12 +335,26 @@
         </div>
       </div>
 
+      <!-- Driver Clarifications & Ambiguity Alert -->
+      <div id="clarificationsBanner" class="card" style="display: none; background: #fffbeb; border-color: #fde68a; color: #92400e; margin-bottom: 1.5rem;">
+        <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+          <span>⚠️ Driver Note Clarifications Needed</span>
+          <span class="badge badge-warning" id="clarificationsBadge">0</span>
+        </div>
+        <p style="font-size: 0.875rem; margin-bottom: 0.5rem;">
+          The following driver notes mention first names that are shared by multiple attending scouts. Please confirm full names with drivers:
+        </p>
+        <ul id="clarificationsList" style="margin-left: 1.25rem; font-size: 0.85rem; line-height: 1.6;">
+        </ul>
+      </div>
+
       <!-- Drivers & Carpool Roster -->
       <div class="card">
         <div class="section-header">
           <div class="section-title">
             <span>🚙 Registered Drivers &amp; Vehicle Roster</span>
             <span class="badge badge-neutral" id="driversCountBadge">0 Drivers</span>
+            <span id="nonCompliantDriversBadge" style="display:none;" class="badge badge-danger">⚠️ Incomplete Safety Compliance</span>
           </div>
         </div>
         <div class="table-container">
@@ -349,6 +363,7 @@
               <tr>
                 <th>Driver Name</th>
                 <th>Trip Leg</th>
+                <th>Safety &amp; Compliance</th>
                 <th style="text-align:center;">Seats</th>
                 <th>Claimed Riders &amp; Open Spots</th>
                 <th>Vehicle</th>
@@ -357,7 +372,7 @@
               </tr>
             </thead>
             <tbody id="driversTbody">
-              <tr><td colspan="7" class="muted" style="text-align:center;">Loading drivers...</td></tr>
+              <tr><td colspan="8" class="muted" style="text-align:center;">Loading drivers...</td></tr>
             </tbody>
           </table>
         </div>
@@ -517,19 +532,76 @@
         desc.textContent = `Only ${stats.totalSeatsOffered} seats offered for ${stats.totalAttendingScouts} scouts and ${stats.adultRidersCount} adult riders. ${stats.unassignedScoutsCount} scouts still need a ride.`;
       }
 
+      // Driver Clarifications Banner
+      const clarBanner = document.getElementById('clarificationsBanner');
+      const clarList = document.getElementById('clarificationsList');
+      const clarBadge = document.getElementById('clarificationsBadge');
+      const clarifications = stats.clarificationsNeeded || [];
+
+      if (clarifications.length > 0) {
+        clarBadge.textContent = `${clarifications.length} Note${clarifications.length === 1 ? '' : 's'}`;
+        clarList.innerHTML = clarifications.map(c => `
+          <li>
+            <strong>${escapeHtml(c.driverName)}:</strong> Mentioned <em>"${escapeHtml(c.token)}"</em> without last name. 
+            Candidates: <strong>${escapeHtml(c.candidates.join(' or '))}</strong>.
+            <span style="color:#b45309;">(Please ask driver to clarify with full name)</span>
+          </li>
+        `).join('');
+        clarBanner.style.display = 'block';
+      } else {
+        clarBanner.style.display = 'none';
+      }
+
+      // Non-compliant drivers badge
+      const nonCompBadge = document.getElementById('nonCompliantDriversBadge');
+      if (stats.nonCompliantDriversCount > 0) {
+        nonCompBadge.textContent = `⚠️ ${stats.nonCompliantDriversCount} Driver(s) Incomplete Safety Compliance`;
+        nonCompBadge.style.display = 'inline-block';
+      } else {
+        nonCompBadge.style.display = 'none';
+      }
+
       // Drivers Table
       document.getElementById('driversCountBadge').textContent = `${drivers.length} Drivers`;
       const driversTbody = document.getElementById('driversTbody');
       driversTbody.innerHTML = '';
 
       if (drivers.length === 0) {
-        driversTbody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center; padding: 1.5rem;">No drivers registered on TroopWebHost yet.</td></tr>';
+        driversTbody.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center; padding: 1.5rem;">No drivers registered on TroopWebHost yet.</td></tr>';
       } else {
         drivers.forEach(d => {
           const tr = document.createElement('tr');
           const isAttending = d.attending === 'Y';
+          if (!d.isCompliant && isAttending) {
+            tr.style.backgroundColor = '#fffbeb';
+          }
+
           const tripBadge = `<span class="badge ${d.drivingToFrom ? 'badge-neutral' : 'badge-warning'}">${escapeHtml(d.drivingToFrom || 'None')}</span>`;
           
+          // Compliance Badges
+          const sytIsCurrent = (d.sytStatus || '').toLowerCase() === 'current';
+          const stateIsCurrent = (d.stateTraining || '').toLowerCase() === 'current';
+          
+          const sytBadge = sytIsCurrent
+            ? '<span class="badge badge-success" title="Safe Youth Training / YPT Current">YPT: Current</span>'
+            : `<span class="badge badge-danger" title="SYT Expired or Missing">⚠️ YPT: ${escapeHtml(d.sytStatus || 'N/A')}</span>`;
+
+          const stateBadge = stateIsCurrent
+            ? '<span class="badge badge-success" title="State AB506 Training Current">State: Current</span>'
+            : `<span class="badge badge-danger" title="State Training Incomplete">⚠️ State: ${escapeHtml(d.stateTraining || 'Incomplete')}</span>`;
+
+          const attendBadge = isAttending
+            ? '<span class="badge badge-neutral">Attending: Y</span>'
+            : '<span class="badge badge-warning">Attending: ' + escapeHtml(d.attending || 'N') + '</span>';
+
+          const safetyHtml = `
+            <div style="display:flex; flex-direction:column; gap:0.25rem;">
+              <div>${attendBadge}</div>
+              <div>${sytBadge}</div>
+              <div>${stateBadge}</div>
+            </div>
+          `;
+
           // Contact
           const contactParts = [];
           if (d.phone) contactParts.push(escapeHtml(d.phone));
@@ -542,10 +614,17 @@
           // Claimed passengers & open seats badges
           const tags = [];
           (d.claimedScouts || []).forEach(s => {
-            tags.push(`<span class="badge badge-scout">Scout: ${escapeHtml(s)}</span>`);
+            const scName = typeof s === 'string' ? s : s.name;
+            const scStatus = typeof s === 'string' ? 'confirmed' : s.status;
+            const isFam = scStatus === 'family_match';
+            tags.push(`<span class="badge badge-scout">Scout: ${escapeHtml(scName)}${isFam ? ' (Family)' : ''}</span>`);
           });
           (d.claimedAdults || []).forEach(a => {
-            tags.push(`<span class="badge badge-adult">Adult: ${escapeHtml(a)}</span>`);
+            const adName = typeof a === 'string' ? a : a.name;
+            tags.push(`<span class="badge badge-adult">Adult: ${escapeHtml(adName)}</span>`);
+          });
+          (d.ambiguousNotes || []).forEach(an => {
+            tags.push(`<span class="badge badge-warning" title="${escapeHtml(an.note)}">⚠️ Ambiguous "${escapeHtml(an.token)}"</span>`);
           });
           if (isAttending && d.seats > 0) {
             tags.push(`<span class="badge badge-open">${d.openSeats} Open Seat${d.openSeats === 1 ? '' : 's'}</span>`);
@@ -555,9 +634,10 @@
           tr.innerHTML = `
             <td>
               <strong>${escapeHtml(d.name)}</strong>
-              ${!isAttending ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Not Attending</span>' : ''}
+              ${!d.isCompliant && isAttending ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span>' : ''}
             </td>
             <td>${tripBadge}</td>
+            <td style="font-size:0.8rem;">${safetyHtml}</td>
             <td style="text-align:center; font-weight:700; font-size:1.05rem;">${d.seats}</td>
             <td>${tagsHtml}</td>
             <td style="font-size:0.85rem;">${vehicleHtml}</td>
@@ -580,7 +660,10 @@
       } else {
         adults.forEach(a => {
           const isDriver = drivers.some(d => d.name.toLowerCase() === a.name.toLowerCase() && d.attending === 'Y');
-          const isRider = drivers.some(d => (d.claimedAdults || []).some(ca => ca.toLowerCase().includes(a.name.split(',')[0].toLowerCase())));
+          const isRider = drivers.some(d => (d.claimedAdults || []).some(ca => {
+            const cName = typeof ca === 'string' ? ca : ca.name;
+            return cName.toLowerCase().includes(a.name.split(',')[0].toLowerCase());
+          }));
           
           let driveBadge = '<span class="badge badge-neutral">Self-Drive / Passenger</span>';
           if (isDriver) driveBadge = '<span class="badge badge-success">🚙 Registered Driver</span>';
@@ -628,7 +711,10 @@
         
         let rideBadge;
         if (s.assignedDriver) {
-          rideBadge = `<span class="badge badge-success" title="Claimed in driver note">🚗 Riding with ${escapeHtml(s.assignedDriver)}</span>`;
+          const isFam = s.rideStatus === 'family_match';
+          rideBadge = `<span class="badge badge-success" title="Claimed in driver note">🚗 Riding with ${escapeHtml(s.assignedDriver)}${isFam ? ' (Family)' : ''}</span>`;
+        } else if (s.rideStatus === 'ambiguous') {
+          rideBadge = `<span class="badge badge-warning" title="${escapeHtml(s.rideNote || '')}">⚠️ Mentioned in Note (Clarification Needed)</span>`;
         } else {
           rideBadge = '<span class="badge badge-warning">⚠️ Needs Ride / Unassigned</span>';
         }
@@ -673,3 +759,4 @@
   </script>
 </body>
 </html>
+

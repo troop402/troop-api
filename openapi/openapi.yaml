@@ -244,6 +244,24 @@ paths:
                       seatBalance:
                         type: integer
                         description: Scout-centric seat balance (positive is surplus, negative is deficit)
+                      nonCompliantDriversCount:
+                        type: integer
+                        description: Count of drivers with expired or incomplete youth safety compliance
+                      clarificationsNeeded:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            driverName:
+                              type: string
+                            token:
+                              type: string
+                            candidates:
+                              type: array
+                              items:
+                                type: string
+                            note:
+                              type: string
                   drivers:
                     type: array
                     items:
@@ -265,14 +283,20 @@ paths:
                           type: string
                         registeredVehicle:
                           type: string
+                        sytStatus:
+                          type: string
+                        stateTraining:
+                          type: string
+                        bsaRegistered:
+                          type: string
+                        isCompliant:
+                          type: boolean
                         claimedScouts:
                           type: array
-                          items:
-                            type: string
                         claimedAdults:
                           type: array
-                          items:
-                            type: string
+                        ambiguousNotes:
+                          type: array
                         openSeats:
                           type: integer
                         explicitOpenNote:
@@ -297,6 +321,10 @@ paths:
                         assignedDriver:
                           type: string
                           nullable: true
+                        rideStatus:
+                          type: string
+                        rideNote:
+                          type: string
         '400':
           description: Missing or invalid event ID
           content:
