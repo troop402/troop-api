@@ -41,10 +41,11 @@ jobs:
 
       - name: Test live TroopWebHost export
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-        run: node --test \
-          --test-reporter=junit \
-          --test-reporter-destination=test-results/integration.xml \
-          tests/twh-integration.test.js
+        run: |
+          node --test \
+            --test-reporter=junit \
+            --test-reporter-destination=test-results/integration.xml \
+            tests/twh-integration.test.js
         env:
           TWH_TROOP_URL: ${{ secrets.TWH_TROOP_URL }}
           TWH_USERNAME: ${{ secrets.TWH_USERNAME }}
