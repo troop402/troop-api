@@ -80,6 +80,7 @@ describe('TroopWebHost integration', () => {
     const firstEvent = eventsData.events[0];
     assert.ok(firstEvent.id);
     assert.ok(firstEvent.title);
+    assert.ok(typeof firstEvent.isCarpoolCandidate === 'boolean');
 
     // Test carpool endpoint for the first event
     const carpoolResponse = await fetch(`${baseUrl}/api/events/${firstEvent.id}/carpool`, {
@@ -91,9 +92,22 @@ describe('TroopWebHost integration', () => {
     assert.equal(carpoolData.eventId, firstEvent.id);
     assert.ok(carpoolData.stats);
     assert.ok(typeof carpoolData.stats.totalSeatsOffered === 'number');
-    assert.ok(typeof carpoolData.stats.totalAttendees === 'number');
+    assert.ok(typeof carpoolData.stats.totalAttendingScouts === 'number');
+    assert.ok(typeof carpoolData.stats.assignedScoutsCount === 'number');
+    assert.ok(typeof carpoolData.stats.unassignedScoutsCount === 'number');
+    assert.ok(typeof carpoolData.stats.totalOpenSeats === 'number');
+    assert.ok(typeof carpoolData.stats.seatBalance === 'number');
     assert.ok(Array.isArray(carpoolData.drivers));
     assert.ok(Array.isArray(carpoolData.scouts));
     assert.ok(Array.isArray(carpoolData.adults));
+
+    if (carpoolData.drivers.length > 0) {
+      assert.ok(Array.isArray(carpoolData.drivers[0].claimedScouts));
+      assert.ok(Array.isArray(carpoolData.drivers[0].claimedAdults));
+      assert.ok(typeof carpoolData.drivers[0].openSeats === 'number');
+    }
+    if (carpoolData.scouts.length > 0) {
+      assert.ok('assignedDriver' in carpoolData.scouts[0]);
+    }
   });
 });

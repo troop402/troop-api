@@ -57,17 +57,19 @@ C.3 It reuses the cached roster data when available or fetches fresh data when e
 C.4 It returns HTTP 500 if server credentials are not configured.
 
 ### D. GET /api/events
-D.1 This endpoint returns upcoming troop events.
+D.1 This endpoint returns upcoming and in-progress troop events.
 D.2 It accepts an optional `days` query parameter (default 90 days) to filter events by date range.
-D.3 It returns an array of events: `id`, `title`, `eventType`, `location`, `start`, and `end`.
-D.4 It caches the events list in memory to minimize load on TroopWebHost.
+D.3 Events remain visible while in progress and until at least 24 hours after their end date for return trip carpooling.
+D.4 It returns an array of events: `id`, `title`, `eventType`, `location`, `start`, `end`, and `isCarpoolCandidate` (flagging offsite trips vs. CABIN or informational meetings).
+D.5 It caches the events list in memory to minimize load on TroopWebHost.
 
 ### E. GET /api/events/:id/carpool
-E.1 This endpoint returns combined carpool and attendance details for a specific event ID.
+E.1 This endpoint returns combined carpool, attendance details, and comment intelligence for a specific event ID.
 E.2 It retrieves driver registrations (`SectionID=38199`), attending adults (`SectionID=730`), and attending scouts (`SectionID=967`).
-E.3 It calculates carpool statistics: total drivers, total seats offered, total passengers needing rides, and seat balance (surplus/deficit).
-E.4 It cross-references driver contact details (phone, email) from the cached roster where matched.
-E.5 It returns 400 for invalid or missing event IDs, and 500 if TroopWebHost retrieval fails.
+E.3 It calculates scout-centric carpool statistics: total drivers, total seats offered, total attending scouts, assigned scouts in driver notes, unassigned scouts needing rides, adult riders in vehicles, and net scout seat balance (surplus/deficit).
+E.4 It cross-references driver contact details (phone, email, registered vehicle) from the cached roster where matched.
+E.5 It parses driver comments against the attendee roster to itemize claimed scouts, adult passengers, and calculate remaining open seats per vehicle.
+E.6 It returns 400 for invalid or missing event IDs, and 500 if TroopWebHost retrieval fails.
 
 
 ## 5. Operational promises

@@ -84,19 +84,27 @@ To prevent architectural drift and regressions across sessions, the repository m
 
 ## 5. Current State & Roadmap
 
-### Current Version: `0.2.0-alpha` (PR #3)
-* **Live Roster Summary (`GET /api/roster/summary`)**: Zero-dependency RFC 4180 CSV parser extracts active member, scout, and adult leader counts with TTL cache and raw CSV export.
-* **Upcoming Events Feed (`GET /api/events`)**: Calendar scraping with date-window filtering (`?days=N`, defaults to 90 days).
-* **Carpool & Attendance Drill-Down (`GET /api/events/:id/carpool`)**: Reverse-engineered TWH FormReport section endpoints:
-  - `SectionID=38199`: Drivers table (direction, seat capacity, vehicle, notes)
-  - `SectionID=730`: Attending adults (leadership roles, SYT status)
-  - `SectionID=967`: Attending scouts (patrol, permission status, swim test)
-  - Computes net vehicle seat balance (surplus/deficit) and cross-references roster for driver phone/email.
-* **Operations Hub & Departure Clipboard (`public/index.html`)**: Interactive dashboard with event selector, capacity banner, driver logistics, roster tables, and single-page `@media print` layout for parking lot departures.
+### Current Version: `0.3.0-alpha`
+* **UI Architecture Split**:
+  - `public/index.html`: Clean, minimal, neutral public status landing page with zero sensitive scout/roster data exposed.
+  - `public/manager.html`: Internal manager console with roster sync stats, raw CSV export downloads, and event carpool launcher with Carpool Candidates filtering.
+  - `public/carpool.html?id=:id`: Dedicated shareable event carpool and departure clipboard page. Clean URL `/carpool/:id` automatically redirects.
+* **Driver Comment Intelligence (`parseDriverComments`)**:
+  - Automatically matches passenger names in driver notes against attending scouts and adults.
+  - Itemizes claimed scouts and adult passengers per car.
+  - Detects explicit open seat notes (e.g. `"and 2 more"`).
+  - Calculates remaining open seats per vehicle.
+  - Maps each scout to their assigned driver (`🚗 Riding with...` vs `⚠️ Needs Ride`).
+* **Scout-Centric Ride Capacity**:
+  - Seat balance calculated strictly against attending scouts and adult ride-alongs: `totalSeatsOffered - (totalScouts + adultRidersCount)`.
+  - Non-driver adults assumed to drive themselves unless listed in a driver note.
+* **Event Lifecycle & Smart Filtering**:
+  - Events retained in calendar view while in progress and until at least 24 hours after their end date for return trip carpooling.
+  - `isCarpoolCandidate` boolean flags offsite trips and excludes routine `Location: CABIN` meetings and informational placeholders.
 * **Hosting & Environment**:
   - Target Troop: `https://www.troopwebhost.org/Troop402lafayette/` (Troop 402 Lafayette, CA).
-  - Production secrets (`TWH_TROOP_URL`, `TWH_USERNAME`, `TWH_PASSWORD`) configured in Render environment.
-  - Automated CI check passes on PR #3.
+  - Production secrets configured in Render environment.
+  - Smoke tests and live TWH integration tests passing.
 
 ---
 

@@ -107,4 +107,85 @@ describe('API smoke tests', () => {
       error: 'Valid numeric event ID is required.',
     });
   });
+
+  it('redirects /carpool/:id to /carpool.html?id=:id', async () => {
+    const response = await fetch(`${baseUrl}/carpool/1957`, { redirect: 'manual' });
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get('location'), '/carpool.html?id=1957');
+  });
+
+  it('redirects /manager to /manager.html', async () => {
+    const response = await fetch(`${baseUrl}/manager`, { redirect: 'manual' });
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get('location'), '/manager.html');
+  });
+});
+
+describe('Driver comment parsing unit test', () => {
+  it('correctly matches scouts and adult passengers, and calculates open seats', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Ayers, Elena',
+        attending: 'Y',
+        seats: 4,
+        comment: 'driving myself, Gwyneth, Allison Annis, Rachael Schonfeld',
+      },
+      {
+        name: 'Tzortzis, Heather',
+        attending: 'Y',
+        seats: 5,
+        comment: 'Heather, Chris & Alina and 2 more',
+      },
+      {
+        name: 'Hoover, Brad',
+        attending: 'Y',
+        seats: 4,
+        comment: '',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Annis, Allison', patrol: 'Gator' },
+      { name: 'Ayers, Gwyneth', patrol: 'Dragon' },
+      { name: 'Schonfeld, Rachael', patrol: 'Dragon' },
+      { name: 'Tzortzis, Alina', patrol: 'Falcon' },
+      { name: 'Smith, John', patrol: 'Gator' },
+    ];
+
+    const adults = [
+      { name: 'Ayers, Elena', leadership: 'Committee Chair' },
+      { name: 'Tzortzis, Heather', leadership: 'Scoutmaster' },
+      { name: 'Tzortzis, Chris', leadership: 'Assistant Scoutmaster' },
+      { name: 'Hoover, Brad', leadership: 'Committee Member' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+
+    assert.equal(result.adultRidersCount, 1); // Chris Tzortzis is riding
+    assert.equal(result.assignedScoutsCount, 4); // Allison, Gwyneth, Rachael, Alina
+
+    // Check Elena's vehicle
+    const elena = result.enrichedDrivers.find((d) => d.name === 'Ayers, Elena');
+    assert.equal(elena.claimedScouts.length, 3);
+    assert.equal(elena.openSeats, 1);
+
+    // Check Heather's vehicle with explicit "and 2 more"
+    const heather = result.enrichedDrivers.find((d) => d.name === 'Tzortzis, Heather');
+    assert.equal(heather.claimedScouts.length, 1);
+    assert.equal(heather.claimedAdults.length, 1);
+    assert.equal(heather.openSeats, 2);
+
+    // Check Brad's vehicle (no comment)
+    const brad = result.enrichedDrivers.find((d) => d.name === 'Hoover, Brad');
+    assert.equal(brad.openSeats, 4);
+
+    // Check scout ride status
+    const allison = result.enrichedScouts.find((s) => s.name === 'Annis, Allison');
+    assert.equal(allison.assignedDriver, 'Ayers, Elena');
+
+    const john = result.enrichedScouts.find((s) => s.name === 'Smith, John');
+    assert.equal(john.assignedDriver, null);
+  });
 });

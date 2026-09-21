@@ -169,6 +169,9 @@ paths:
                         location:
                           type: string
                           example: Stove Pipe Wells Campground
+                        isCarpoolCandidate:
+                          type: boolean
+                          example: true
                         start:
                           type: string
                           example: 02/12/27
@@ -198,7 +201,7 @@ paths:
     get:
       operationId: getEventCarpool
       summary: Get event carpool and driver attendance details
-      description: Combines driver registrations, attending adults, and attending scouts for an event.
+      description: Combines driver registrations, attending adults, and attending scouts for an event with driver comment intelligence.
       parameters:
         - name: id
           in: path
@@ -224,15 +227,23 @@ paths:
                         type: integer
                       totalSeatsOffered:
                         type: integer
+                      totalOpenSeats:
+                        type: integer
                       totalAttendingScouts:
                         type: integer
+                      assignedScoutsCount:
+                        type: integer
+                      unassignedScoutsCount:
+                        type: integer
                       totalAttendingAdults:
+                        type: integer
+                      adultRidersCount:
                         type: integer
                       totalAttendees:
                         type: integer
                       seatBalance:
                         type: integer
-                        description: Positive is surplus seats, negative is deficit
+                        description: Scout-centric seat balance (positive is surplus, negative is deficit)
                   drivers:
                     type: array
                     items:
@@ -252,6 +263,20 @@ paths:
                           type: string
                         email:
                           type: string
+                        registeredVehicle:
+                          type: string
+                        claimedScouts:
+                          type: array
+                          items:
+                            type: string
+                        claimedAdults:
+                          type: array
+                          items:
+                            type: string
+                        openSeats:
+                          type: integer
+                        explicitOpenNote:
+                          type: string
                   adults:
                     type: array
                     items:
@@ -260,6 +285,18 @@ paths:
                     type: array
                     items:
                       type: object
+                      properties:
+                        name:
+                          type: string
+                        patrol:
+                          type: string
+                        swimTest:
+                          type: string
+                        permissionGiven:
+                          type: string
+                        assignedDriver:
+                          type: string
+                          nullable: true
         '400':
           description: Missing or invalid event ID
           content:
