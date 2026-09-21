@@ -25,6 +25,11 @@ describe('TroopWebHost integration', () => {
     });
     const body = Buffer.from(await response.arrayBuffer());
 
+    if (!response.ok) {
+      const errorText = body.toString('utf8').slice(0, 500);
+      assert.fail(`TroopWebHost export failed with HTTP ${response.status}: ${errorText}`);
+    }
+
     assert.equal(response.status, 200);
     assert.doesNotMatch(response.headers.get('content-type') || '', /text\/html/i);
     assert.match(response.headers.get('content-disposition') || '', /attachment/);

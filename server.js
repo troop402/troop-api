@@ -59,13 +59,22 @@ function getTroopWebHostConfig() {
   return { troopUrl, username, password };
 }
 
+function getTroopWebHostRootUrl(troopUrl) {
+  const url = new URL(troopUrl);
+  const pathname = url.pathname
+    .replace(/\/Index\.htm(?:l)?$/i, '')
+    .replace(/\/+$/, '');
+
+  return `${url.origin}${pathname}`;
+}
+
 async function fetchRosterFromTroopWebHost({ troopUrl, username, password }) {
   if (!troopUrl || !username || !password) {
     throw new Error('Missing troopUrl, username, or password.');
   }
 
   const client = makeClient();
-  const rootUrl = troopUrl.replace(/\/Index\.htm$/i, '');
+  const rootUrl = getTroopWebHostRootUrl(troopUrl);
 
   const homeResponse = await client.get(`${rootUrl}/Index.htm`);
   const html = typeof homeResponse.body === 'string' ? homeResponse.body : String(homeResponse.body ?? '');
