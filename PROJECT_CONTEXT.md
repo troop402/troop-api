@@ -84,13 +84,35 @@ To prevent architectural drift and regressions across sessions, the repository m
 
 ## 5. Current State & Roadmap
 
-### Current Version: `0.1.0-alpha`
-* Working `GET /healthz` endpoint.
-* Working `POST /api/export-roster` endpoint with in-memory caching and CSV-first fallback.
-* Fully automated CI with smoke and live integration testing.
+### Current Version: `0.2.0-alpha` (PR #3)
+* **Live Roster Summary (`GET /api/roster/summary`)**: Zero-dependency RFC 4180 CSV parser extracts active member, scout, and adult leader counts with TTL cache and raw CSV export.
+* **Upcoming Events Feed (`GET /api/events`)**: Calendar scraping with date-window filtering (`?days=N`, defaults to 90 days).
+* **Carpool & Attendance Drill-Down (`GET /api/events/:id/carpool`)**: Reverse-engineered TWH FormReport section endpoints:
+  - `SectionID=38199`: Drivers table (direction, seat capacity, vehicle, notes)
+  - `SectionID=730`: Attending adults (leadership roles, SYT status)
+  - `SectionID=967`: Attending scouts (patrol, permission status, swim test)
+  - Computes net vehicle seat balance (surplus/deficit) and cross-references roster for driver phone/email.
+* **Operations Hub & Departure Clipboard (`public/index.html`)**: Interactive dashboard with event selector, capacity banner, driver logistics, roster tables, and single-page `@media print` layout for parking lot departures.
+* **Hosting & Environment**:
+  - Target Troop: `https://www.troopwebhost.org/Troop402lafayette/` (Troop 402 Lafayette, CA).
+  - Production secrets (`TWH_TROOP_URL`, `TWH_USERNAME`, `TWH_PASSWORD`) configured in Render environment.
+  - Automated CI check passes on PR #3.
 
-### Planned Phase 2 Features:
-1. **CSV Parsing to JSON:** Parse the 204 KB CSV payload into structured objects (scouts, adults, patrols, ranks, contact info) using a lightweight streaming/CSV parser.
-2. **Normalized API Endpoints:** Expose clean JSON routes (e.g. `GET /api/roster` or `GET /api/members`).
-3. **Operational Health Probes:** Add dedicated dependency probes (e.g. `GET /twhz`) separate from container liveness (`GET /healthz`).
-4. **Persistent Database (Deferred):** Neon serverless PostgreSQL if historical sync or relational querying is required later.
+---
+
+## 6. Long-Term Architecture & Strategic Roadmap
+
+### Phase 4: Free Database Backing & Asynchronous Sync
+To enable the application to behave like a fast, responsive website without user-facing Render cold starts:
+1. **Free-Tier Database**: Introduce a zero-cost managed database (e.g. Supabase, Turso SQLite, or Neon PostgreSQL) for persistent storage of rosters, events, and carpool logs.
+2. **Asynchronous Background Ingestion**: 
+   - Public frontend / user queries read directly from the database or lightweight edge functions with instantaneous sub-second response times and zero cold starts.
+   - The Render Node.js instance functions as an on-demand scraper/worker: it only needs to spin up when an explicit refresh or scheduled sync runs in the background to ingest updated tables from TroopWebHost into the database.
+3. **Data History & Analytics**: Store historical attendance and driver metrics across past events to better plan carpool needs and monitor scout participation over time.
+
+### Phase 5: Architectural Decoupling (Frontend Extraction)
+* **Current Monorepo Strategy (Phases 1–3)**: Kept `public/index.html` in the same repository as Express and `server.js` to maximize "vibe coding" iteration speed with AI assistants. This allows full-stack changes, live Codespace testing with secrets, OpenAPI spec validation, and PR creation in single conversational turns.
+* **Planned Frontend Extraction (Phase 5)**: 
+  - Once the data schema and database backing stabilize, extract the user-facing web interface into its own repository (e.g. hosted on GitHub Pages or Vercel).
+  - The OpenAPI contract (`openapi/openapi.yaml`) and database schema will serve as the decoupled boundary between the frontend UI repo and the backend TWH ingestion engine.
+  - AI tooling will assist in smoothly migrating the frontend into a standalone application without disrupting the core API.
