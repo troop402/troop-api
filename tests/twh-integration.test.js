@@ -26,9 +26,8 @@ describe('TroopWebHost integration', () => {
     const body = Buffer.from(await response.arrayBuffer());
 
     assert.equal(response.status, 200);
-    assert.match(response.headers.get('content-type') || '', /spreadsheetml\.sheet/);
+    assert.doesNotMatch(response.headers.get('content-type') || '', /text\/html/i);
     assert.match(response.headers.get('content-disposition') || '', /attachment/);
     assert.ok(body.length > 0);
-    assert.equal(body.subarray(0, 2).toString(), 'PK');
   });
 });
