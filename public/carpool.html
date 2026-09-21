@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Event Carpool &amp; Departure Roster | Troop 402</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --success-bg: #ecfdf5;
+      --success-text: #065f46;
+      --success-border: #a7f3d0;
+      --warning-bg: #fffbeb;
+      --warning-text: #92400e;
+      --warning-border: #fde68a;
+      --danger-bg: #fef2f2;
+      --danger-text: #991b1b;
+      --danger-border: #fecaca;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    .container {
+      max-width: 1050px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .event-title-group h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+    }
+
+    .event-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      margin-top: 0.35rem;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    .event-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .btn:hover { background: #f1f5f9; }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    /* Capacity Banner */
+    .capacity-banner {
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      border: 1px solid transparent;
+    }
+    .capacity-banner.surplus {
+      background: var(--success-bg);
+      border-color: var(--success-border);
+      color: var(--success-text);
+    }
+    .capacity-banner.deficit {
+      background: var(--danger-bg);
+      border-color: var(--danger-border);
+      color: var(--danger-text);
+    }
+    .capacity-banner.even {
+      background: #f8fafc;
+      border-color: var(--border);
+      color: #334155;
+    }
+
+    .banner-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .banner-desc {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .stat-pill-group {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .stat-pill {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 8px;
+      padding: 0.4rem 0.8rem;
+      text-align: center;
+      min-width: 75px;
+    }
+    .stat-pill .num {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .stat-pill .lbl {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Tables */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.875rem;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 600;
+      padding: 0.65rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 0.65rem 0.85rem;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #f8fafc; }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 4px;
+      line-height: 1.2;
+    }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-warning { background: #fef3c7; color: #92400e; }
+    .badge-danger { background: #fee2e2; color: #991b1b; }
+    .badge-neutral { background: #e2e8f0; color: #334155; }
+    .badge-scout { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .badge-adult { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+    .badge-open { background: #ecfdf5; color: #047857; font-weight: 700; border: 1px solid #a7f3d0; }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+
+    .search-input {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      width: 220px;
+    }
+
+    .muted { color: var(--text-muted); }
+    .loading-spinner {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+    }
+
+    /* Print Formatting */
+    @media print {
+      body { background: white; padding: 0; font-size: 10pt; color: black; }
+      .actions, .search-input, .no-print { display: none !important; }
+      .container { max-width: 100%; margin: 0; }
+      .card { box-shadow: none; border: 1px solid #ccc; padding: 0.75rem; margin-bottom: 1rem; page-break-inside: avoid; }
+      .capacity-banner { padding: 0.75rem; margin-bottom: 1rem; border: 1px solid #000; }
+      .stat-pill { background: white; border: 1px solid #999; }
+      table { font-size: 9pt; }
+      th, td { padding: 0.35rem 0.5rem; border-color: #ddd; }
+      .table-container { border: 1px solid #ccc; }
+      a { text-decoration: none; color: black; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loadingView" class="loading-spinner">
+      <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🚗 Loading Carpool Logistics...</div>
+      <p>Fetching driver roster, attendance, and capacity balance from Troop 402 API.</p>
+    </div>
+
+    <div id="errorView" class="card" style="display: none; border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger-text);">
+      <h3 style="margin-bottom: 0.5rem;">Unable to Load Event</h3>
+      <p id="errorMsg">Please ensure a valid event ID is provided.</p>
+      <div style="margin-top: 1rem;">
+        <a href="/manager.html" class="btn">Go to Event Manager</a>
+      </div>
+    </div>
+
+    <div id="carpoolContent" style="display: none;">
+      <header>
+        <div class="event-title-group">
+          <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary); font-weight: 700; margin-bottom: 0.2rem;" id="eventTypeBadge">Campout / Trip</div>
+          <h1 id="eventTitle">Event Name</h1>
+          <div class="event-meta">
+            <span id="eventDate">📅 Date</span>
+            <span id="eventLocation">📍 Location</span>
+          </div>
+        </div>
+        <div class="actions no-print">
+          <button id="copyLinkBtn" class="btn" onclick="copyShareableLink()">📋 Copy Shareable Link</button>
+          <button class="btn btn-primary" onclick="window.print()">🖨️ Print Departure Sheet</button>
+          <button id="refreshBtn" class="btn" onclick="refreshData()">🔄 Refresh</button>
+        </div>
+      </header>
+
+      <!-- Scout-Centric Ride Capacity Banner -->
+      <div id="capacityBanner" class="capacity-banner even">
+        <div>
+          <div class="banner-title" id="bannerHeading">Calculating Ride Capacity...</div>
+          <div class="banner-desc" id="bannerDesc">Comparing driver passenger seats with attending scouts.</div>
+        </div>
+        <div class="stat-pill-group">
+          <div class="stat-pill">
+            <div class="num" id="statSeatsOffered">0</div>
+            <div class="lbl">Driver Seats</div>
+          </div>
+          <div class="stat-pill">
+            <div class="num" id="statScouts">0</div>
+            <div class="lbl">Attending Scouts</div>
+          </div>
+          <div class="stat-pill">
+            <div class="num" id="statAssignedScouts">0</div>
+            <div class="lbl">Assigned</div>
+          </div>
+          <div class="stat-pill">
+            <div class="num" id="statUnassignedScouts">0</div>
+            <div class="lbl">Needs Ride</div>
+          </div>
+          <div class="stat-pill">
+            <div class="num" id="statOpenSeats">0</div>
+            <div class="lbl">Open Seats</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drivers & Carpool Roster -->
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">
+            <span>🚙 Registered Drivers &amp; Vehicle Roster</span>
+            <span class="badge badge-neutral" id="driversCountBadge">0 Drivers</span>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Driver Name</th>
+                <th>Trip Leg</th>
+                <th style="text-align:center;">Seats</th>
+                <th>Claimed Riders &amp; Open Spots</th>
+                <th>Vehicle</th>
+                <th>Contact Info</th>
+                <th>Driver Notes</th>
+              </tr>
+            </thead>
+            <tbody id="driversTbody">
+              <tr><td colspan="7" class="muted" style="text-align:center;">Loading drivers...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Attending Scouts Table -->
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">
+            <span>⛺ Attending Scouts</span>
+            <span class="badge badge-neutral" id="scoutsCountBadge">0 Scouts</span>
+          </div>
+          <div class="no-print">
+            <input type="text" id="scoutSearch" class="search-input" placeholder="Search scout or patrol..." oninput="filterScouts()">
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Scout Name</th>
+                <th>Patrol</th>
+                <th>Carpool Ride Status</th>
+                <th>Permission Slip</th>
+                <th>Swim Test</th>
+              </tr>
+            </thead>
+            <tbody id="scoutsTbody">
+              <tr><td colspan="5" class="muted" style="text-align:center;">Loading scouts...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Attending Adults Table -->
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">
+            <span>🧑‍💼 Attending Adults &amp; Leaders</span>
+            <span class="badge badge-neutral" id="adultsCountBadge">0 Adults</span>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Adult Name</th>
+                <th>Leadership Role</th>
+                <th>SYT (Youth Protection)</th>
+                <th>Driver Status</th>
+              </tr>
+            </thead>
+            <tbody id="adultsTbody">
+              <tr><td colspan="4" class="muted" style="text-align:center;">Loading adults...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-top: 2rem; font-size: 0.8rem; color: var(--text-muted); text-align: center;" class="no-print">
+        Troop 402 Lafayette • Updated from TroopWebHost at <span id="cachedAtTime">-</span> • 
+        <a href="/manager.html" style="color: var(--primary);">Open Manager Console</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentData = null;
+    let eventId = new URLSearchParams(window.location.search).get('id')
+      || new URLSearchParams(window.location.search).get('eventId');
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    async function loadCarpool(forceRefresh = false) {
+      if (!eventId) {
+        document.getElementById('loadingView').style.display = 'none';
+        document.getElementById('errorView').style.display = 'block';
+        document.getElementById('errorMsg').textContent = 'No event ID specified in URL. Usage: /carpool.html?id=1957';
+        return;
+      }
+
+      document.getElementById('loadingView').style.display = 'block';
+      document.getElementById('errorView').style.display = 'none';
+      document.getElementById('carpoolContent').style.display = 'none';
+
+      try {
+        // Fetch event metadata from events list if available
+        let eventMeta = null;
+        try {
+          const evRes = await fetch('/api/events');
+          if (evRes.ok) {
+            const evJson = await evRes.json();
+            eventMeta = (evJson.events || []).find(e => String(e.id) === String(eventId));
+          }
+        } catch {}
+
+        const res = await fetch(`/api/events/${eventId}/carpool${forceRefresh ? '?forceRefresh=true' : ''}`);
+        if (!res.ok) {
+          throw new Error(`Server returned HTTP ${res.status}`);
+        }
+        currentData = await res.json();
+        renderPage(currentData, eventMeta);
+
+        document.getElementById('loadingView').style.display = 'none';
+        document.getElementById('carpoolContent').style.display = 'block';
+      } catch (err) {
+        document.getElementById('loadingView').style.display = 'none';
+        document.getElementById('errorView').style.display = 'block';
+        document.getElementById('errorMsg').textContent = err.message || 'Failed to fetch carpool details.';
+      }
+    }
+
+    function renderPage(data, meta) {
+      const { stats, drivers = [], adults = [], scouts = [], cachedAt } = data;
+
+      // Event Meta
+      const title = meta?.title || `Event #${eventId}`;
+      document.title = `${title} Carpool | Troop 402`;
+      document.getElementById('eventTitle').textContent = title;
+      document.getElementById('eventTypeBadge').textContent = meta?.eventType || 'Troop Event';
+      document.getElementById('eventDate').textContent = meta?.start ? `📅 ${meta.start}` : '📅 See TroopWebHost';
+      document.getElementById('eventLocation').textContent = meta?.location ? `📍 ${meta.location}` : '📍 TBA';
+      document.getElementById('cachedAtTime').textContent = cachedAt ? new Date(cachedAt).toLocaleTimeString() : 'Just now';
+
+      // Capacity Banner (Scout-Centric)
+      const banner = document.getElementById('capacityBanner');
+      const heading = document.getElementById('bannerHeading');
+      const desc = document.getElementById('bannerDesc');
+      const balance = stats.seatBalance;
+
+      document.getElementById('statSeatsOffered').textContent = stats.totalSeatsOffered;
+      document.getElementById('statScouts').textContent = stats.totalAttendingScouts;
+      document.getElementById('statAssignedScouts').textContent = stats.assignedScoutsCount || 0;
+      document.getElementById('statUnassignedScouts').textContent = stats.unassignedScoutsCount || 0;
+      document.getElementById('statOpenSeats').textContent = stats.totalOpenSeats || 0;
+
+      if (balance > 0) {
+        banner.className = 'capacity-banner surplus';
+        heading.textContent = `✅ Ride Capacity Sufficient (+${balance} extra seats)`;
+        desc.textContent = `${stats.totalDrivers} drivers offering ${stats.totalSeatsOffered} seats for ${stats.totalAttendingScouts} scouts (${stats.assignedScoutsCount} assigned in driver notes, ${stats.unassignedScoutsCount} unassigned).`;
+      } else if (balance === 0) {
+        banner.className = 'capacity-banner even';
+        heading.textContent = `⚖️ Exact Ride Capacity (0 seats to spare)`;
+        desc.textContent = `${stats.totalSeatsOffered} seats offered exactly match the ${stats.totalAttendingScouts} attending scouts and adult passengers.`;
+      } else {
+        banner.className = 'capacity-banner deficit';
+        const needed = Math.abs(balance);
+        heading.textContent = `⚠️ Action Required: Need ${needed} More Seat${needed > 1 ? 's' : ''} for Scouts!`;
+        desc.textContent = `Only ${stats.totalSeatsOffered} seats offered for ${stats.totalAttendingScouts} scouts and ${stats.adultRidersCount} adult riders. ${stats.unassignedScoutsCount} scouts still need a ride.`;
+      }
+
+      // Drivers Table
+      document.getElementById('driversCountBadge').textContent = `${drivers.length} Drivers`;
+      const driversTbody = document.getElementById('driversTbody');
+      driversTbody.innerHTML = '';
+
+      if (drivers.length === 0) {
+        driversTbody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center; padding: 1.5rem;">No drivers registered on TroopWebHost yet.</td></tr>';
+      } else {
+        drivers.forEach(d => {
+          const tr = document.createElement('tr');
+          const isAttending = d.attending === 'Y';
+          const tripBadge = `<span class="badge ${d.drivingToFrom ? 'badge-neutral' : 'badge-warning'}">${escapeHtml(d.drivingToFrom || 'None')}</span>`;
+          
+          // Contact
+          const contactParts = [];
+          if (d.phone) contactParts.push(escapeHtml(d.phone));
+          if (d.email) contactParts.push(`<a href="mailto:${escapeHtml(d.email)}" style="color:var(--primary); font-size:0.8rem;">${escapeHtml(d.email)}</a>`);
+          const contactHtml = contactParts.length > 0 ? contactParts.join('<br>') : '<span class="muted">-</span>';
+
+          // Vehicle
+          const vehicleHtml = d.registeredVehicle ? escapeHtml(d.registeredVehicle) : '<span class="muted">-</span>';
+
+          // Claimed passengers & open seats badges
+          const tags = [];
+          (d.claimedScouts || []).forEach(s => {
+            tags.push(`<span class="badge badge-scout">Scout: ${escapeHtml(s)}</span>`);
+          });
+          (d.claimedAdults || []).forEach(a => {
+            tags.push(`<span class="badge badge-adult">Adult: ${escapeHtml(a)}</span>`);
+          });
+          if (isAttending && d.seats > 0) {
+            tags.push(`<span class="badge badge-open">${d.openSeats} Open Seat${d.openSeats === 1 ? '' : 's'}</span>`);
+          }
+          const tagsHtml = tags.length > 0 ? `<div class="tag-list">${tags.join('')}</div>` : '<span class="muted">No riders itemized</span>';
+
+          tr.innerHTML = `
+            <td>
+              <strong>${escapeHtml(d.name)}</strong>
+              ${!isAttending ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Not Attending</span>' : ''}
+            </td>
+            <td>${tripBadge}</td>
+            <td style="text-align:center; font-weight:700; font-size:1.05rem;">${d.seats}</td>
+            <td>${tagsHtml}</td>
+            <td style="font-size:0.85rem;">${vehicleHtml}</td>
+            <td style="font-size:0.85rem;">${contactHtml}</td>
+            <td style="font-size:0.85rem; color:#475569;">${escapeHtml(d.comment || '-')}</td>
+          `;
+          driversTbody.appendChild(tr);
+        });
+      }
+
+      // Scouts Table
+      renderScoutsTable(scouts);
+
+      // Adults Table
+      document.getElementById('adultsCountBadge').textContent = `${adults.length} Adults`;
+      const adultsTbody = document.getElementById('adultsTbody');
+      adultsTbody.innerHTML = '';
+      if (adults.length === 0) {
+        adultsTbody.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding: 1.5rem;">No adult leaders registered yet.</td></tr>';
+      } else {
+        adults.forEach(a => {
+          const isDriver = drivers.some(d => d.name.toLowerCase() === a.name.toLowerCase() && d.attending === 'Y');
+          const isRider = drivers.some(d => (d.claimedAdults || []).some(ca => ca.toLowerCase().includes(a.name.split(',')[0].toLowerCase())));
+          
+          let driveBadge = '<span class="badge badge-neutral">Self-Drive / Passenger</span>';
+          if (isDriver) driveBadge = '<span class="badge badge-success">🚙 Registered Driver</span>';
+          else if (isRider) driveBadge = '<span class="badge badge-adult">🚗 Riding with Driver</span>';
+
+          const sytBadge = a.sytStatus?.toLowerCase() === 'current'
+            ? '<span class="badge badge-success">Current</span>'
+            : `<span class="badge badge-warning">${escapeHtml(a.sytStatus || 'Unknown')}</span>`;
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${escapeHtml(a.name)}</strong></td>
+            <td>${escapeHtml(a.leadership || 'Adult Leader')}</td>
+            <td>${sytBadge}</td>
+            <td>${driveBadge}</td>
+          `;
+          adultsTbody.appendChild(tr);
+        });
+      }
+    }
+
+    function renderScoutsTable(scouts) {
+      document.getElementById('scoutsCountBadge').textContent = `${scouts.length} Scouts`;
+      const scoutsTbody = document.getElementById('scoutsTbody');
+      scoutsTbody.innerHTML = '';
+
+      if (scouts.length === 0) {
+        scoutsTbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center; padding: 1.5rem;">No scouts registered yet.</td></tr>';
+        return;
+      }
+
+      const q = (document.getElementById('scoutSearch')?.value || '').trim().toLowerCase();
+      const filtered = scouts.filter(s => {
+        if (!q) return true;
+        return s.name.toLowerCase().includes(q) || (s.patrol || '').toLowerCase().includes(q);
+      });
+
+      if (filtered.length === 0) {
+        scoutsTbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center; padding: 1rem;">No scouts matching search.</td></tr>';
+        return;
+      }
+
+      filtered.forEach(s => {
+        const tr = document.createElement('tr');
+        
+        let rideBadge;
+        if (s.assignedDriver) {
+          rideBadge = `<span class="badge badge-success" title="Claimed in driver note">🚗 Riding with ${escapeHtml(s.assignedDriver)}</span>`;
+        } else {
+          rideBadge = '<span class="badge badge-warning">⚠️ Needs Ride / Unassigned</span>';
+        }
+
+        const permBadge = s.permissionGiven?.toLowerCase() === 'yes'
+          ? '<span class="badge badge-success">Yes</span>'
+          : `<span class="badge badge-warning">${escapeHtml(s.permissionGiven || 'No')}</span>`;
+
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(s.name)}</strong></td>
+          <td>${escapeHtml(s.patrol || 'Unassigned')}</td>
+          <td>${rideBadge}</td>
+          <td>${permBadge}</td>
+          <td>${escapeHtml(s.swimTest || '-')}</td>
+        `;
+        scoutsTbody.appendChild(tr);
+      });
+    }
+
+    function filterScouts() {
+      if (currentData?.scouts) {
+        renderScoutsTable(currentData.scouts);
+      }
+    }
+
+    function copyShareableLink() {
+      const url = window.location.href;
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById('copyLinkBtn');
+        const orig = btn.textContent;
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 2000);
+      });
+    }
+
+    function refreshData() {
+      loadCarpool(true);
+    }
+
+    // Auto-load on page ready
+    loadCarpool();
+  </script>
+</body>
+</html>

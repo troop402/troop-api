@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manager Console | Troop 402</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --success-bg: #ecfdf5;
+      --success-text: #065f46;
+      --success-border: #a7f3d0;
+      --warning-bg: #fffbeb;
+      --warning-text: #92400e;
+      --warning-border: #fde68a;
+      --danger-bg: #fef2f2;
+      --danger-text: #991b1b;
+      --danger-border: #fecaca;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .title-area h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .title-area p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .stat-box {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .stat-box .number {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .stat-box .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 1.1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .btn:hover { background: #f1f5f9; }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-success {
+      background: #10b981;
+      color: white;
+      border-color: #10b981;
+    }
+    .btn-success:hover { background: #059669; }
+
+    /* Filter Pills */
+    .filter-pills {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .filter-pill {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: white;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .filter-pill.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    select {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      font-size: 0.95rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: white;
+      color: var(--text);
+      margin-bottom: 1.25rem;
+    }
+
+    /* Event Launch Card */
+    .event-launch-box {
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 1.25rem;
+      display: none;
+    }
+    .launch-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .launch-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .launch-meta {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 4px;
+    }
+    .badge-neutral { background: #e2e8f0; color: #334155; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-danger { background: #fee2e2; color: #991b1b; }
+
+    .muted { color: var(--text-muted); font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title-area">
+        <h1>Troop 402 Manager Console</h1>
+        <p>Operational control, TroopWebHost roster cache, and event carpool hub.</p>
+      </div>
+      <div>
+        <a href="/" class="btn" style="font-size: 0.8rem;">Public Status &rarr;</a>
+      </div>
+    </header>
+
+    <!-- Roster Status Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>👥 Troop Roster &amp; Member Sync</span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="number" id="totalMembers">-</div>
+          <div class="label">Total Members</div>
+        </div>
+        <div class="stat-box">
+          <div class="number" id="scoutsCount">-</div>
+          <div class="label">Active Scouts</div>
+        </div>
+        <div class="stat-box">
+          <div class="number" id="adultsCount">-</div>
+          <div class="label">Adult Leaders</div>
+        </div>
+        <div class="stat-box">
+          <div class="number" id="cacheAge" style="font-size: 1.1rem; padding-top: 0.35rem;">-</div>
+          <div class="label" id="cacheLabel">Cache Status</div>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button id="refreshRosterBtn" class="btn" onclick="fetchRosterSummary(true)">🔄 Force Sync from TWH</button>
+        <button id="downloadCsvBtn" class="btn" onclick="downloadRosterCsv()">📥 Download Roster CSV</button>
+      </div>
+    </div>
+
+    <!-- Event Carpool Explorer -->
+    <div class="card">
+      <div class="card-title">
+        <span>🚙 Event Carpool Hub</span>
+      </div>
+      <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">
+        Select an event to open or share its dedicated carpool and departure roster.
+      </p>
+
+      <!-- Filter Pills -->
+      <div class="filter-pills">
+        <button id="filterCarpoolBtn" class="filter-pill active" onclick="setFilter('carpool')">
+          🏕️ Carpool Candidates Only (<span id="carpoolEventsCount">...</span>)
+        </button>
+        <button id="filterAllBtn" class="filter-pill" onclick="setFilter('all')">
+          📋 All Upcoming Events (<span id="allEventsCount">...</span>)
+        </button>
+      </div>
+
+      <select id="eventSelect" onchange="onEventSelected()">
+        <option value="">-- Loading Upcoming Events... --</option>
+      </select>
+
+      <!-- Selected Event Actions & Preview -->
+      <div id="eventLaunchBox" class="event-launch-box">
+        <div class="launch-header">
+          <div>
+            <div class="launch-title" id="launchEventTitle">Mt. Lassen</div>
+            <div class="launch-meta">
+              <span id="launchEventDate">📅 Oct 10, 2026</span> • 
+              <span id="launchEventLocation">📍 Mt. Lassen State Park</span> • 
+              <span id="launchEventType">Campout</span>
+            </div>
+          </div>
+          <span class="badge badge-neutral" id="launchEventIdBadge">ID: #1957</span>
+        </div>
+
+        <!-- Quick Capacity Indicator -->
+        <div id="quickCapacityIndicator" style="margin-bottom: 1rem; font-size: 0.9rem;">
+          Loading capacity overview...
+        </div>
+
+        <div class="btn-group">
+          <a id="openCarpoolLink" href="#" target="_blank" class="btn btn-primary" style="font-size: 0.95rem; padding: 0.65rem 1.25rem;">
+            🚗 Open Shareable Carpool Page &rarr;
+          </a>
+          <button id="copyCarpoolBtn" class="btn" onclick="copyEventLink()">📋 Copy Shareable Link</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: 2rem;">
+      Troop 402 Lafayette • Internal Management Console • Deployed on Render
+    </div>
+  </div>
+
+  <script>
+    let allEvents = [];
+    let currentFilter = 'carpool'; // 'carpool' or 'all'
+
+    async function fetchRosterSummary(forceRefresh = false) {
+      const btn = document.getElementById('refreshRosterBtn');
+      btn.disabled = true;
+      btn.textContent = 'Syncing...';
+
+      try {
+        const res = await fetch(`/api/roster/summary${forceRefresh ? '?forceRefresh=true' : ''}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        document.getElementById('totalMembers').textContent = data.totalMembers;
+        document.getElementById('scoutsCount').textContent = data.scoutsCount;
+        document.getElementById('adultsCount').textContent = data.adultsCount;
+
+        const date = new Date(data.cachedAt);
+        document.getElementById('cacheAge').textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('cacheLabel').textContent = data.fresh ? 'Cached at' : 'Just Updated';
+      } catch (err) {
+        document.getElementById('cacheAge').textContent = 'Error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔄 Force Sync from TWH';
+      }
+    }
+
+    async function downloadRosterCsv() {
+      const btn = document.getElementById('downloadCsvBtn');
+      btn.disabled = true;
+      btn.textContent = 'Downloading...';
+
+      try {
+        const res = await fetch('/api/export-roster', { method: 'POST' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `troop_402_roster_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('Download failed: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📥 Download Roster CSV';
+      }
+    }
+
+    async function loadEvents() {
+      try {
+        const res = await fetch('/api/events');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        allEvents = data.events || [];
+
+        const carpoolCandidates = allEvents.filter(e => e.isCarpoolCandidate);
+        document.getElementById('carpoolEventsCount').textContent = carpoolCandidates.length;
+        document.getElementById('allEventsCount').textContent = allEvents.length;
+
+        renderEventSelect();
+      } catch (err) {
+        document.getElementById('eventSelect').innerHTML = `<option value="">Error loading events: ${err.message}</option>`;
+      }
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.getElementById('filterCarpoolBtn').className = `filter-pill ${filter === 'carpool' ? 'active' : ''}`;
+      document.getElementById('filterAllBtn').className = `filter-pill ${filter === 'all' ? 'active' : ''}`;
+      renderEventSelect();
+    }
+
+    function renderEventSelect() {
+      const select = document.getElementById('eventSelect');
+      const filtered = currentFilter === 'carpool'
+        ? allEvents.filter(e => e.isCarpoolCandidate)
+        : allEvents;
+
+      select.innerHTML = '<option value="">-- Choose an Event to View Carpool --</option>';
+      filtered.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        const dateStr = e.start ? e.start.split(' ')[0] : '';
+        const locStr = e.location ? ` (${e.location})` : '';
+        opt.textContent = `${dateStr} - ${e.title}${locStr}`;
+        select.appendChild(opt);
+      });
+
+      // Default to Mt. Lassen if present
+      const lassen = filtered.find(e => /lassen/i.test(e.title));
+      if (lassen) {
+        select.value = lassen.id;
+        onEventSelected();
+      } else {
+        document.getElementById('eventLaunchBox').style.display = 'none';
+      }
+    }
+
+    async function onEventSelected() {
+      const select = document.getElementById('eventSelect');
+      const eventId = select.value;
+      const box = document.getElementById('eventLaunchBox');
+
+      if (!eventId) {
+        box.style.display = 'none';
+        return;
+      }
+
+      const ev = allEvents.find(e => String(e.id) === String(eventId));
+      document.getElementById('launchEventTitle').textContent = ev?.title || `Event #${eventId}`;
+      document.getElementById('launchEventDate').textContent = `📅 ${ev?.start || 'See TWH'}`;
+      document.getElementById('launchEventLocation').textContent = `📍 ${ev?.location || 'TBA'}`;
+      document.getElementById('launchEventType').textContent = ev?.eventType || 'Trip';
+      document.getElementById('launchEventIdBadge').textContent = `ID: #${eventId}`;
+
+      const carpoolUrl = `/carpool.html?id=${eventId}`;
+      document.getElementById('openCarpoolLink').href = carpoolUrl;
+      box.style.display = 'block';
+
+      // Quick preview of capacity
+      const indicator = document.getElementById('quickCapacityIndicator');
+      indicator.innerHTML = '<span class="muted">Loading quick capacity preview...</span>';
+
+      try {
+        const res = await fetch(`/api/events/${eventId}/carpool`);
+        if (res.ok) {
+          const cp = await res.json();
+          const { stats } = cp;
+          const balance = stats.seatBalance;
+          let badge = '';
+          if (balance > 0) {
+            badge = `<span class="badge badge-success">+${balance} Extra Seats for Scouts</span>`;
+          } else if (balance === 0) {
+            badge = `<span class="badge badge-neutral">Exact Capacity</span>`;
+          } else {
+            badge = `<span class="badge badge-danger">⚠️ Need ${Math.abs(balance)} More Seats for Scouts</span>`;
+          }
+
+          indicator.innerHTML = `
+            <strong>Capacity Status:</strong> ${badge} &nbsp;•&nbsp; 
+            <strong>Drivers:</strong> ${stats.totalDrivers} (${stats.totalSeatsOffered} seats) &nbsp;•&nbsp; 
+            <strong>Scouts:</strong> ${stats.totalAttendingScouts} (${stats.unassignedScoutsCount} unassigned)
+          `;
+        }
+      } catch {
+        indicator.innerHTML = '';
+      }
+    }
+
+    function copyEventLink() {
+      const select = document.getElementById('eventSelect');
+      const eventId = select.value;
+      if (!eventId) return;
+
+      const fullUrl = `${window.location.origin}/carpool.html?id=${eventId}`;
+      navigator.clipboard.writeText(fullUrl).then(() => {
+        const btn = document.getElementById('copyCarpoolBtn');
+        const orig = btn.textContent;
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 2000);
+      });
+    }
+
+    // Init
+    fetchRosterSummary();
+    loadEvents();
+  </script>
+</body>
+</html>
