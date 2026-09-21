@@ -24,12 +24,13 @@ This file is not meant to explain every implementation detail. It exists to be t
 3.1 The project will expose a lightweight health check endpoint.
 3.2 The health check endpoint will return a successful status when the app process is alive and able to respond.
 3.3 The project will provide an export endpoint for the troop roster data.
-3.4 The export endpoint will accept TroopWebHost credentials and a troop URL in a structured request body.
-3.5 The export endpoint will attempt to retrieve the proper roster file from TroopWebHost and return it in a way suitable for browser download.
+3.4 The export endpoint will use the configured TroopWebHost account held by the server environment.
+3.5 The export endpoint will retrieve the roster CSV from TroopWebHost and return it in a way suitable for browser download.
+3.5.1 The service will request CSV first and may retry with the TroopWebHost XLS format if the CSV response is unusable.
 3.6 The service should avoid issuing duplicate external fetches when multiple requests arrive at the same time.
 3.7 The service should cache recent export data in memory to reduce redundant work.
 3.8 When the export fails, the service should return a clear error rather than silently succeeding.
-3.9 Missing required data should produce a predictable validation error with a clear response status.
+3.9 Missing server configuration should produce a predictable error with a clear response status.
 
 ## 4. Expected endpoint behaviors
 
@@ -41,9 +42,10 @@ A.4 It should not require authentication.
 
 ### B. POST /api/export-roster
 B.1 This endpoint exists to export roster data from TroopWebHost.
-B.2 It should accept a JSON payload containing the troop URL, username, and password.
-B.3 It should validate required fields before attempting the export.
-B.4 It should return a downloadable Excel file when successful.
+B.2 It should use `TWH_TROOP_URL`, `TWH_USERNAME`, and `TWH_PASSWORD` from the server environment.
+B.3 It should not require callers to send TroopWebHost credentials.
+B.4 It should return a downloadable CSV file when successful.
+B.4.1 It should try the CSV report format first and use XLS as a fallback when necessary.
 B.5 It should set reasonable response headers for file download behavior.
 B.6 It should return clear JSON errors for missing fields and request failures.
 B.7 It should use caching and in-flight de-duping to avoid repeated expensive requests.
@@ -51,7 +53,7 @@ B.7 It should use caching and in-flight de-duping to avoid repeated expensive re
 ## 5. Operational promises
 5.1 Sensitive credentials should not be committed to the repository.
 5.2 Secret values should live in environment variables or host-managed secrets.
-5.3 The service should keep TroopWebHost credentials away from public browser code when possible.
+5.3 The service must keep TroopWebHost credentials out of public browser code and request bodies.
 5.4 The API contract should be kept in sync with the code, even during alpha.
 5.5 Documentation should be reviewed alongside code changes when API behavior changes.
 

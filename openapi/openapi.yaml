@@ -39,40 +39,27 @@ paths:
     post:
       operationId: exportRoster
       summary: Export the roster from TroopWebHost
-      description: Authenticates to TroopWebHost and returns the roster export as an Excel file.
+      description: Authenticates to TroopWebHost and returns the roster export as a CSV file.
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
               type: object
-              required:
-                - troopUrl
-                - username
-                - password
               properties:
-                troopUrl:
-                  type: string
-                  example: https://www.troopwebhost.org/Troop402lafayette/Index.htm
-                username:
-                  type: string
-                  example: troopadmin
-                password:
-                  type: string
-                  example: secret
                 forceRefresh:
                   type: boolean
                   example: false
       responses:
         '200':
-          description: Excel roster export returned successfully
+          description: CSV roster export returned successfully
           content:
-            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            text/csv:
               schema:
                 type: string
-                format: binary
+                example: 'Name,Email,Phone\nExample Scout,scout@example.com,555-0100'
         '400':
-          description: Missing required request data
+          description: Invalid request data
           content:
             application/json:
               schema:
@@ -81,7 +68,7 @@ paths:
                   error:
                     type: string
         '500':
-          description: Export or auth failed
+          description: Server configuration, export, or authentication failed
           content:
             application/json:
               schema:

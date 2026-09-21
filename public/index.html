@@ -79,22 +79,9 @@
     <main class="panel">
       <h1>Export Troop Roster</h1>
       <form id="exportForm">
-        <label>
-          Troop URL
-          <input id="troopUrl" value="https://www.troopwebhost.org/Troop402lafayette/Index.htm" required />
-        </label>
+        <p>The server uses its configured TroopWebHost account.</p>
 
-        <label>
-          Username
-          <input id="username" required />
-        </label>
-
-        <label>
-          Password
-          <input id="password" type="password" required />
-        </label>
-
-        <button id="submitButton" type="submit">Download .xlsx</button>
+        <button id="submitButton" type="submit">Download .csv</button>
       </form>
       <div id="status"></div>
     </main>
@@ -115,11 +102,7 @@
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              troopUrl: document.getElementById('troopUrl').value,
-              username: document.getElementById('username').value,
-              password: document.getElementById('password').value,
-            }),
+            body: JSON.stringify({}),
           });
 
           if (!response.ok) {
@@ -131,7 +114,7 @@
           const url = window.URL.createObjectURL(blob);
           const anchor = document.createElement('a');
           anchor.href = url;
-          anchor.download = 'troop_roster.xlsx';
+          anchor.download = 'troop_roster.csv';
           document.body.appendChild(anchor);
           anchor.click();
           anchor.remove();

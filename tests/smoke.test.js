@@ -23,16 +23,31 @@ describe('API smoke tests', () => {
     assert.equal(await response.text(), 'OK');
   });
 
-  it('rejects an export request with missing credentials', async () => {
-    const response = await fetch(`${baseUrl}/api/export-roster`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ troopUrl: 'https://example.com' }),
-    });
+  it('reports missing server credentials without contacting TroopWebHost', async () => {
+    const environment = {
+      TWH_TROOP_URL: process.env.TWH_TROOP_URL,
+      TWH_USERNAME: process.env.TWH_USERNAME,
+      TWH_PASSWORD: process.env.TWH_PASSWORD,
+    };
 
-    assert.equal(response.status, 400);
+    delete process.env.TWH_TROOP_URL;
+    delete process.env.TWH_USERNAME;
+    delete process.env.TWH_PASSWORD;
+
+    let response;
+    try {
+      response = await fetch(`${baseUrl}/api/export-roster`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+    } finally {
+      Object.assign(process.env, environment);
+    }
+
+    assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), {
-      error: 'Missing troopUrl, username, or password.',
+      error: 'TroopWebHost environment variables are not configured.',
     });
   });
 });

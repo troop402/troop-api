@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  checks: write
 
 jobs:
   validate:
@@ -15,10 +16,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -26,8 +27,42 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
+      - name: Run smoke tests
+        run: |
+          mkdir -p test-results
+          node --check server.js
+          node --test \
+            --test-reporter=junit \
+            --test-reporter-destination=test-results/smoke.xml \
+            tests/smoke.test.js
 
       - name: Validate OpenAPI contract
         run: npm run api:validate
+
+      - name: Test live TroopWebHost export
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          node --test \
+            --test-reporter=junit \
+            --test-reporter-destination=test-results/integration.xml \
+            tests/twh-integration.test.js
+        env:
+          TWH_TROOP_URL: ${{ secrets.TWH_TROOP_URL }}
+          TWH_USERNAME: ${{ secrets.TWH_USERNAME }}
+          TWH_PASSWORD: ${{ secrets.TWH_PASSWORD }}
+
+      - name: Publish test results
+        if: always()
+        continue-on-error: true
+        uses: dorny/test-reporter@v3
+        with:
+          name: Node test results
+          path: test-results/*.xml
+          reporter: java-junit
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: test-results/

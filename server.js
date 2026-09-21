@@ -32,8 +32,8 @@ function isCacheFresh() {
 
 function sendDownload(res, buffer, cacheHit) {
   res.setHeader('X-Cache-Hit', String(cacheHit));
-  res.setHeader('Content-Disposition', 'attachment; filename="troop_roster.xlsx"');
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="troop_roster.csv"');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   return res.send(buffer);
 }
 
@@ -49,25 +49,67 @@ function makeClient() {
   });
 }
 
-async function fetchRosterFromTroopWebHost({ troopUrl, username, password }) {
+function getTroopWebHostConfig() {
+  const { TWH_TROOP_URL: troopUrl, TWH_USERNAME: username, TWH_PASSWORD: password } = process.env;
+
+  if (!troopUrl || !username || !password) {
+    throw new Error('TroopWebHost environment variables are not configured.');
+  }
+
+  return { troopUrl, username, password };
+}
+
+function getTroopWebHostRootUrl(troopUrl) {
+  const url = new URL(troopUrl);
+  const pathname = url.pathname
+    .replace(/\/Index\.htm(?:l)?$/i, '')
+    .replace(/\/+$/, '');
+
+  return `${url.origin}${pathname}`;
+}
+
+async function authenticateTroopWebHost({ troopUrl, username, password }) {
   if (!troopUrl || !username || !password) {
     throw new Error('Missing troopUrl, username, or password.');
   }
 
   const client = makeClient();
-  const rootUrl = troopUrl.replace(/\/Index\.htm$/i, '');
+  const rootUrl = getTroopWebHostRootUrl(troopUrl);
 
   const homeResponse = await client.get(`${rootUrl}/Index.htm`);
-  const html = typeof homeResponse.body === 'string' ? homeResponse.body : String(homeResponse.body ?? '');
+  let html = typeof homeResponse.body === 'string' ? homeResponse.body : String(homeResponse.body ?? '');
 
   if (!html) {
     throw new Error('Unable to load TroopWebHost landing page.');
   }
 
-  const $ = cheerio.load(html);
+  let $ = cheerio.load(html);
+  let loginResponse = homeResponse;
+
+  if ($('form').length === 0) {
+    const redirectResponse = await client.get(`${rootUrl}/Redirect.htm`);
+    const $redirect = cheerio.load(String(redirectResponse.body ?? ''));
+    const redirectAction = $redirect('form').attr('action');
+    if (!redirectAction) {
+      throw new Error('TroopWebHost landing page did not provide a login redirect.');
+    }
+
+    const loginUrl = new URL(redirectAction, redirectResponse.url).toString();
+    loginResponse = await client.get(loginUrl);
+    html = typeof loginResponse.body === 'string'
+      ? loginResponse.body
+      : String(loginResponse.body ?? '');
+    $ = cheerio.load(html);
+  }
+
+  const loginForm = $('form').first();
+  if (loginForm.length === 0) {
+    throw new Error('TroopWebHost login form was not found.');
+  }
+
   const loginPayload = {};
 
-  $('form input').each((_, element) => {
+  loginForm.find('input').each((_, element) => {
     const name = $(element).attr('name');
     if (!name) {
       return;
@@ -76,52 +118,94 @@ async function fetchRosterFromTroopWebHost({ troopUrl, username, password }) {
     loginPayload[name] = $(element).attr('value') || '';
   });
 
-  const userInputName = $('input[type="text"][name*="User" i]').attr('name') || 'txtUser';
-  const passInputName = $('input[type="password"]').attr('name') || 'txtPassword';
-  const submitName = $('input[type="submit"][value*="Log On" i]').attr('name') || 'btnLogOn';
+  const userInputName = loginForm.find('input[type="text"][name*="User" i]').attr('name') || 'txtUser';
+  const passInputName = loginForm.find('input[type="password"]').attr('name') || 'txtPassword';
 
   loginPayload[userInputName] = username;
   loginPayload[passInputName] = password;
-  loginPayload[submitName] = 'Log On';
+  loginPayload.Selected_Action = 'login';
+  loginPayload.Selected_Button_ID = loginForm.find('input[name="login"]').attr('id') || 'login';
 
-  const formAction = $('form').attr('action') || 'Index.htm';
-  const postUrl = formAction.startsWith('http') ? formAction : `${rootUrl}/${formAction}`;
+  const formAction = loginForm.attr('action') || loginResponse.url;
+  const postUrl = new URL(formAction, loginResponse.url).toString();
 
-  await client.post(postUrl, {
+  const loginPostResponse = await client.post(postUrl, {
     form: loginPayload,
-    followRedirect: true,
+    followRedirect: false,
     headers: {
       Referer: `${rootUrl}/Index.htm`,
     },
   });
 
-  const reportUrl = `${rootUrl}/FormReport.aspx?Menu_Item_ID=45897&Stack=1&ReportFormat=XLS`;
-  const reportResponse = await client.get(reportUrl, {
-    responseType: 'buffer',
-    headers: {
-      Referer: `${rootUrl}/Index.htm`,
-    },
-  });
+  if (loginPostResponse.statusCode >= 300 && loginPostResponse.statusCode < 400) {
+    const redirectUrl = loginPostResponse.headers.location;
+    if (!redirectUrl) {
+      throw new Error('TroopWebHost login did not provide a redirect.');
+    }
 
-  const reportBody = reportResponse.body ?? reportResponse.rawBody;
-  const reportBuffer = Buffer.isBuffer(reportBody)
-    ? reportBody
-    : Buffer.from(reportBody ?? '');
+    const authenticatedResponse = await client.get(new URL(redirectUrl, postUrl).toString(), {
+      followRedirect: false,
+    });
 
-  const contentType = String(reportResponse.headers['content-type'] || '');
-
-  if (reportBuffer.length === 0 || contentType.includes('text/html')) {
-    throw new Error('Authentication failed or the export could not be retrieved.');
+    return { client, rootUrl, loginUrl: authenticatedResponse.url, authenticatedResponse };
   }
 
-  return reportBuffer;
+  return { client, rootUrl, loginUrl: loginResponse.url, authenticatedResponse: loginPostResponse };
+}
+
+async function downloadRosterExport({ client, rootUrl, loginUrl }) {
+  let lastError;
+
+  for (const format of ['CSV', 'XLS']) {
+    try {
+      const reportUrl = new URL(
+        `/FormReport.aspx?Menu_Item_ID=45897&Stack=1&ReportFormat=${format}`,
+        loginUrl,
+      ).toString();
+      const reportResponse = await client.get(reportUrl, {
+        responseType: 'buffer',
+        headers: {
+          Referer: `${rootUrl}/Index.htm`,
+        },
+      });
+
+      const reportBody = reportResponse.body ?? reportResponse.rawBody;
+      const reportBuffer = Buffer.isBuffer(reportBody)
+        ? reportBody
+        : Buffer.from(reportBody ?? '');
+      const contentType = String(reportResponse.headers['content-type'] || '');
+
+      if (
+        reportResponse.statusCode >= 200
+        && reportResponse.statusCode < 300
+        && reportBuffer.length > 0
+        && !contentType.includes('text/html')
+      ) {
+        return reportBuffer;
+      }
+
+      lastError = new Error(`TroopWebHost returned an unusable ${format} export response.`);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(lastError?.message || 'Authentication failed or the export could not be retrieved.');
+}
+
+async function fetchRosterFromTroopWebHost(config) {
+  const session = await authenticateTroopWebHost(config);
+  return downloadRosterExport(session);
 }
 
 app.post('/api/export-roster', async (req, res) => {
-  const { troopUrl, username, password, forceRefresh } = req.body;
+  const { forceRefresh } = req.body;
 
-  if (!troopUrl || !username || !password) {
-    return res.status(400).json({ error: 'Missing troopUrl, username, or password.' });
+  let troopWebHostConfig;
+  try {
+    troopWebHostConfig = getTroopWebHostConfig();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 
   if (!forceRefresh && isCacheFresh()) {
@@ -138,7 +222,7 @@ app.post('/api/export-roster', async (req, res) => {
   }
 
   try {
-    activeFetchPromise = fetchRosterFromTroopWebHost({ troopUrl, username, password });
+    activeFetchPromise = fetchRosterFromTroopWebHost(troopWebHostConfig);
     const result = await activeFetchPromise;
     cache.data = result;
     cache.timestamp = Date.now();
@@ -151,7 +235,7 @@ app.post('/api/export-roster', async (req, res) => {
   }
 });
 
-export { app };
+export { app, authenticateTroopWebHost, downloadRosterExport };
 
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
 
