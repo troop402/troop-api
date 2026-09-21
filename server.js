@@ -32,8 +32,8 @@ function isCacheFresh() {
 
 function sendDownload(res, buffer, cacheHit) {
   res.setHeader('X-Cache-Hit', String(cacheHit));
-  res.setHeader('Content-Disposition', 'attachment; filename="troop_roster.xlsx"');
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="troop_roster.csv"');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   return res.send(buffer);
 }
 
@@ -155,7 +155,7 @@ async function authenticateTroopWebHost({ troopUrl, username, password }) {
 
 async function downloadRosterExport({ client, rootUrl, loginUrl }) {
   const reportUrl = new URL(
-    '/FormReport.aspx?Menu_Item_ID=45897&Stack=1&ReportFormat=XLS',
+    '/FormReport.aspx?Menu_Item_ID=45897&Stack=1&ReportFormat=CSV',
     loginUrl,
   ).toString();
   const reportResponse = await client.get(reportUrl, {

@@ -81,7 +81,7 @@
       <form id="exportForm">
         <p>The server uses its configured TroopWebHost account.</p>
 
-        <button id="submitButton" type="submit">Download .xlsx</button>
+        <button id="submitButton" type="submit">Download .csv</button>
       </form>
       <div id="status"></div>
     </main>
@@ -114,7 +114,7 @@
           const url = window.URL.createObjectURL(blob);
           const anchor = document.createElement('a');
           anchor.href = url;
-          anchor.download = 'troop_roster.xlsx';
+          anchor.download = 'troop_roster.csv';
           document.body.appendChild(anchor);
           anchor.click();
           anchor.remove();

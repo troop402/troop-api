@@ -44,8 +44,8 @@ describe('TroopWebHost integration', () => {
     }
 
     assert.equal(response.status, 200);
-    assert.doesNotMatch(response.headers.get('content-type') || '', /text\/html/i);
-    assert.match(response.headers.get('content-disposition') || '', /attachment/);
+    assert.match(response.headers.get('content-type') || '', /^text\/csv/i);
+    assert.match(response.headers.get('content-disposition') || '', /troop_roster\.csv/);
     assert.ok(body.length > 0);
 
     if (process.env.TWH_EXPORT_OUTPUT_PATH) {

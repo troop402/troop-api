@@ -39,7 +39,7 @@ paths:
     post:
       operationId: exportRoster
       summary: Export the roster from TroopWebHost
-      description: Authenticates to TroopWebHost and returns the roster export as an Excel file.
+      description: Authenticates to TroopWebHost and returns the roster export as a CSV file.
       requestBody:
         required: false
         content:
@@ -52,12 +52,12 @@ paths:
                   example: false
       responses:
         '200':
-          description: Excel roster export returned successfully
+          description: CSV roster export returned successfully
           content:
-            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            text/csv:
               schema:
                 type: string
-                format: binary
+                example: 'Name,Email,Phone\nExample Scout,scout@example.com,555-0100'
         '400':
           description: Invalid request data
           content:
