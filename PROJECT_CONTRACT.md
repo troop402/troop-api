@@ -66,10 +66,15 @@ D.5 It caches the events list in memory to minimize load on TroopWebHost.
 ### E. GET /api/events/:id/carpool
 E.1 This endpoint returns combined carpool, attendance details, and comment intelligence for a specific event ID.
 E.2 It retrieves driver registrations (`SectionID=38199`), attending adults (`SectionID=730`), and attending scouts (`SectionID=967`).
-E.3 It calculates scout-centric carpool statistics: total drivers, total seats offered, total attending scouts, assigned scouts in driver notes, unassigned scouts needing rides, adult riders in vehicles, and net scout seat balance (surplus/deficit).
-E.4 It cross-references driver contact details (phone, email, registered vehicle) from the cached roster where matched.
-E.5 It parses driver comments against the attendee roster to itemize claimed scouts, adult passengers, and calculate remaining open seats per vehicle.
+E.3 It calculates scout-centric carpool statistics: total drivers, total seats offered, total attending scouts, assigned scouts in driver notes, unassigned scouts needing rides, adult riders in vehicles, net scout seat balance (surplus/deficit), non-compliant drivers count, and leadership clarifications needed.
+E.4 It cross-references driver contact details (phone, email, registered vehicle) from the cached roster and safety training compliance from the attending adults roster (`sytStatus`, `stateTraining`, `bsaRegistered`, `isCompliant`). A driver is marked compliant only if both SYT and State Training (CA AB 506) statuses are 'Current'.
+E.5 It parses driver comments against the attendee roster using layered name resolution:
+E.5.1 Full-name matches and family matches (matching driver surname) are confirmed automatically.
+E.5.2 Unique first-name matches among attendees are matched when unambiguous.
+E.5.3 Ambiguous first-name collisions (multiple attending scouts sharing the name) are never blindly assigned: they are logged in `clarificationsNeeded` with candidate rosters and tagged as `rideStatus: 'ambiguous'` on affected scouts so leaders can prompt drivers for full names.
+E.5.4 Explicit open-seat notes in driver comments (e.g. "and 2 more") override derived calculations.
 E.6 It returns 400 for invalid or missing event IDs, and 500 if TroopWebHost retrieval fails.
+
 
 
 ## 5. Operational promises

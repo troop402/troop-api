@@ -84,17 +84,25 @@ To prevent architectural drift and regressions across sessions, the repository m
 
 ## 5. Current State & Roadmap
 
-### Current Version: `0.3.0-alpha`
+### Current Version: `0.4.0-alpha`
 * **UI Architecture Split**:
   - `public/index.html`: Clean, minimal, neutral public status landing page with zero sensitive scout/roster data exposed.
   - `public/manager.html`: Internal manager console with roster sync stats, raw CSV export downloads, and event carpool launcher with Carpool Candidates filtering.
   - `public/carpool.html?id=:id`: Dedicated shareable event carpool and departure clipboard page. Clean URL `/carpool/:id` automatically redirects.
-* **Driver Comment Intelligence (`parseDriverComments`)**:
-  - Automatically matches passenger names in driver notes against attending scouts and adults.
+* **Driver Safety & Youth Protection Compliance**:
+  - Drivers cross-referenced with the Attending Adults section to inspect `sytStatus` (SYT/YPT Youth Protection), `stateTraining` (California AB 506 mandated reporter training), and `bsaRegistered`.
+  - Visual status badges and warning highlights on drivers whose training is not 'Current'.
+  - Top-level alert banner if any registered driver is non-compliant (`nonCompliantDriversCount`).
+* **Driver Comment Intelligence & Name Collision Detection (`parseDriverComments`)**:
+  - Layered name resolution:
+    1. Full-name matches (e.g. "Maddie Curran", "Allison Annis") &rarr; `status: 'confirmed'`.
+    2. Family surname matches (e.g. driver Amanda Renno matching Mackenzie Renno) &rarr; `status: 'family_match'`.
+    3. Unique first-name matches (e.g. "Gwyneth", "Alina") &rarr; `status: 'unique_first'`.
+    4. Ambiguous first-name collisions (e.g. driver noting "Anya" or "Mila" when multiple attending scouts share that first name) &rarr; prevents blind assignment, flags the collision in `clarificationsNeeded`, generates an alert for leaders to clarify with the driver, and marks affected scouts as `rideStatus: 'ambiguous'`.
   - Itemizes claimed scouts and adult passengers per car.
-  - Detects explicit open seat notes (e.g. `"and 2 more"`).
+  - Detects explicit open seat notes (e.g. `"and 2 more"`, `"space for 3"`).
   - Calculates remaining open seats per vehicle.
-  - Maps each scout to their assigned driver (`🚗 Riding with...` vs `⚠️ Needs Ride`).
+  - Maps each scout to their assigned driver (`🚗 Riding with...` vs `⚠️ Needs Ride` vs `⚠️ Mentioned in Note (Clarification Needed)`).
 * **Scout-Centric Ride Capacity**:
   - Seat balance calculated strictly against attending scouts and adult ride-alongs: `totalSeatsOffered - (totalScouts + adultRidersCount)`.
   - Non-driver adults assumed to drive themselves unless listed in a driver note.
@@ -103,8 +111,10 @@ To prevent architectural drift and regressions across sessions, the repository m
   - `isCarpoolCandidate` boolean flags offsite trips and excludes routine `Location: CABIN` meetings and informational placeholders.
 * **Hosting & Environment**:
   - Target Troop: `https://www.troopwebhost.org/Troop402lafayette/` (Troop 402 Lafayette, CA).
+  - Render URL Behavior: Render default `*.onrender.com` subdomains are permanently allocated at web service creation time and do not change when the service display name is edited. Render deployment active at `https://troop-api.onrender.com`.
   - Production secrets configured in Render environment.
   - Smoke tests and live TWH integration tests passing.
+
 
 ---
 

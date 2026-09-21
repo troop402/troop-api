@@ -184,8 +184,118 @@ describe('Driver comment parsing unit test', () => {
     // Check scout ride status
     const allison = result.enrichedScouts.find((s) => s.name === 'Annis, Allison');
     assert.equal(allison.assignedDriver, 'Ayers, Elena');
+    assert.equal(allison.rideStatus, 'confirmed');
 
     const john = result.enrichedScouts.find((s) => s.name === 'Smith, John');
     assert.equal(john.assignedDriver, null);
+    assert.equal(john.rideStatus, 'unassigned');
+  });
+
+  it('detects first-name collisions, refuses blind assignments, and logs clarificationsNeeded', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Clayshulte, Alison',
+        attending: 'Y',
+        seats: 5,
+        comment: 'Alison, Anya, Mila, and 2 open spots',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Lavrinets, Anya', patrol: 'Dragon' },
+      { name: 'Patath, Anya', patrol: 'Gator' },
+      { name: 'Lavrinets, Mila', patrol: 'Dragon' },
+      { name: 'Robinson, Mila', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Clayshulte, Alison', leadership: 'Committee Member' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+
+    // Collision should refuse blind assignment
+    assert.equal(result.assignedScoutsCount, 0);
+    assert.equal(result.clarificationsNeeded.length, 2);
+
+    const anyaClarification = result.clarificationsNeeded.find((c) => c.token === 'anya');
+    assert.ok(anyaClarification);
+    assert.equal(anyaClarification.driverName, 'Clayshulte, Alison');
+    assert.equal(anyaClarification.candidates.length, 2);
+    assert.ok(anyaClarification.candidates.includes('Anya Lavrinets'));
+    assert.ok(anyaClarification.candidates.includes('Anya Patath'));
+
+    const anya1 = result.enrichedScouts.find((s) => s.name === 'Lavrinets, Anya');
+    assert.equal(anya1.assignedDriver, null);
+    assert.equal(anya1.rideStatus, 'ambiguous');
+    assert.match(anya1.rideNote, /Clayshulte, Alison/);
+
+    const mila1 = result.enrichedScouts.find((s) => s.name === 'Robinson, Mila');
+    assert.equal(mila1.assignedDriver, null);
+    assert.equal(mila1.rideStatus, 'ambiguous');
+
+    const driver = result.enrichedDrivers[0];
+    assert.equal(driver.ambiguousNotes.length, 2);
+    assert.equal(driver.claimedScouts.length, 0);
+    // Open seats should honor explicit note "and 2 open spots"
+    assert.equal(driver.openSeats, 2);
+  });
+
+  it('resolves family matches and full-name disambiguation when multiple scouts share first names', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Renno, Amanda',
+        attending: 'Y',
+        seats: 4,
+        comment: 'Driving Mackenzie',
+      },
+      {
+        name: 'Polcari, Emily',
+        attending: 'Y',
+        seats: 4,
+        comment: 'Emily, Maddie Curran',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Renno, Mackenzie', patrol: 'Falcon' },
+      { name: 'Stern, MacKenzie', patrol: 'Dragon' },
+      { name: 'Curran, Maddie', patrol: 'Gator' },
+      { name: 'Keeler-Hodgets, Maddie', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Renno, Amanda', leadership: 'Adult' },
+      { name: 'Polcari, Emily', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+
+    // Mackenzie Renno resolved via family match with driver Amanda Renno
+    const macRenno = result.enrichedScouts.find((s) => s.name === 'Renno, Mackenzie');
+    assert.equal(macRenno.assignedDriver, 'Renno, Amanda');
+    assert.equal(macRenno.rideStatus, 'family_match');
+
+    // MacKenzie Stern left unassigned and NOT ambiguous (since driver matched family)
+    const macStern = result.enrichedScouts.find((s) => s.name === 'Stern, MacKenzie');
+    assert.equal(macStern.assignedDriver, null);
+    assert.equal(macStern.rideStatus, 'unassigned');
+
+    // Maddie Curran resolved via full-name match in comment
+    const maddieCurran = result.enrichedScouts.find((s) => s.name === 'Curran, Maddie');
+    assert.equal(maddieCurran.assignedDriver, 'Polcari, Emily');
+    assert.equal(maddieCurran.rideStatus, 'confirmed');
+
+    // Maddie Keeler-Hodgets left unassigned
+    const maddieKH = result.enrichedScouts.find((s) => s.name === 'Keeler-Hodgets, Maddie');
+    assert.equal(maddieKH.assignedDriver, null);
+    assert.equal(maddieKH.rideStatus, 'unassigned');
+
+    // No clarifications needed because both were successfully resolved
+    assert.equal(result.clarificationsNeeded.length, 0);
   });
 });
