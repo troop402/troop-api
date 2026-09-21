@@ -23,16 +23,16 @@ describe('API smoke tests', () => {
     assert.equal(await response.text(), 'OK');
   });
 
-  it('rejects an export request with missing credentials', async () => {
+  it('reports missing server credentials without contacting TroopWebHost', async () => {
     const response = await fetch(`${baseUrl}/api/export-roster`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ troopUrl: 'https://example.com' }),
+      body: JSON.stringify({}),
     });
 
-    assert.equal(response.status, 400);
+    assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), {
-      error: 'Missing troopUrl, username, or password.',
+      error: 'TroopWebHost environment variables are not configured.',
     });
   });
 });

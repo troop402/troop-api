@@ -79,20 +79,7 @@
     <main class="panel">
       <h1>Export Troop Roster</h1>
       <form id="exportForm">
-        <label>
-          Troop URL
-          <input id="troopUrl" value="https://www.troopwebhost.org/Troop402lafayette/Index.htm" required />
-        </label>
-
-        <label>
-          Username
-          <input id="username" required />
-        </label>
-
-        <label>
-          Password
-          <input id="password" type="password" required />
-        </label>
+        <p>The server uses its configured TroopWebHost account.</p>
 
         <button id="submitButton" type="submit">Download .xlsx</button>
       </form>
@@ -115,11 +102,7 @@
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              troopUrl: document.getElementById('troopUrl').value,
-              username: document.getElementById('username').value,
-              password: document.getElementById('password').value,
-            }),
+            body: JSON.stringify({}),
           });
 
           if (!response.ok) {

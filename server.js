@@ -49,6 +49,16 @@ function makeClient() {
   });
 }
 
+function getTroopWebHostConfig() {
+  const { TWH_TROOP_URL: troopUrl, TWH_USERNAME: username, TWH_PASSWORD: password } = process.env;
+
+  if (!troopUrl || !username || !password) {
+    throw new Error('TroopWebHost environment variables are not configured.');
+  }
+
+  return { troopUrl, username, password };
+}
+
 async function fetchRosterFromTroopWebHost({ troopUrl, username, password }) {
   if (!troopUrl || !username || !password) {
     throw new Error('Missing troopUrl, username, or password.');
@@ -118,10 +128,13 @@ async function fetchRosterFromTroopWebHost({ troopUrl, username, password }) {
 }
 
 app.post('/api/export-roster', async (req, res) => {
-  const { troopUrl, username, password, forceRefresh } = req.body;
+  const { forceRefresh } = req.body;
 
-  if (!troopUrl || !username || !password) {
-    return res.status(400).json({ error: 'Missing troopUrl, username, or password.' });
+  let troopWebHostConfig;
+  try {
+    troopWebHostConfig = getTroopWebHostConfig();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 
   if (!forceRefresh && isCacheFresh()) {
@@ -138,7 +151,7 @@ app.post('/api/export-roster', async (req, res) => {
   }
 
   try {
-    activeFetchPromise = fetchRosterFromTroopWebHost({ troopUrl, username, password });
+    activeFetchPromise = fetchRosterFromTroopWebHost(troopWebHostConfig);
     const result = await activeFetchPromise;
     cache.data = result;
     cache.timestamp = Date.now();
