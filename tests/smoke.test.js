@@ -580,3 +580,68 @@ describe('Carpool Excel export unit test', () => {
     assert.equal(sheet.getCell('G27').value, null);
   });
 });
+
+describe('Scout and roster enrichment unit test', () => {
+  it('extracts swim test, BSA registration, and medical dates in computeRosterSummary', async () => {
+    const { computeRosterSummary } = await import('../server.js');
+
+    const csvContent = [
+      'Adult,Name,Patrol,Cell Phone,Swim Level,Swim Date,BSA ID,BSA Registration Ends,Medical Part A,Medical Part B,Medical Part C',
+      'N,"Annis, Allison",Gator,925-555-0101,Swimmer,8/23/2026,141713280,8/31/2027,8/17/2026,8/17/2026,4/17/2026',
+      'Y,"Ayers, Elena",,925-555-0102,,,141553648,3/31/2027,,,',
+    ].join('\n');
+
+    const summary = computeRosterSummary(Buffer.from(csvContent, 'utf8'));
+    assert.equal(summary.totalMembers, 2);
+    assert.equal(summary.scoutsCount, 1);
+    assert.equal(summary.adultsCount, 1);
+
+    const scout = summary.membersByName.get('annis, allison');
+    assert.ok(scout);
+    assert.equal(scout.swimLevel, 'Swimmer');
+    assert.equal(scout.swimDate, '8/23/2026');
+    assert.equal(scout.bsaId, '141713280');
+    assert.equal(scout.bsaRegistrationEnds, '8/31/2027');
+    assert.equal(scout.medicalPartA, '8/17/2026');
+    assert.equal(scout.medicalPartC, '4/17/2026');
+  });
+
+  it('preserves scout attendance comments and enriched fields through parseDriverComments', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Ayers, Elena',
+        attending: 'Y',
+        seats: 4,
+        comment: 'driving Gwyneth',
+      },
+    ];
+
+    const scouts = [
+      {
+        name: 'Ayers, Gwyneth',
+        patrol: 'Sun Bear',
+        comment: 'Leaving early at noon',
+        permissionGiven: 'Yes',
+        medicalNeeded: 'A B',
+        bsaRegistered: 'Current',
+        bsaId: '141553648',
+        swimTest: 'Swimmer',
+        swimDate: '6/26/2026',
+      },
+    ];
+
+    const adults = [{ name: 'Ayers, Elena', leadership: 'Adult' }];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const enriched = result.enrichedScouts.find((s) => s.name === 'Ayers, Gwyneth');
+    assert.ok(enriched);
+    assert.equal(enriched.comment, 'Leaving early at noon');
+    assert.equal(enriched.medicalNeeded, 'A B');
+    assert.equal(enriched.bsaRegistered, 'Current');
+    assert.equal(enriched.swimTest, 'Swimmer');
+    assert.equal(enriched.swimDate, '6/26/2026');
+    assert.equal(enriched.assignedDriver, 'Ayers, Elena');
+  });
+});

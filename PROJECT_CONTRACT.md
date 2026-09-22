@@ -78,8 +78,9 @@ E.5.6 Tokens consumed by scout assignments are not re-claimed for adult passenge
 E.5.7 Driver self-references (driver's own name, "myself", "me") account for the driver seat and do not occupy passenger seats. Available passenger seats are derived as `Math.max(0, seats - 1)`.
 E.5.8 Ambiguous rider notes occupy passenger slots provisionally to prevent false open seat calculations.
 E.6 It returns 400 for invalid or missing event IDs, and 500 if TroopWebHost retrieval fails.
-E.7 It provides direct TroopWebHost URLs (`twhEventUrl` for event calendar details and `twhSignupUrl` for admin member signup table) rooted at `https://www.troopwebhost.org` without tenant path prefix to avoid HTTP 404s.
-E.8 The accompanying Carpool HTML report (`/carpool.html`) provides an interactive Attending Scouts waitlist table with live search filtering across name, patrol, and assigned driver; clickable column sorting on all columns; and a one-click "⚡ Waitlist at Top" prioritization mode that places unassigned scouts at the top.
+E.7 It provides direct TroopWebHost URLs (`twhEventUrl` matching TWH's official Copy URL for Event `FormDetail.aspx?Menu_Item_ID=45922&Form_ID=5429&Stack=0&Application_ID=2858&ID=${eventId}`, and `twhSignupUrl` `FormDetail.aspx?Menu_Item_ID=45926&Form_ID=3707&FK=0&ID=${eventId}&Stack=0` with `Stack=0` to prevent ASP.NET session stack frame mismatch errors).
+E.8 The accompanying Carpool HTML report (`/carpool.html`) provides an interactive Attending Scouts waitlist table with columns for Scout Name, Patrol, Ride TO, Ride FROM, Attendance Note / Comment, Permission, Medical Forms Needed, BSA Registration, and Swim Test & Date; clickable column sorting across all columns; live search across all scout attributes; and a one-click "⚡ Waitlist at Top" prioritization mode that places unassigned scouts at the top.
+E.9 Attending scout records are enriched combining Event Section 967 (attendance `comment`, `permissionGiven`, `medicalNeeded`) and the troop roster (`swimTest` / `swimLevel`, `swimDate`, `bsaRegistered` status, `bsaId`, `bsaRegistrationEnds`, and medical clearance dates).
 
 ### F. GET /api/events/:id/carpool.xlsx
 F.1 It generates a valid `.xlsx` binary spreadsheet workbook with `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.

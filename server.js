@@ -307,6 +307,13 @@ function computeRosterSummary(csvBuffer) {
         email: row.Email || '',
         seatBelts: parseInt(row['Seat Belts'], 10) || 0,
         vehicle: row['Make/Model/Year'] || '',
+        swimLevel: row['Swim Level'] || '',
+        swimDate: row['Swim Date'] || '',
+        bsaId: row['BSA ID'] || '',
+        bsaRegistrationEnds: row['BSA Registration Ends'] || '',
+        medicalPartA: row['Medical Part A'] || '',
+        medicalPartB: row['Medical Part B'] || '',
+        medicalPartC: row['Medical Part C'] || '',
       });
     }
   }
@@ -1222,13 +1229,41 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
       };
     });
 
-    const baseScouts = rawScouts.map((row) => ({
-      name: row.Participant || '',
-      patrol: row.Patrol || '',
-      swimTest: row['Swim Test'] || '',
-      permissionGiven: row['Permission Given?'] || '',
-      medicalNeeded: row['Medical Forms Needed'] || '',
-    }));
+    const baseScouts = rawScouts.map((row) => {
+      const name = row.Participant || '';
+      const rosterInfo = membersMap.get(name.toLowerCase()) || {};
+
+      let bsaRegistered = 'No';
+      const bsaEnds = rosterInfo.bsaRegistrationEnds || '';
+      if (bsaEnds) {
+        const endsDate = new Date(bsaEnds);
+        if (!isNaN(endsDate.getTime()) && endsDate >= new Date()) {
+          bsaRegistered = 'Current';
+        } else if (!isNaN(endsDate.getTime())) {
+          bsaRegistered = 'Expired';
+        } else {
+          bsaRegistered = rosterInfo.bsaId ? 'Current' : 'No';
+        }
+      } else if (rosterInfo.bsaId) {
+        bsaRegistered = 'Current';
+      }
+
+      return {
+        name,
+        patrol: row.Patrol || rosterInfo.patrol || '',
+        comment: row.Comment || '',
+        permissionGiven: row['Permission Given?'] || '',
+        medicalNeeded: row['Medical Forms Needed'] || '',
+        medicalPartA: rosterInfo.medicalPartA || '',
+        medicalPartB: rosterInfo.medicalPartB || '',
+        medicalPartC: rosterInfo.medicalPartC || '',
+        bsaRegistered,
+        bsaId: rosterInfo.bsaId || '',
+        bsaRegistrationEnds: bsaEnds,
+        swimTest: rosterInfo.swimLevel || row['Swim Test'] || '',
+        swimDate: rosterInfo.swimDate || '',
+      };
+    });
 
     let totalSeatsOffered = 0;
     const baseDrivers = rawDrivers.map((row) => {
@@ -1324,7 +1359,7 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
       const config = getTroopWebHostConfig();
       const origin = new URL(config.troopUrl).origin;
       meta.twhEventUrl = `${origin}/FormDetail.aspx?Menu_Item_ID=45922&Form_ID=5429&Stack=0&Application_ID=2858&ID=${eventId}`;
-      meta.twhSignupUrl = `${origin}/FormDetail.aspx?Menu_Item_ID=45926&Form_ID=3707&FK=0&ID=${eventId}&Stack=2`;
+      meta.twhSignupUrl = `${origin}/FormDetail.aspx?Menu_Item_ID=45926&Form_ID=3707&FK=0&ID=${eventId}&Stack=0`;
     } catch {
       // Best-effort TWH URL generation
     }
@@ -1784,6 +1819,7 @@ export {
   authenticateTroopWebHost,
   downloadRosterExport,
   parseCsv,
+  computeRosterSummary,
   parseDriverComments,
   getRosterData,
   getAdultTrainingData,

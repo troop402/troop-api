@@ -601,7 +601,7 @@
             <button type="button" class="btn btn-secondary" id="btnSortWaitlist" onclick="setScoutSort('needsRide')" style="font-size: 0.8rem; padding: 0.35rem 0.65rem;" title="Sort scouts waiting for rides to the top (Waitlist mode)">
               ⚡ Waitlist at Top
             </button>
-            <input type="text" id="scoutSearch" class="search-input" placeholder="Search scouts, patrol, or ride..." oninput="filterScouts()" style="min-width: 200px;">
+            <input type="text" id="scoutSearch" class="search-input" placeholder="Search scouts, patrol, note, ride, medical, swim..." oninput="filterScouts()" style="min-width: 220px;">
           </div>
         </div>
         <div class="table-container">
@@ -610,14 +610,17 @@
               <tr>
                 <th class="sortable" id="th-name" onclick="toggleScoutSort('name')" title="Click to sort by Scout Name">Scout Name <span id="sort-name" class="sort-indicator">↕</span></th>
                 <th class="sortable" id="th-patrol" onclick="toggleScoutSort('patrol')" title="Click to sort by Patrol">Patrol <span id="sort-patrol" class="sort-indicator">↕</span></th>
-                <th class="sortable" id="th-rideTo" onclick="toggleScoutSort('rideTo')" title="Click to sort by Outbound Ride">Ride TO (Outbound) <span id="sort-rideTo" class="sort-indicator">↕</span></th>
-                <th class="sortable" id="th-rideFrom" onclick="toggleScoutSort('rideFrom')" title="Click to sort by Return Ride">Ride FROM (Return) <span id="sort-rideFrom" class="sort-indicator">↕</span></th>
-                <th class="sortable" id="th-permission" onclick="toggleScoutSort('permission')" title="Click to sort by Permission Slip">Permission Slip <span id="sort-permission" class="sort-indicator">↕</span></th>
-                <th class="sortable" id="th-swimTest" onclick="toggleScoutSort('swimTest')" title="Click to sort by Swim Test">Swim Test <span id="sort-swimTest" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-rideTo" onclick="toggleScoutSort('rideTo')" title="Click to sort by Outbound Ride">Ride TO <span id="sort-rideTo" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-rideFrom" onclick="toggleScoutSort('rideFrom')" title="Click to sort by Return Ride">Ride FROM <span id="sort-rideFrom" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-comment" onclick="toggleScoutSort('comment')" style="text-align:center;" title="Click to sort by Attendance Note">Note / Comment <span id="sort-comment" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-permission" onclick="toggleScoutSort('permission')" style="text-align:center;" title="Click to sort by Permission Slip">Permission <span id="sort-permission" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-medical" onclick="toggleScoutSort('medical')" style="text-align:center;" title="Click to sort by Medical Forms">Medical Forms <span id="sort-medical" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-bsa" onclick="toggleScoutSort('bsa')" style="text-align:center;" title="Click to sort by BSA Registration">BSA Reg <span id="sort-bsa" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-swimTest" onclick="toggleScoutSort('swimTest')" style="text-align:center;" title="Click to sort by Swim Test & Date">Swim Test <span id="sort-swimTest" class="sort-indicator">↕</span></th>
               </tr>
             </thead>
             <tbody id="scoutsTbody">
-              <tr><td colspan="6" class="muted" style="text-align:center;">Loading scouts...</td></tr>
+              <tr><td colspan="9" class="muted" style="text-align:center;">Loading scouts...</td></tr>
             </tbody>
           </table>
         </div>
@@ -1154,6 +1157,16 @@
       filterScouts();
     }
 
+    let currentFilteredScouts = [];
+
+    function openScoutNoteModal(idx) {
+      const s = currentFilteredScouts[idx];
+      if (!s) return;
+      document.getElementById('noteModalTitle').textContent = `Attendance Note: ${toDisplayName(s.name)}`;
+      document.getElementById('noteModalContent').textContent = s.comment || '(No note)';
+      document.getElementById('noteModal').style.display = 'flex';
+    }
+
     function renderScoutsTable(scouts) {
       currentScoutsList = scouts || [];
       filterScouts();
@@ -1166,7 +1179,7 @@
       const total = currentScoutsList.length;
       if (total === 0) {
         document.getElementById('scoutsCountBadge').textContent = '0 Scouts';
-        scoutsTbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center; padding: 1.5rem;">No scouts registered yet.</td></tr>';
+        scoutsTbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center; padding: 1.5rem;">No scouts registered yet.</td></tr>';
         return;
       }
 
@@ -1200,7 +1213,11 @@
           const matchPatrol = (s.patrol || '').toLowerCase().includes(q);
           const matchTo = meta.rideToText.toLowerCase().includes(q);
           const matchFrom = meta.rideFromText.toLowerCase().includes(q);
-          if (!matchName && !matchPatrol && !matchTo && !matchFrom) return false;
+          const matchComment = (s.comment || '').toLowerCase().includes(q);
+          const matchMed = (s.medicalNeeded || '').toLowerCase().includes(q);
+          const matchBsa = (s.bsaRegistered || '').toLowerCase().includes(q);
+          const matchSwim = ((s.swimTest || '') + ' ' + (s.swimDate || '')).toLowerCase().includes(q);
+          if (!matchName && !matchPatrol && !matchTo && !matchFrom && !matchComment && !matchMed && !matchBsa && !matchSwim) return false;
         }
         return true;
       });
@@ -1248,14 +1265,40 @@
             }
             break;
           }
+          case 'comment': {
+            const comA = (a.comment || '').trim();
+            const comB = (b.comment || '').trim();
+            const hasA = comA ? 1 : 0;
+            const hasB = comB ? 1 : 0;
+            cmp = hasB - hasA || comA.localeCompare(comB) || (a.name || '').localeCompare(b.name || '');
+            break;
+          }
           case 'permission': {
             const permA = (a.permissionGiven || 'No').toLowerCase() === 'yes' ? 1 : 0;
             const permB = (b.permissionGiven || 'No').toLowerCase() === 'yes' ? 1 : 0;
             cmp = permA !== permB ? permA - permB : (a.name || '').localeCompare(b.name || '');
             break;
           }
+          case 'medical': {
+            const medA = (a.medicalNeeded || '').trim();
+            const medB = (b.medicalNeeded || '').trim();
+            const hasA = medA ? 1 : 0;
+            const hasB = medB ? 1 : 0;
+            cmp = hasB - hasA || medA.localeCompare(medB) || (a.name || '').localeCompare(b.name || '');
+            break;
+          }
+          case 'bsa': {
+            const bsaA = a.bsaRegistered || '';
+            const bsaB = b.bsaRegistered || '';
+            cmp = bsaA.localeCompare(bsaB) || (a.name || '').localeCompare(b.name || '');
+            break;
+          }
           case 'swimTest': {
-            cmp = (a.swimTest || '').localeCompare(b.swimTest || '') || (a.name || '').localeCompare(b.name || '');
+            const swimA = a.swimTest || '';
+            const swimB = b.swimTest || '';
+            const hasA = swimA ? 1 : 0;
+            const hasB = swimB ? 1 : 0;
+            cmp = hasB - hasA || swimA.localeCompare(swimB) || (a.swimDate || '').localeCompare(b.swimDate || '') || (a.name || '').localeCompare(b.name || '');
             break;
           }
           default:
@@ -1265,8 +1308,10 @@
         return scoutSortAsc ? cmp : -cmp;
       });
 
+      currentFilteredScouts = filtered;
+
       // Update header indicators
-      const allCols = ['name', 'patrol', 'rideTo', 'rideFrom', 'permission', 'swimTest'];
+      const allCols = ['name', 'patrol', 'rideTo', 'rideFrom', 'comment', 'permission', 'medical', 'bsa', 'swimTest'];
       allCols.forEach(col => {
         const th = document.getElementById(`th-${col}`);
         const indicator = document.getElementById(`sort-${col}`);
@@ -1299,11 +1344,11 @@
 
       scoutsTbody.innerHTML = '';
       if (filtered.length === 0) {
-        scoutsTbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center; padding: 1.5rem;">No scouts matching current filter or search.</td></tr>';
+        scoutsTbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center; padding: 1.5rem;">No scouts matching current filter or search.</td></tr>';
         return;
       }
 
-      filtered.forEach(s => {
+      filtered.forEach((s, idx) => {
         const tr = document.createElement('tr');
         const meta = getScoutRideMeta(s);
 
@@ -1335,17 +1380,57 @@
           rideFromBadge = '<span class="badge badge-warning">⚠️ Needs Ride</span>';
         }
 
+        // Attendance Note / Comment
+        let commentHtml = '<span class="muted">-</span>';
+        if (s.comment) {
+          const safeComment = escapeHtml(s.comment);
+          const preview = s.comment.length > 25 ? s.comment.slice(0, 22) + '...' : s.comment;
+          commentHtml = `
+            <button type="button" class="btn btn-secondary" style="padding:0.2rem 0.45rem; font-size:0.75rem; white-space:nowrap; display:inline-flex; align-items:center; gap:0.25rem;" onclick="openScoutNoteModal(${idx})" title="${safeComment}">
+              💬 <span>${escapeHtml(preview)}</span>
+            </button>
+          `;
+        }
+
+        // Permission Slip
         const permBadge = s.permissionGiven?.toLowerCase() === 'yes'
           ? '<span class="badge badge-success">Yes</span>'
           : `<span class="badge badge-warning">${escapeHtml(s.permissionGiven || 'No')}</span>`;
+
+        // Medical Forms Needed
+        let medicalHtml = '<span class="badge badge-success" title="All medical forms on file">Complete</span>';
+        if (s.medicalNeeded) {
+          medicalHtml = `<span class="badge badge-warning" title="Missing medical forms: ${escapeHtml(s.medicalNeeded)}">⚠️ Needs ${escapeHtml(s.medicalNeeded)}</span>`;
+        }
+
+        // BSA Registration
+        let bsaHtml = '<span class="badge badge-neutral">N/A</span>';
+        if (s.bsaRegistered === 'Current') {
+          const details = [s.bsaId ? `ID: ${s.bsaId}` : '', s.bsaRegistrationEnds ? `Expires: ${s.bsaRegistrationEnds}` : ''].filter(Boolean).join(' • ');
+          bsaHtml = `<span class="badge badge-success" title="${escapeHtml(details || 'Active')}">✓ Current</span>`;
+        } else if (s.bsaRegistered === 'Expired') {
+          bsaHtml = `<span class="badge badge-danger" title="Expired: ${escapeHtml(s.bsaRegistrationEnds || '')}">⚠️ Expired</span>`;
+        } else if (s.bsaRegistered === 'No') {
+          bsaHtml = `<span class="badge badge-warning" title="No active BSA registration on file">⚠️ No</span>`;
+        }
+
+        // Swim Test
+        let swimHtml = '<span class="muted">-</span>';
+        if (s.swimTest) {
+          const dateStr = s.swimDate ? ` <span class="muted" style="font-size:0.75rem;">(${escapeHtml(s.swimDate)})</span>` : '';
+          swimHtml = `<span class="badge badge-neutral">${escapeHtml(s.swimTest)}${dateStr}</span>`;
+        }
 
         tr.innerHTML = `
           <td><strong>${escapeHtml(s.name)}</strong></td>
           <td>${escapeHtml(s.patrol || 'Unassigned')}</td>
           <td>${rideToBadge}</td>
           <td>${rideFromBadge}</td>
-          <td>${permBadge}</td>
-          <td>${escapeHtml(s.swimTest || '-')}</td>
+          <td style="text-align:center;">${commentHtml}</td>
+          <td style="text-align:center;">${permBadge}</td>
+          <td style="text-align:center;">${medicalHtml}</td>
+          <td style="text-align:center;">${bsaHtml}</td>
+          <td style="text-align:center;">${swimHtml}</td>
         `;
         scoutsTbody.appendChild(tr);
       });

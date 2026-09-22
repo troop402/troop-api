@@ -223,9 +223,11 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
 * Maintains a reversible action history in `coordinator.html`.
 * Coordinators can roll back scout assignments and seat adjustments sequentially, with automatic writeback to TroopWebHost.
 
-### 9.3 TroopWebHost Direct URL Fixes
-* Direct links to event details (`Menu_Item_ID=36979`) and signup tables (`Menu_Item_ID=45888&Form_ID=3707`) initially returned HTTP 404 when prefixed with `/Troop402lafayette/`.
-* Updated backend to generate direct URLs rooted at `https://www.troopwebhost.org/FormReport.aspx?...`, allowing logged-in coordinators to jump directly to TWH event records with one click.
+### 9.3 TroopWebHost Direct URL Architecture
+* Direct links to event details (`Menu_Item_ID=36979`) and signup tables (`Menu_Item_ID=45888&Form_ID=3707`) initially returned HTTP 404 when prefixed with `/Troop402Danville/` or `/Troop402lafayette/`.
+* Updated backend to generate direct URLs rooted at `https://www.troopwebhost.org/...`:
+  - **Event Details (`twhEventUrl`)**: Matches TroopWebHost's official *Copy URL for this Event* pattern: `https://www.troopwebhost.org/FormDetail.aspx?Menu_Item_ID=45922&Form_ID=5429&Stack=0&Application_ID=2858&ID=${eventId}`.
+  - **Member Sign-Ups (`twhSignupUrl`)**: Uses `https://www.troopwebhost.org/FormDetail.aspx?Menu_Item_ID=45926&Form_ID=3707&FK=0&ID=${eventId}&Stack=0`. The `Stack=0` parameter is critical: previous attempts with `Stack=2` triggered ASP.NET session stack-frame mismatch errors when opened directly in a new browser tab. With `Stack=0`, TWH renders the sign-up table cleanly without parent stack dependency.
 
 ### 9.4 Adult Safety Training & SYT (Youth Protection) Resolution
 * **Centralized Compliance Scraping**: Rather than relying solely on individual course records in Section 1243, the backend queries TroopWebHost's centralized troop-wide report: **"Required Training By Person"** (`Menu_Item_ID=46029` &rarr; `FormReport.aspx?Menu_Item_ID=46029&Stack=1&ReportFormat=CSV`).
@@ -259,5 +261,23 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
 * **Background Revalidation**: Fetches fresh data silently in the background and updates the UI if upstream changes occurred.
 * **Cross-Page Synchrony**: When a coordinator saves an edit on `coordinator.html`, the updated state is immediately saved to `localStorage`, so switching to `carpool.html` displays the updated assignments instantly without network delay.
 * **Hard Refresh Flush**: Clicking the "🔄 Refresh" button clears `localStorage` and requests `/api/events/:id/carpool?forceRefresh=true`, forcing the server to bypass in-memory caches and fetch fresh from TroopWebHost.
+
+### 9.9 Attending Scout Enrichment (BSA Registration, Medical Needs, Attendance Comments, Swim Date/Test)
+* **Root Cause of Empty Swim Data**:
+  - The Event Section 967 CSV (`Attending Scouts`) has columns: `Participant,Leadership,Patrol,Medical Forms Needed,Permission Given?,Additional Guests,Comment,Signed Up`.
+  - It does NOT have a `Swim Test` column.
+  - Swim test results and completion dates (`Swim Level`, `Swim Date`) reside globally in the Troop Roster export (`Menu_Item_ID=45897`).
+  - Previously, `computeRosterSummary` did not extract these fields from the roster records.
+* **Enriched Attributes**:
+  - `swimTest` & `swimDate`: Populated from `Swim Level` (e.g., 'Swimmer', 'Beginner') and `Swim Date` in the troop roster.
+  - `bsaRegistered`, `bsaId`, `bsaRegistrationEnds`: Evaluated from the troop roster (`Current`, `Expired`, or `No`).
+  - `medicalNeeded`: Extracted directly from Event Section 967 `Medical Forms Needed` (e.g. `'A B'`, `'B'`).
+  - `comment`: Extracted directly from Event Section 967 `Comment`. Parents and scouts frequently leave critical logistics notes here (e.g., Subhi Balaji: *"need to leave sunday morning have school on monday"*).
+* **UI Integration**:
+  - **`carpool.html` Table 4**: Expanded to 9 dedicated columns: Scout Name, Patrol, Ride TO, Ride FROM, Note / Comment, Permission, Medical Forms Needed, BSA Reg, and Swim Test & Date.
+  - **Attendance Note Popover Modal**: Scouts with notes have a speech bubble button (`💬 Note`) that opens a clean modal with the full text, with previews in the table cell.
+  - **Interactive Sorting & Live Filtering**: Multi-column sorting (`toggleScoutSort`) and live search (`scoutSearch`) search across all scout attributes including notes, medical status, and swim tests.
+  - **`coordinator.html` Waitlist & Seat Modal**: Waitlist cards and the seat assignment selection modal display scout attendance comments inline (e.g. `💬 need to leave sunday morning...`), preventing coordinators from assigning riders with early departure constraints to the wrong drivers.
+
 
 
