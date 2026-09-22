@@ -32,7 +32,7 @@ const activeCarpoolPromises = new Map();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/healthz', (_req, res) => {
+app.get(['/healthz', '/api/health'], (_req, res) => {
   res.status(200).send('OK');
 });
 
