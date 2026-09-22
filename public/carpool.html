@@ -913,8 +913,11 @@
         const isAttending = d.attending === 'Y';
         const isOneWay = (d.drivingToFrom || '').toLowerCase() !== 'both';
 
-        if (!d.isCompliant && isAttending) {
+        if (!d.isCompliant) {
           tr.style.backgroundColor = '#fffbeb';
+          if (isOneWay) {
+            tr.style.borderLeft = '4px solid #8b5cf6';
+          }
         } else if (isOneWay) {
           tr.style.backgroundColor = '#faf5ff';
           tr.style.borderLeft = '4px solid #8b5cf6';
@@ -965,7 +968,7 @@
           <td>
             <strong>${escapeHtml(d.name)}</strong>
             ${isOneWay ? `<br><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.7rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span>` : ''}
-            ${!d.isCompliant && isAttending ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span>' : ''}
+            ${!d.isCompliant ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span>' : ''}
           </td>
           <td>${tripBadge}</td>
           <td style="font-size:0.85rem;">${vehicleHtml}</td>
@@ -1009,8 +1012,11 @@
         const isAttending = d.attending === 'Y';
         const isOneWay = (d.drivingToFrom || '').toLowerCase() !== 'both';
 
-        if (!d.isCompliant && isAttending) {
+        if (!d.isCompliant) {
           tr.style.backgroundColor = '#fffbeb';
+          if (isOneWay) {
+            tr.style.borderLeft = '4px solid #8b5cf6';
+          }
         } else if (isOneWay) {
           tr.style.backgroundColor = '#faf5ff';
           tr.style.borderLeft = '4px solid #8b5cf6';
@@ -1068,7 +1074,7 @@
           <td>
             <strong>${escapeHtml(d.name)}</strong>
             ${oneWayBadge}
-            ${!d.isCompliant && isAttending ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span>' : ''}
+            ${!d.isCompliant ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span>' : ''}
           </td>
           <td style="font-size:0.85rem;">${phoneHtml}</td>
           <td style="text-align:center; font-weight:700; font-size:1.05rem;">${legSeats}</td>
@@ -1464,6 +1470,9 @@
             : `<span class="badge badge-danger">⚠️ ${escapeHtml(a.stateTraining || 'Missing')}</span>`;
 
           const tr = document.createElement('tr');
+          if (!stateIsCurrent || a.sytStatus?.toLowerCase() !== 'current') {
+            tr.style.backgroundColor = '#fffbeb';
+          }
           tr.innerHTML = `
             <td><strong>${escapeHtml(a.name)}</strong></td>
             <td>${escapeHtml(a.leadership || 'Adult Leader')}</td>

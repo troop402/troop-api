@@ -1319,7 +1319,7 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
       .reduce((sum, d) => sum + (d.openSeats || 0), 0);
 
     const nonCompliantDriversCount = drivers
-      .filter((d) => d.attending === 'Y' && !d.isCompliant).length;
+      .filter((d) => !d.isCompliant).length;
 
     // Scout-centric seat balance: passenger seats offered vs (scouts + adult ride-alongs)
     const seatBalance = totalSeatsOffered - (totalAttendingScouts + adultRidersCount);

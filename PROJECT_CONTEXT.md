@@ -237,6 +237,8 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
 * **Accurate Status Granularity**: Adults who completed the mandated reporter training but lack Live Scan fingerprinting (e.g. Vanessa Stewart, David Kersten) are accurately flagged with `stateTraining: 'Missing Live Scan'`, making `isCompliant: false`.
 * **Terminology Modernization**: Completely replaced legacy "YPT" with BSA's official "SYT" (Safeguarding Youth Training) across backend, exports, and frontends.
 * **Dual Compliance Rule**: A driver is marked `isCompliant: true` only if both SYT status and CA AB-506 State Training status are 'Current'.
+* **Unconditional Safety Flagging**: Drivers who are registered in the event driver table but lack required compliance (e.g. Vanessa Stewart with `attending: '?'` and David Kersten with `attending: 'Y'`) are highlighted in amber (`#fffbeb`) and tagged with `Safety Non-Compliant` / `⚠️ Safety Gaps` across all driver and leg tables regardless of their attending answer. Troop safety compliance is an absolute prerequisite for any driver listed on the event roster.
+
 
 ### 9.5 Ambiguity Deduplication Across Trip Legs
 * When an ambiguous note (e.g. "Taking Anya") applies to a driver driving both legs, `coordinator.html` previously displayed duplicate amber alert buttons.
