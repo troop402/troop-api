@@ -79,7 +79,7 @@ To prevent architectural drift and regressions across sessions, the repository m
 * **`PROJECT_CONTRACT.md`:** The plain-language, numbered contract specifying active behavioral promises and endpoint requirements.
 * **`openapi/openapi.yaml`:** Machine-readable API contract (OpenAPI 3.0), validated during CI via Redocly.
 * **`README.md`:** Minimal, public-facing project description. (Hands-off for AI unless explicitly instructed).
-* **Version Control Policy:** The project is at `0.1.0-alpha` (matching `package.json` and `openapi.yaml`). The repository owner handles all version numbering to align with GitHub releases and milestones. AI assistants must **never** increment, invent, or bump version numbers anywhere in documentation, code, or configuration.
+* **Version Control Policy:** The project is at `0.1.0-alpha` (matching `package.json` and `openapi.yaml`). The repository owner handles all version numbering to align with GitHub releases and milestones. AI assistants must **never** auto increment version numbers anywhere witrhout being asked to do so.
 
 ---
 
