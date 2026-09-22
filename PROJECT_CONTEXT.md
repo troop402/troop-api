@@ -176,3 +176,77 @@ Because carpool drivers manage their own vehicle notes on TroopWebHost, situatio
   - The system auto-emails drivers as soon as notes are saved on TWH.
   - If notes remain unclarified within 48–72 hours of departure, the carpool UI surfaces the one-tap SMS button for the trip lead to quickly ping them by text.
 
+---
+
+## 8. Shelved Database Exploration & Self-Service Parent Portal
+
+During `0.1.0-alpha` development, an alternative architecture was explored and prototyped before being intentionally shelved in favor of direct TroopWebHost persistence:
+
+### 8.1 The Self-Service Concept & Wireframe Prototype
+* **Prototype**: Preserved in `public/wireframe.html` and artifact `wireframe_signup_portal.html`.
+* **Concept**: A dedicated mobile-first signup and carpool portal where parents and drivers could:
+  - Log in without full TWH access.
+  - Directly declare vehicle seat capacity and driving availability (Outbound, Return, Both).
+  - Claim their own scouts and additional passenger scouts into open seats.
+  - Add departure or arrival timing notes.
+* **Authentication Concept ("Loose Auth")**:
+  - Rather than provisioning full TroopWebHost accounts or passwords, drivers would authenticate via phone number or email lookup against the scraped TWH roster.
+  - Verification handled via one-time passcodes (SMS/Email OTP) or magic links.
+  - Parent-to-scout relationships cross-referenced via TWH family linkage (`SectionID=1130` and `967`) so parents could automatically claim their registered children.
+* **Database Backends Evaluated**:
+  - Serverless SQL (Neon PostgreSQL or Turso LibSQL/SQLite) with schemas for `events`, `drivers`, `scout_assignments`, and `undo_log`.
+  - Intended to provide instant, sub-second responses without Render cold starts or TWH HTTP roundtrips.
+
+### 8.2 Why Shelved in Favor of Direct TroopWebHost Persistence
+1. **Administrative Edit Feature in TroopWebHost**:
+   - Troop leadership identified that TroopWebHost already provides an administrative capability to edit any member's sign-up records, seat capacities, and driver notes at:
+     `Menu > Calendar > Sign Up Members > Sign Up Members For Events > [Sign Up Members]` (`FormReport.aspx?Menu_Item_ID=45888&Form_ID=3707`).
+2. **Direct HTTP Scraper Feasibility**:
+   - Technical investigation confirmed that our service can programmatically read and submit changes to Form 3707 using standard HTTP POST with ASP.NET WebForms ViewState extraction without requiring headless browsers.
+3. **Single Source of Truth**:
+   - TroopWebHost is a paid platform that Troop 402 is committed to long-term with a very slow software change cadence.
+   - Using TWH as the primary datastore eliminates dual-write drift, sync race conditions, and external database maintenance costs.
+4. **Preservation**:
+   - All database connection configs, schema designs, and wireframe prototypes remain preserved in project configuration secrets and git history so they can be readily reactivated if the troop later decides to expose a direct self-service portal to parents.
+
+---
+
+## 9. Recent Major Milestones & Squashed Regressions
+
+### 9.1 Direct TroopWebHost Writeback (`POST /api/events/:id/driver-update`)
+* The Coordinator Worksheet (`public/coordinator.html`) writes seat counts, driving leg, and structured comments directly to TWH Form 3707.
+* **Structured Comment Standard**: Formats comments deterministically (e.g. `Taking: Scout A, Scout B. Notes: Depart 4:30 PM`) so subsequent API runs parse assignments with 100% confidence.
+* **Discrete Leg Split**: Supports discrete split legs: `Taking TO: Scout A. Taking FROM: Scout B.` when travel legs differ.
+* **Dirty-State / Concurrency Checking**: Accepts `baselineComment` to detect if a parent has changed their note concurrently in TWH, returning HTTP 409 Conflict with the latest text unless `force: true` is set.
+
+### 9.2 Coordinator In-Browser & Local-Storage Undo Stack
+* Maintains a reversible action history in `coordinator.html`.
+* Coordinators can roll back scout assignments and seat adjustments sequentially, with automatic writeback to TroopWebHost.
+
+### 9.3 TroopWebHost Direct URL Fixes
+* Direct links to event details (`Menu_Item_ID=36979`) and signup tables (`Menu_Item_ID=45888&Form_ID=3707`) initially returned HTTP 404 when prefixed with `/Troop402lafayette/`.
+* Updated backend to generate direct URLs rooted at `https://www.troopwebhost.org/FormReport.aspx?...`, allowing logged-in coordinators to jump directly to TWH event records with one click.
+
+### 9.4 Adult Safety Training & SYT (Youth Protection) Resolution
+* **California AB-506 State Training**: Scraped from TroopWebHost Section 1243 CSV (`Form_ID=403&SectionID=1243`).
+* **Terminology Modernization**: Completely replaced legacy "YPT" with BSA's official "SYT" (Safeguarding Youth Training) across backend, exports, and frontends.
+* **Dual Compliance Rule**: A driver is marked `isCompliant: true` only if both SYT status and CA AB-506 State Training status are 'Current'.
+
+### 9.5 Ambiguity Deduplication Across Trip Legs
+* When an ambiguous note (e.g. "Taking Anya") applies to a driver driving both legs, `coordinator.html` previously displayed duplicate amber alert buttons.
+* Deduplicated into a single unified action button and resolution modal that resolves both legs simultaneously.
+
+### 9.6 One-Way Driver Differentiation
+* Visual differentiation for drivers driving only outbound or return:
+  - Lavender row background and border (`#8b5cf6`).
+  - Clear `🔄 One-Way: TO Only` / `🔄 One-Way: FROM Only` badges.
+  - Section subtitles clearly itemizing driver count disparities (e.g., 11 outbound vs. 12 return drivers).
+
+### 9.7 Attending Scouts Waitlist & Interactive Table (`carpool.html`)
+* Fixed broken scout search input by implementing comprehensive `filterScouts()` logic.
+* Added live search filtering across scout name, patrol, and assigned driver.
+* Implemented multi-column sorting (Scout Name, Patrol, Ride TO, Ride FROM, Permission Slip, Swim Test) with toggleable sort indicators (`▲`/`▼`).
+* Added "⚡ Waitlist at Top" prioritization placing unassigned scouts needing rides at the very top.
+* Added quick filter buttons (`All`, `⚠️ Needs Ride`, `🚗 Has Ride`) with dynamic scout counters.
+
+

@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Troop 402 Carpool Portal Wireframe</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --card-bg: #ffffff;
+      --border-color: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+    }
+    .active-tab {
+      border-bottom: 3px solid var(--primary);
+      color: var(--primary);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 p-3 md:p-6 font-sans antialiased min-h-screen">
+  <div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Top Wireframe Header -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-sky-700 bg-sky-100 px-2.5 py-0.5 rounded-full">v2 Wireframe Concept</span>
+            <span class="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Discrete TO &amp; FROM Trips</span>
+          </div>
+          <h1 class="text-2xl font-black text-slate-900 mt-1">Troop 402 Member-Scoped Carpool Portal</h1>
+          <p class="text-xs md:text-sm text-slate-500 mt-0.5">
+            Demonstrating discrete Outbound (TO) &amp; Return (FROM) trip scheduling, late arrivals/early departures, and verified TWH scout roster search.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="bg-slate-100 text-slate-700 font-medium px-2.5 py-1 rounded-lg border border-slate-200">
+            🔒 No New Users Created
+          </span>
+          <span class="bg-sky-50 text-sky-700 font-medium px-2.5 py-1 rounded-lg border border-sky-200">
+            🚙 Independent TO / FROM Legs
+          </span>
+        </div>
+      </div>
+
+      <!-- Quick Persona Switcher -->
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-4 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <span class="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+            <span>🔑</span> Test Scenarios with Real Roster Personas:
+          </span>
+          <span class="text-slate-400">Simulates phone lookup against Turso / TWH</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <!-- Persona 1 -->
+          <button type="button" onclick="selectPersona('melanie')" id="btn-persona-melanie" class="persona-btn p-2 rounded-lg border border-sky-300 bg-sky-50 text-left transition hover:border-sky-400">
+            <div class="font-bold text-sky-950">Melanie Adams</div>
+            <div class="text-[11px] text-sky-700">📱 (516) 695-6725</div>
+            <div class="text-[10px] text-slate-600 mt-0.5">
+              Scout: <strong>Evelyn</strong><br>
+              <span class="text-emerald-700 font-semibold">Different seats:</span> 3 TO (gear), 4 FROM
+            </div>
+          </button>
+
+          <!-- Persona 2 -->
+          <button type="button" onclick="selectPersona('alison')" id="btn-persona-alison" class="persona-btn p-2 rounded-lg border border-slate-200 bg-white text-left transition hover:border-sky-300">
+            <div class="font-bold text-slate-800">Alison Clayshulte</div>
+            <div class="text-[11px] text-slate-600">📱 (925) 555-0199</div>
+            <div class="text-[10px] text-slate-600 mt-0.5">
+              Scout: <strong>Aubrey Haney</strong><br>
+              <span class="text-amber-700 font-semibold">One-way:</span> Drives TO only, needs Sunday return
+            </div>
+          </button>
+
+          <!-- Persona 3 -->
+          <button type="button" onclick="selectPersona('amanda')" id="btn-persona-amanda" class="persona-btn p-2 rounded-lg border border-slate-200 bg-white text-left transition hover:border-sky-300">
+            <div class="font-bold text-slate-800">Amanda Renno</div>
+            <div class="text-[11px] text-slate-600">📱 (925) 555-0142</div>
+            <div class="text-[10px] text-slate-600 mt-0.5">
+              Scouts: <strong>Mackenzie &amp; Emily</strong><br>
+              <span class="text-indigo-700 font-semibold">Late arrival:</span> Arrives Friday 7:30 PM
+            </div>
+          </button>
+
+          <!-- Persona 4 -->
+          <button type="button" onclick="selectPersona('dave')" id="btn-persona-dave" class="persona-btn p-2 rounded-lg border border-amber-200 bg-amber-50 text-left transition hover:border-amber-300">
+            <div class="font-bold text-amber-950 flex items-center justify-between">
+              <span>Dave Curran</span>
+              <span class="text-[9px] bg-amber-200 text-amber-800 px-1 rounded font-bold">Coord</span>
+            </div>
+            <div class="text-[11px] text-amber-700">📱 (925) 555-0188</div>
+            <div class="text-[10px] text-slate-600 mt-0.5">
+              Scout: <strong>Maddie</strong><br>
+              Coordinator vehicle &amp; master sheet
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex border-b border-slate-200 gap-6 text-sm font-medium">
+        <button onclick="switchView('portal')" id="tab-portal" class="pb-3 px-1 active-tab flex items-center gap-2">
+          📱 <span>Member Portal (Mobile Scoped View)</span>
+          <span class="bg-sky-100 text-sky-800 text-xs px-2 py-0.5 rounded-full font-bold">Parent / Driver</span>
+        </button>
+        <button onclick="switchView('coordinator')" id="tab-coordinator" class="pb-3 px-1 text-slate-500 hover:text-slate-800 flex items-center gap-2">
+          🖥️ <span>Master Coordinator Worksheet</span>
+          <span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-bold">Coordinator Only</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- VIEW 1: MEMBER SCOPED PORTAL (Mobile Container) -->
+    <div id="view-portal" class="max-w-md mx-auto space-y-4">
+
+      <!-- Identification Bar -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div id="userAvatar" class="w-10 h-10 rounded-full bg-sky-600 text-white font-black flex items-center justify-center text-sm shadow">
+              MA
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span id="userName" class="font-bold text-slate-900 text-base">Melanie Adams</span>
+                <span id="userBadge" class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.5 rounded">Roster Verified</span>
+              </div>
+              <div class="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                <span id="userPhone">📱 (516) 695-6725</span>
+                <span>•</span>
+                <span id="userEmail" class="truncate max-w-[130px]">Melanie.adams8@gmail.com</span>
+              </div>
+            </div>
+          </div>
+          <button onclick="simulatePhoneLoginPrompt()" class="text-xs text-slate-400 hover:text-slate-600 font-medium">Switch</button>
+        </div>
+
+        <!-- Coordinator Banner if applicable -->
+        <div id="coordinatorPrivilegeBanner" class="hidden mt-3 pt-3 border-t border-slate-100 flex items-center justify-between bg-amber-50 -mx-4 -mb-4 p-3 rounded-b-2xl border-amber-200">
+          <div class="text-xs text-amber-900 font-semibold flex items-center gap-1">
+            <span>🔑</span> Coordinator privileges detected
+          </div>
+          <button onclick="switchView('coordinator')" class="text-xs bg-amber-600 text-white font-bold px-2.5 py-1 rounded shadow hover:bg-amber-700">
+            Open Worksheet →
+          </button>
+        </div>
+      </div>
+
+      <!-- Event Header Card -->
+      <div class="bg-sky-700 text-white rounded-2xl p-4 shadow-md">
+        <div class="flex justify-between items-start">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-sky-200 bg-sky-800 px-2 py-0.5 rounded">Upcoming Event</span>
+            <h2 class="text-lg font-black mt-1">Mt. Lassen Campout</h2>
+            <p class="text-xs text-sky-100">Oct 10–12, 2026 • Manzanita Lake</p>
+          </div>
+          <div class="text-right">
+            <span class="text-xs bg-sky-600 text-white font-bold px-2.5 py-1 rounded-lg border border-sky-500">
+              52 Attending Scouts
+            </span>
+            <div class="text-[10px] text-sky-200 mt-1">Independent TO &amp; FROM</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 1: OUTBOUND TRIP (TO CAMP • FRIDAY) -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">⛺</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold text-slate-900 text-base">1. Outbound Trip (TO Camp)</h3>
+                <span class="bg-sky-100 text-sky-800 text-[10px] font-bold px-1.5 py-0.5 rounded">Friday, Oct 10</span>
+              </div>
+              <p class="text-[11px] text-slate-500">Vehicle capacity, timing &amp; riders heading TO the event</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Driving TO Toggle -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">Are you driving TO camp Friday?</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="setDrivingLeg('to', true)" id="btn-drive-to-yes" class="p-2.5 rounded-xl border-2 font-bold text-xs transition flex items-center justify-center gap-1.5 border-sky-600 bg-sky-50 text-sky-900 shadow-sm">
+              <span>🚗</span> Yes, driving TO
+            </button>
+            <button type="button" onclick="setDrivingLeg('to', false)" id="btn-drive-to-no" class="p-2.5 rounded-xl border-2 font-bold text-xs transition flex items-center justify-center gap-1.5 border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300">
+              <span>🚶</span> Not driving TO
+            </button>
+          </div>
+        </div>
+
+        <!-- Outbound Driving Details -->
+        <div id="details-to" class="space-y-3.5 pt-2 border-t border-slate-100">
+          <!-- Timing / Late Arrival -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Departure Timing / Schedule</label>
+            <div class="grid grid-cols-3 gap-1.5 mb-1.5 text-center text-xs">
+              <button type="button" onclick="setTimingPreset('to', 'Standard: Depart 4:30 PM from church')" class="p-1.5 border rounded-lg hover:bg-slate-50 text-[11px] font-medium border-slate-200">
+                Standard (4:30 PM)
+              </button>
+              <button type="button" onclick="setTimingPreset('to', 'Early departure: 3:00 PM')" class="p-1.5 border rounded-lg hover:bg-slate-50 text-[11px] font-medium border-slate-200">
+                Early (3:00 PM)
+              </button>
+              <button type="button" onclick="setTimingPreset('to', 'Arriving LATE: Depart 7:30 PM after soccer')" class="p-1.5 border rounded-lg hover:bg-slate-50 text-[11px] font-medium border-amber-300 bg-amber-50 text-amber-900">
+                ⚠️ Late (7:30 PM+)
+              </button>
+            </div>
+            <input type="text" id="timingNoteTo" placeholder="Custom departure note (e.g. Departing 4:30 PM from church)" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-slate-50 focus:bg-white" onchange="updateTripData('to')">
+          </div>
+
+          <!-- Passenger Seats Available TO Camp -->
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-xs font-bold text-slate-700">Passenger Seatbelts Available TO Camp</label>
+              <span class="text-[11px] text-slate-400">Excluding driver</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="adjustLegSeat('to', -1)" class="w-8 h-8 rounded-lg border border-slate-300 font-bold text-base hover:bg-slate-100 flex items-center justify-center">−</button>
+              <span id="seatsToCount" class="font-extrabold text-xl w-8 text-center text-slate-900">3</span>
+              <button type="button" onclick="adjustLegSeat('to', 1)" class="w-8 h-8 rounded-lg border border-slate-300 font-bold text-base hover:bg-slate-100 flex items-center justify-center">+</button>
+              <span class="text-xs text-slate-500" id="seatsToRemainingText">3 seats offered TO camp</span>
+            </div>
+          </div>
+
+          <!-- Outbound Riders Selection -->
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-slate-800">Scouts in Your Car TO Camp:</span>
+              <span id="ridersBadgeTo" class="font-semibold text-sky-700">1 / 3 Seats Assigned</span>
+            </div>
+
+            <!-- Quick Add Family Chips for Outbound -->
+            <div class="p-2 bg-sky-100/60 border border-sky-200 rounded-lg">
+              <div class="text-[11px] text-sky-900 font-bold mb-1 flex items-center gap-1">
+                <span>👨‍👩‍👧</span> Your Scouts (1-Tap Toggle for Outbound):
+              </div>
+              <div id="familyChipsTo" class="flex flex-wrap gap-1.5">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Assigned Riders Pill List TO -->
+            <div id="assignedRidersTo" class="flex flex-wrap gap-1.5 min-h-[30px] pt-1">
+              <!-- Dynamically populated -->
+            </div>
+
+            <!-- Searchable Dropdown for All 52 Attending Scouts -->
+            <div class="pt-1 space-y-1">
+              <div class="relative">
+                <input type="text" id="scoutSearchTo" placeholder="🔍 Search 52 attending scouts (e.g. 'Anya', 'Falcon')..." class="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white pl-2 focus:ring-1 focus:ring-sky-500 outline-none" oninput="filterScoutDropdown('to', this.value)">
+              </div>
+              <div class="flex gap-1.5">
+                <select id="scoutSelectTo" class="flex-1 border border-slate-300 rounded-lg p-1.5 text-xs bg-white text-slate-800">
+                  <option value="">-- Select attending scout to add --</option>
+                  <!-- Populated from all 52 scouts -->
+                </select>
+                <button type="button" onclick="addScoutToLeg('to')" class="bg-slate-800 text-white font-bold px-3 py-1.5 rounded-lg text-xs hover:bg-slate-900">
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2: RETURN TRIP (FROM CAMP • SUNDAY) -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🏡</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold text-slate-900 text-base">2. Return Trip (FROM Camp)</h3>
+                <span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-1.5 py-0.5 rounded">Sunday, Oct 12</span>
+              </div>
+              <p class="text-[11px] text-slate-500">Vehicle capacity, timing &amp; riders returning FROM the event</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Driving FROM Toggle -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">Are you driving FROM camp Sunday?</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="setDrivingLeg('from', true)" id="btn-drive-from-yes" class="p-2.5 rounded-xl border-2 font-bold text-xs transition flex items-center justify-center gap-1.5 border-sky-600 bg-sky-50 text-sky-900 shadow-sm">
+              <span>🚗</span> Yes, driving FROM
+            </button>
+            <button type="button" onclick="setDrivingLeg('from', false)" id="btn-drive-from-no" class="p-2.5 rounded-xl border-2 font-bold text-xs transition flex items-center justify-center gap-1.5 border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300">
+              <span>🚶</span> Not driving FROM
+            </button>
+          </div>
+        </div>
+
+        <!-- Return Driving Details -->
+        <div id="details-from" class="space-y-3.5 pt-2 border-t border-slate-100">
+          <!-- Timing / Early Departure -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Return Timing / Schedule</label>
+            <div class="grid grid-cols-3 gap-1.5 mb-1.5 text-center text-xs">
+              <button type="button" onclick="setTimingPreset('from', 'Standard: Depart 11:00 AM after site cleanup')" class="p-1.5 border rounded-lg hover:bg-slate-50 text-[11px] font-medium border-slate-200">
+                Standard (11:00 AM)
+              </button>
+              <button type="button" onclick="setTimingPreset('from', 'Departing EARLY: 9:00 AM on Sunday')" class="p-1.5 border rounded-lg hover:bg-slate-50 text-[11px] font-medium border-amber-300 bg-amber-50 text-amber-900">
+                ⚠️ Early (9:00 AM)
+              </button>
+              <button type="button" onclick="setTimingPreset('from', 'Late departure: 1:00 PM after hike')" class="p-1.5 border rounded-lg hover:bg-slate-50 text-[11px] font-medium border-slate-200">
+                Late (1:00 PM)
+              </button>
+            </div>
+            <input type="text" id="timingNoteFrom" placeholder="Custom return note (e.g. Leaving 11 AM after site breakdown)" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-slate-50 focus:bg-white" onchange="updateTripData('from')">
+          </div>
+
+          <!-- Passenger Seats Available FROM Camp -->
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-xs font-bold text-slate-700">Passenger Seatbelts Available FROM Camp</label>
+              <span class="text-[11px] text-slate-400">Excluding driver</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="adjustLegSeat('from', -1)" class="w-8 h-8 rounded-lg border border-slate-300 font-bold text-base hover:bg-slate-100 flex items-center justify-center">−</button>
+              <span id="seatsFromCount" class="font-extrabold text-xl w-8 text-center text-slate-900">4</span>
+              <button type="button" onclick="adjustLegSeat('from', 1)" class="w-8 h-8 rounded-lg border border-slate-300 font-bold text-base hover:bg-slate-100 flex items-center justify-center">+</button>
+              <span class="text-xs text-slate-500" id="seatsFromRemainingText">4 seats offered FROM camp</span>
+            </div>
+          </div>
+
+          <!-- Return Riders Selection -->
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-slate-800">Scouts in Your Car FROM Camp:</span>
+              <span id="ridersBadgeFrom" class="font-semibold text-sky-700">1 / 4 Seats Assigned</span>
+            </div>
+
+            <!-- Quick Add Family Chips for Return -->
+            <div class="p-2 bg-sky-100/60 border border-sky-200 rounded-lg">
+              <div class="text-[11px] text-sky-900 font-bold mb-1 flex items-center gap-1">
+                <span>👨‍👩‍👧</span> Your Scouts (1-Tap Toggle for Return):
+              </div>
+              <div id="familyChipsFrom" class="flex flex-wrap gap-1.5">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Assigned Riders Pill List FROM -->
+            <div id="assignedRidersFrom" class="flex flex-wrap gap-1.5 min-h-[30px] pt-1">
+              <!-- Dynamically populated -->
+            </div>
+
+            <!-- Searchable Dropdown for All 52 Attending Scouts -->
+            <div class="pt-1 space-y-1">
+              <div class="relative">
+                <input type="text" id="scoutSearchFrom" placeholder="🔍 Search 52 attending scouts (e.g. 'Anya', 'Gator')..." class="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white pl-2 focus:ring-1 focus:ring-sky-500 outline-none" oninput="filterScoutDropdown('from', this.value)">
+              </div>
+              <div class="flex gap-1.5">
+                <select id="scoutSelectFrom" class="flex-1 border border-slate-300 rounded-lg p-1.5 text-xs bg-white text-slate-800">
+                  <option value="">-- Select attending scout to add --</option>
+                </select>
+                <button type="button" onclick="addScoutToLeg('from')" class="bg-slate-800 text-white font-bold px-3 py-1.5 rounded-lg text-xs hover:bg-slate-900">
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 3: MY SCOUT'S INDEPENDENT RIDE STATUS (TO vs FROM) -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🎒</span>
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">3. My Scout's Placement (TO vs. FROM)</h3>
+              <p class="text-[11px] text-slate-500">Each scout's ride need is tracked independently for each leg</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="scoutsIndependentStatusContainer" class="space-y-4 text-xs">
+          <!-- Dynamically generated per persona's linked scouts -->
+        </div>
+      </div>
+
+      <!-- Save Button -->
+      <div class="pt-1 pb-4">
+        <button type="button" onclick="saveAllChanges()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl shadow-md transition text-base flex items-center justify-center gap-2">
+          <span>💾</span> Save All Carpool Info to Turso
+        </button>
+      </div>
+
+      <!-- Toast -->
+      <div id="saveToast" class="hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 z-50">
+        <span>✅</span> <span id="toastMsg">Saved!</span>
+      </div>
+
+    </div>
+
+    <!-- VIEW 2: MASTER COORDINATOR WORKSHEET -->
+    <div id="view-coordinator" class="hidden space-y-5">
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-black text-slate-900">Coordinator Carpool Worksheet</h2>
+              <span class="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+                Turso Discrete Leg Sync
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">
+              Independent Outbound (TO) &amp; Return (FROM) fleet capacity, timing notes, and waitlists.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="copySignupLink()" class="text-xs bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold px-3 py-1.5 rounded-lg border border-sky-300 flex items-center gap-1.5">
+              <span>📋</span> Copy Member Sign-Up Link
+            </button>
+            <button onclick="switchView('portal')" class="text-xs bg-slate-800 text-white hover:bg-slate-900 font-bold px-3 py-1.5 rounded-lg">
+              ← Return to My Family View
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Status Bar -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <div class="bg-sky-50 border border-sky-200 rounded-xl p-3">
+            <div class="text-[11px] font-bold text-sky-700 uppercase tracking-wider">Attending Scouts</div>
+            <div class="text-2xl font-black text-sky-950 mt-0.5">52</div>
+            <div class="text-[10px] text-sky-600">From TWH Attendance</div>
+          </div>
+          <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+            <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Seats TO Camp</div>
+            <div class="text-2xl font-black text-emerald-950 mt-0.5" id="kpiSeatsTo">31</div>
+            <div class="text-[10px] text-emerald-600">Friday Outbound</div>
+          </div>
+          <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3">
+            <div class="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Seats FROM Camp</div>
+            <div class="text-2xl font-black text-indigo-950 mt-0.5" id="kpiSeatsFrom">34</div>
+            <div class="text-[10px] text-indigo-600">Sunday Return</div>
+          </div>
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <div class="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Unassigned Needs</div>
+            <div class="text-2xl font-black text-amber-950 mt-0.5" id="kpiUnassigned">4 TO • 5 FROM</div>
+            <div class="text-[10px] text-amber-600">Independent waitlists</div>
+          </div>
+        </div>
+
+        <!-- Master Driver Fleet Table with Discrete TO & FROM Columns -->
+        <div class="overflow-x-auto border border-slate-200 rounded-xl">
+          <table class="w-full text-xs text-left border-collapse">
+            <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+              <tr>
+                <th class="p-3">Driver &amp; Source</th>
+                <th class="p-3 bg-sky-50/50">TO Status &amp; Capacity</th>
+                <th class="p-3 bg-sky-50/50">Scouts in Car TO Camp</th>
+                <th class="p-3 bg-sky-50/50">TO Departure Notes</th>
+                <th class="p-3 bg-indigo-50/50 border-l border-slate-200">FROM Status &amp; Capacity</th>
+                <th class="p-3 bg-indigo-50/50">Scouts in Car FROM Camp</th>
+                <th class="p-3 bg-indigo-50/50">FROM Return Notes</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <!-- Melanie Adams -->
+              <tr class="hover:bg-slate-50">
+                <td class="p-3 font-bold text-slate-900">
+                  <div class="flex items-center gap-1.5">
+                    <span>Melanie Adams</span>
+                    <span class="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1 rounded border border-emerald-300">Direct</span>
+                  </div>
+                  <div class="text-[10px] font-normal text-slate-500">2021 Subaru Outback</div>
+                </td>
+                <!-- TO -->
+                <td class="p-3 bg-sky-50/30">
+                  <span class="font-bold text-slate-800">2 / 3 seats</span>
+                  <div class="text-[10px] text-emerald-700 font-semibold">1 open seat</div>
+                </td>
+                <td class="p-3 bg-sky-50/30">
+                  <div class="flex flex-wrap gap-1">
+                    <span class="bg-sky-100 text-sky-900 border border-sky-300 px-1 py-0.5 rounded text-[10px] font-medium">Evelyn Adams ⭐</span>
+                    <span class="bg-slate-100 text-slate-800 border border-slate-300 px-1 py-0.5 rounded text-[10px]">Anya Lavrinets</span>
+                  </div>
+                </td>
+                <td class="p-3 bg-sky-50/30 text-slate-600 italic text-[11px]">Depart 4:30 PM (Trunk has troop coolers)</td>
+                <!-- FROM -->
+                <td class="p-3 bg-indigo-50/30 border-l border-slate-200">
+                  <span class="font-bold text-slate-800">2 / 4 seats</span>
+                  <div class="text-[10px] text-emerald-700 font-semibold">2 open seats</div>
+                </td>
+                <td class="p-3 bg-indigo-50/30">
+                  <div class="flex flex-wrap gap-1">
+                    <span class="bg-sky-100 text-sky-900 border border-sky-300 px-1 py-0.5 rounded text-[10px] font-medium">Evelyn Adams ⭐</span>
+                    <span class="bg-slate-100 text-slate-800 border border-slate-300 px-1 py-0.5 rounded text-[10px]">Anya Lavrinets</span>
+                  </div>
+                </td>
+                <td class="p-3 bg-indigo-50/30 text-slate-600 italic text-[11px]">Depart Sunday 11:00 AM</td>
+              </tr>
+
+              <!-- Alison Clayshulte (Asymmetric TO Only) -->
+              <tr class="hover:bg-slate-50">
+                <td class="p-3 font-bold text-slate-900">
+                  <div class="flex items-center gap-1.5">
+                    <span>Alison Clayshulte</span>
+                    <span class="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1 rounded border border-emerald-300">Direct</span>
+                  </div>
+                  <div class="text-[10px] font-normal text-slate-500">Toyota RAV4</div>
+                </td>
+                <!-- TO -->
+                <td class="p-3 bg-sky-50/30">
+                  <span class="font-bold text-slate-800">3 / 3 seats</span>
+                  <div class="text-[10px] text-slate-500 font-semibold">Full</div>
+                </td>
+                <td class="p-3 bg-sky-50/30">
+                  <div class="flex flex-wrap gap-1">
+                    <span class="bg-sky-100 text-sky-900 border border-sky-300 px-1 py-0.5 rounded text-[10px] font-medium">Aubrey Haney ⭐</span>
+                    <span class="bg-slate-100 text-slate-800 border border-slate-300 px-1 py-0.5 rounded text-[10px]">Anya Patath</span>
+                    <span class="bg-slate-100 text-slate-800 border border-slate-300 px-1 py-0.5 rounded text-[10px]">Mila Robinson</span>
+                  </div>
+                </td>
+                <td class="p-3 bg-sky-50/30 text-slate-600 italic text-[11px]">Departing EARLY Friday 3:00 PM</td>
+                <!-- FROM -->
+                <td class="p-3 bg-red-50/40 border-l border-slate-200">
+                  <span class="bg-red-100 text-red-800 font-bold px-1.5 py-0.5 rounded text-[10px]">NOT DRIVING</span>
+                </td>
+                <td class="p-3 bg-red-50/40 text-slate-400 italic">None</td>
+                <td class="p-3 bg-red-50/40 text-slate-500 italic text-[11px]">Staying in Lassen for family vacation</td>
+              </tr>
+
+              <!-- Amanda Renno (Late Arrival Outbound) -->
+              <tr class="hover:bg-slate-50">
+                <td class="p-3 font-bold text-slate-900">
+                  <div class="flex items-center gap-1.5">
+                    <span>Amanda Renno</span>
+                    <span class="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1 rounded border border-emerald-300">Direct</span>
+                  </div>
+                  <div class="text-[10px] font-normal text-slate-500">2022 Honda Odyssey</div>
+                </td>
+                <!-- TO -->
+                <td class="p-3 bg-amber-50/40">
+                  <span class="font-bold text-slate-800">2 / 5 seats</span>
+                  <div class="text-[10px] text-amber-800 font-bold">⚠️ Arriving Late</div>
+                </td>
+                <td class="p-3 bg-amber-50/40">
+                  <div class="flex flex-wrap gap-1">
+                    <span class="bg-sky-100 text-sky-900 border border-sky-300 px-1 py-0.5 rounded text-[10px] font-medium">Mackenzie Renno ⭐</span>
+                    <span class="bg-sky-100 text-sky-900 border border-sky-300 px-1 py-0.5 rounded text-[10px] font-medium">Emily Renno ⭐</span>
+                  </div>
+                </td>
+                <td class="p-3 bg-amber-50/40 text-amber-900 font-semibold text-[11px]">Leaving Friday 7:30 PM (Soccer game)</td>
+                <!-- FROM -->
+                <td class="p-3 bg-indigo-50/30 border-l border-slate-200">
+                  <span class="font-bold text-slate-800">4 / 6 seats</span>
+                  <div class="text-[10px] text-emerald-700 font-semibold">2 open seats</div>
+                </td>
+                <td class="p-3 bg-indigo-50/30">
+                  <div class="flex flex-wrap gap-1">
+                    <span class="bg-sky-100 text-sky-900 border border-sky-300 px-1 py-0.5 rounded text-[10px] font-medium">Mackenzie Renno ⭐</span>
+                    <span class="bg-sky-100 text-sky-900 border border-sky-300 px-1 py-0.5 rounded text-[10px] font-medium">Emily Renno ⭐</span>
+                    <span class="bg-slate-100 text-slate-800 border border-slate-300 px-1 py-0.5 rounded text-[10px]">Emme Neilson</span>
+                    <span class="bg-slate-100 text-slate-800 border border-slate-300 px-1 py-0.5 rounded text-[10px]">Allison Annis</span>
+                  </div>
+                </td>
+                <td class="p-3 bg-indigo-50/30 text-slate-600 italic text-[11px]">Standard Sunday 11:00 AM</td>
+              </tr>
+
+              <!-- Dave Curran -->
+              <tr class="hover:bg-slate-50">
+                <td class="p-3 font-bold text-slate-900">
+                  <div class="flex items-center gap-1.5">
+                    <span>Dave Curran</span>
+                    <span class="bg-slate-100 text-slate-700 text-[9px] font-bold px-1 rounded border border-slate-200">TWH Baseline</span>
+                  </div>
+                  <div class="text-[10px] font-normal text-slate-500">Toyota Highlander</div>
+                </td>
+                <!-- TO -->
+                <td class="p-3 bg-sky-50/30">
+                  <span class="font-bold text-slate-800">2 / 5 seats</span>
+                </td>
+                <td class="p-3 bg-sky-50/30">
+                  <div class="flex flex-wrap gap-1">
+                    <span class="bg-sky-100 text-sky-900 border border-sky-300 px-1 py-0.5 rounded text-[10px] font-medium">Maddie Curran ⭐</span>
+                    <span class="bg-slate-100 text-slate-800 border border-slate-300 px-1 py-0.5 rounded text-[10px]">Mila Lavrinets</span>
+                  </div>
+                </td>
+                <td class="p-3 bg-sky-50/30 text-slate-600 italic text-[11px]">Towing troop gear trailer</td>
+                <!-- FROM -->
+                <td class="p-3 bg-indigo-50/30 border-l border-slate-200">
+                  <span class="font-bold text-slate-800">2 / 5 seats</span>
+                </td>
+                <td class="p-3 bg-indigo-50/30">
+                  <div class="flex flex-wrap gap-1">
+                    <span class="bg-sky-100 text-sky-900 border border-sky-300 px-1 py-0.5 rounded text-[10px] font-medium">Maddie Curran ⭐</span>
+                    <span class="bg-slate-100 text-slate-800 border border-slate-300 px-1 py-0.5 rounded text-[10px]">Mila Lavrinets</span>
+                  </div>
+                </td>
+                <td class="p-3 bg-indigo-50/30 text-slate-600 italic text-[11px]">Standard departure</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Discrete Waitlists (TO vs FROM) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <!-- TO Camp Waitlist -->
+          <div class="bg-sky-50/60 border border-sky-200 rounded-xl p-4 space-y-2 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-sky-950 uppercase tracking-wide flex items-center gap-1.5">
+                <span>⏳</span> Outbound Waitlist (Needs Friday Ride TO Camp)
+              </span>
+              <span class="text-sky-800 font-bold bg-sky-100 px-2 py-0.5 rounded">4 Scouts</span>
+            </div>
+            <div class="space-y-2 pt-1">
+              <div class="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm flex justify-between items-center">
+                <div>
+                  <div class="font-bold text-slate-900">Kai Nakamura (Dragon)</div>
+                  <div class="text-[11px] text-slate-500">Parent: Ken Nakamura • Standard 4:30 PM departure</div>
+                </div>
+                <button class="bg-sky-50 text-sky-700 border border-sky-300 hover:bg-sky-100 font-bold px-2 py-1 rounded text-[10px]">Assign Car</button>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm flex justify-between items-center">
+                <div>
+                  <div class="font-bold text-slate-900">Julia Parsons (Gator)</div>
+                  <div class="text-[11px] text-slate-500">Parent: Brian Parsons • Standard 4:30 PM</div>
+                </div>
+                <button class="bg-sky-50 text-sky-700 border border-sky-300 hover:bg-sky-100 font-bold px-2 py-1 rounded text-[10px]">Assign Car</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- FROM Camp Waitlist -->
+          <div class="bg-indigo-50/60 border border-indigo-200 rounded-xl p-4 space-y-2 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-indigo-950 uppercase tracking-wide flex items-center gap-1.5">
+                <span>⏳</span> Return Waitlist (Needs Sunday Ride FROM Camp)
+              </span>
+              <span class="text-indigo-800 font-bold bg-indigo-100 px-2 py-0.5 rounded">5 Scouts</span>
+            </div>
+            <div class="space-y-2 pt-1">
+              <!-- Aubrey Haney on Return Waitlist because Alison drove TO only! -->
+              <div class="bg-amber-50 border border-amber-300 rounded-lg p-2.5 shadow-sm flex justify-between items-center">
+                <div>
+                  <div class="font-bold text-amber-950">Aubrey Haney (Mustang)</div>
+                  <div class="text-[11px] text-amber-800">Mom (Alison) drove TO only • Needs Sunday return ride!</div>
+                </div>
+                <button onclick="assignAubreyReturnToMelanie()" class="bg-sky-600 text-white hover:bg-sky-700 font-bold px-2 py-1 rounded text-[10px] shadow">
+                  + Put in Melanie's Car
+                </button>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm flex justify-between items-center">
+                <div>
+                  <div class="font-bold text-slate-900">Oliver Vance (Gator)</div>
+                  <div class="text-[11px] text-slate-500">Family drove up Friday, needs return ride Sunday</div>
+                </div>
+                <button class="bg-slate-50 text-slate-700 border border-slate-300 hover:bg-slate-100 font-bold px-2 py-1 rounded text-[10px]">Assign Car</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Real 52 Attending Scouts from Event 1957
+    const attendingScouts = [
+      { name: "Annis, Allison", patrol: "Gator" },
+      { name: "Ayers, Gwyneth", patrol: "Sun Bear" },
+      { name: "Balaji, Subhi", patrol: "Golden Eagle" },
+      { name: "Campos, Penny", patrol: "Owlet" },
+      { name: "Carrico, Sarah", patrol: "Athena" },
+      { name: "Cheng, Zoe", patrol: "Red Panda" },
+      { name: "Curran, Maddie", patrol: "Sun Bear" },
+      { name: "Di Pasqualucci, Morgan", patrol: "Falcon" },
+      { name: "Diaz, Izzy", patrol: "Honey Badger" },
+      { name: "Dong, Wendy", patrol: "Fox" },
+      { name: "Evans, Jacqueline", patrol: "Athena" },
+      { name: "Gilmore, Piper", patrol: "Hyena" },
+      { name: "Graham, Ellen", patrol: "Athena" },
+      { name: "Ha, Melia", patrol: "Fox" },
+      { name: "Haney, Aubrey P", patrol: "Mustang" },
+      { name: "Hastings, Josie", patrol: "Falcon" },
+      { name: "Henderson, Alice", patrol: "Mustang" },
+      { name: "Hickey, Quinn", patrol: "Snow Leopard" },
+      { name: "Hoover, Miyako", patrol: "Owlet" },
+      { name: "Karthik, Ava", patrol: "Red Panda" },
+      { name: "Keeler-Hodgets, Maddie", patrol: "Gator" },
+      { name: "Keeler-Hodgets, Piper", patrol: "Gator" },
+      { name: "Kellam, River", patrol: "Owlet" },
+      { name: "Kersten, Keri", patrol: "Red Panda" },
+      { name: "Kidd, Katie", patrol: "Hyena" },
+      { name: "Lavrinets, Anya", patrol: "Honey Badger" },
+      { name: "Lavrinets, Mila", patrol: "Falcon" },
+      { name: "Lindsey-Renton, Scout", patrol: "Athena" },
+      { name: "Meek, Noelle", patrol: "Owlet" },
+      { name: "Morse, Ailee", patrol: "Honey Badger" },
+      { name: "Murray, Morgan", patrol: "Owl - Instructor" },
+      { name: "Neilson, Emme", patrol: "Honey Badger" },
+      { name: "Nelson, Matilda", patrol: "Falcon" },
+      { name: "Nichols, Leah", patrol: "Owlet" },
+      { name: "Packard, Clara", patrol: "Owlet" },
+      { name: "Parsons, Julia", patrol: "Gator" },
+      { name: "Patath, Anya", patrol: "Owlet" },
+      { name: "Polcari, Keira", patrol: "Mustang" },
+      { name: "Polk, Megan", patrol: "Gator" },
+      { name: "Redman, Eliza", patrol: "Owlet" },
+      { name: "Renno, Emily", patrol: "Gator" },
+      { name: "Renno, Mackenzie", patrol: "Owlet" },
+      { name: "Rewal, Naina", patrol: "Owl - Instructor" },
+      { name: "Robinson, Mila", patrol: "Falcon" },
+      { name: "Routt, Adeline", patrol: "Falcon" },
+      { name: "Rudyak, Maria", patrol: "Tiki" },
+      { name: "Schonfeld, Rachael", patrol: "Athena" },
+      { name: "Shrock, Francine", patrol: "Hyena" },
+      { name: "Trickey, Ibuki", patrol: "Fox" },
+      { name: "Tzortzis, Alina", patrol: "Golden Eagle" },
+      { name: "Urban, Nina", patrol: "Tiki" },
+      { name: "Yin, Erin", patrol: "Fox" }
+    ];
+
+    // Personas with discrete Outbound and Return data
+    const personas = {
+      melanie: {
+        name: "Melanie Adams",
+        phone: "(516) 695-6725",
+        email: "Melanie.adams8@gmail.com",
+        avatar: "MA",
+        isCoordinator: false,
+        vehicle: "2021 Subaru Outback",
+        // Outbound
+        drivingTo: true,
+        seatsTo: 3, // Less seats on way TO due to trunk coolers
+        timingTo: "Depart 4:30 PM (Trunk has troop coolers)",
+        ridersTo: ["Anya Lavrinets"],
+        // Return
+        drivingFrom: true,
+        seatsFrom: 4,
+        timingFrom: "Depart Sunday 11:00 AM after site cleanup",
+        ridersFrom: ["Anya Lavrinets"],
+        // Scouts
+        scouts: [
+          {
+            name: "Evelyn Adams",
+            patrol: "Sun Bear",
+            inCarTo: true,
+            inCarFrom: true,
+            noteTo: "",
+            noteFrom: ""
+          }
+        ]
+      },
+      alison: {
+        name: "Alison Clayshulte",
+        phone: "(925) 555-0199",
+        email: "aclayshulte@example.com",
+        avatar: "AC",
+        isCoordinator: false,
+        vehicle: "Toyota RAV4",
+        // Outbound (Drives TO early Friday)
+        drivingTo: true,
+        seatsTo: 3,
+        timingTo: "Departing EARLY Friday 3:00 PM",
+        ridersTo: ["Anya Patath", "Mila Robinson"],
+        // Return (NOT DRIVING FROM - family vacation in Lassen)
+        drivingFrom: false,
+        seatsFrom: 0,
+        timingFrom: "Not driving Sunday (Family staying in Lassen)",
+        ridersFrom: [],
+        // Scouts
+        scouts: [
+          {
+            name: "Aubrey Haney",
+            patrol: "Mustang",
+            inCarTo: true, // rides with mom on way up
+            inCarFrom: false, // NEEDS RETURN RIDE SUNDAY!
+            noteTo: "",
+            noteFrom: "Needs Sunday return ride with another family"
+          }
+        ]
+      },
+      amanda: {
+        name: "Amanda Renno",
+        phone: "(925) 555-0142",
+        email: "arenno@example.com",
+        avatar: "AR",
+        isCoordinator: false,
+        vehicle: "2022 Honda Odyssey",
+        // Outbound (Arriving LATE Friday 7:30 PM)
+        drivingTo: true,
+        seatsTo: 5,
+        timingTo: "Arriving LATE: Depart 7:30 PM after soccer",
+        ridersTo: [],
+        // Return (Standard Sunday)
+        drivingFrom: true,
+        seatsFrom: 6,
+        timingFrom: "Standard: Depart 11:00 AM after site cleanup",
+        ridersFrom: ["Emme Neilson", "Allison Annis"],
+        // Scouts
+        scouts: [
+          {
+            name: "Mackenzie Renno",
+            patrol: "Owlet",
+            inCarTo: true,
+            inCarFrom: true,
+            noteTo: "Arriving late with mom",
+            noteFrom: ""
+          },
+          {
+            name: "Emily Renno",
+            patrol: "Gator",
+            inCarTo: true,
+            inCarFrom: true,
+            noteTo: "Arriving late with mom",
+            noteFrom: ""
+          }
+        ]
+      },
+      dave: {
+        name: "Dave Curran",
+        phone: "(925) 555-0188",
+        email: "dcurran@example.com",
+        avatar: "DC",
+        isCoordinator: true,
+        vehicle: "Toyota Highlander",
+        drivingTo: true,
+        seatsTo: 5,
+        timingTo: "Towing troop gear trailer (Depart 4:00 PM)",
+        ridersTo: ["Mila Lavrinets"],
+        drivingFrom: true,
+        seatsFrom: 5,
+        timingFrom: "Standard Sunday departure with trailer",
+        ridersFrom: ["Mila Lavrinets"],
+        scouts: [
+          {
+            name: "Maddie Curran",
+            patrol: "Sun Bear",
+            inCarTo: true,
+            inCarFrom: true,
+            noteTo: "",
+            noteFrom: ""
+          }
+        ]
+      }
+    };
+
+    let currentPersona = personas.melanie;
+
+    function selectPersona(key) {
+      currentPersona = personas[key];
+
+      document.querySelectorAll('.persona-btn').forEach(b => {
+        b.className = 'persona-btn p-2 rounded-lg border border-slate-200 bg-white text-left transition hover:border-sky-300';
+      });
+      const activeBtn = document.getElementById(`btn-persona-${key}`);
+      if (activeBtn) {
+        if (key === 'dave') {
+          activeBtn.className = 'persona-btn p-2 rounded-lg border border-amber-300 bg-amber-50 text-left transition font-bold shadow-sm';
+        } else {
+          activeBtn.className = 'persona-btn p-2 rounded-lg border border-sky-300 bg-sky-50 text-left transition font-bold shadow-sm';
+        }
+      }
+
+      renderPortal();
+    }
+
+    function renderPortal() {
+      // Header info
+      document.getElementById('userName').textContent = currentPersona.name;
+      document.getElementById('userAvatar').textContent = currentPersona.avatar;
+      document.getElementById('userPhone').textContent = `📱 ${currentPersona.phone}`;
+      document.getElementById('userEmail').textContent = currentPersona.email;
+
+      // Coordinator privileges banner
+      const coordBanner = document.getElementById('coordinatorPrivilegeBanner');
+      if (currentPersona.isCoordinator) {
+        coordBanner.classList.remove('hidden');
+      } else {
+        coordBanner.classList.add('hidden');
+      }
+
+      // OUTBOUND (TO) rendering
+      setDrivingLeg('to', currentPersona.drivingTo, false);
+      document.getElementById('seatsToCount').textContent = currentPersona.seatsTo;
+      document.getElementById('timingNoteTo').value = currentPersona.timingTo || '';
+      renderLegRiders('to');
+
+      // RETURN (FROM) rendering
+      setDrivingLeg('from', currentPersona.drivingFrom, false);
+      document.getElementById('seatsFromCount').textContent = currentPersona.seatsFrom;
+      document.getElementById('timingNoteFrom').value = currentPersona.timingFrom || '';
+      renderLegRiders('from');
+
+      // Populate full 52-scout dropdowns
+      populateScoutDropdowns();
+
+      // Render Section 3 (Scout's independent ride status)
+      renderScoutsIndependentStatus();
+    }
+
+    function setDrivingLeg(leg, isDriving, showToastMsg = true) {
+      if (leg === 'to') currentPersona.drivingTo = isDriving;
+      if (leg === 'from') currentPersona.drivingFrom = isDriving;
+
+      const yesBtn = document.getElementById(`btn-drive-${leg}-yes`);
+      const noBtn = document.getElementById(`btn-drive-${leg}-no`);
+      const details = document.getElementById(`details-${leg}`);
+
+      if (isDriving) {
+        yesBtn.className = 'p-2.5 rounded-xl border-2 font-bold text-xs transition flex items-center justify-center gap-1.5 border-sky-600 bg-sky-50 text-sky-900 shadow-sm';
+        noBtn.className = 'p-2.5 rounded-xl border-2 font-bold text-xs transition flex items-center justify-center gap-1.5 border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300';
+        details.classList.remove('hidden');
+      } else {
+        noBtn.className = 'p-2.5 rounded-xl border-2 font-bold text-xs transition flex items-center justify-center gap-1.5 border-red-600 bg-red-50 text-red-900 shadow-sm';
+        yesBtn.className = 'p-2.5 rounded-xl border-2 font-bold text-xs transition flex items-center justify-center gap-1.5 border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300';
+        details.classList.add('hidden');
+      }
+
+      renderScoutsIndependentStatus();
+      if (showToastMsg) showToast(`${leg.toUpperCase()} driving status updated`);
+    }
+
+    function setTimingPreset(leg, text) {
+      if (leg === 'to') {
+        currentPersona.timingTo = text;
+        document.getElementById('timingNoteTo').value = text;
+      } else {
+        currentPersona.timingFrom = text;
+        document.getElementById('timingNoteFrom').value = text;
+      }
+      showToast(`${leg.toUpperCase()} schedule preset selected`);
+    }
+
+    function adjustLegSeat(leg, delta) {
+      if (leg === 'to') {
+        currentPersona.seatsTo = Math.max(0, Math.min(8, currentPersona.seatsTo + delta));
+        document.getElementById('seatsToCount').textContent = currentPersona.seatsTo;
+      } else {
+        currentPersona.seatsFrom = Math.max(0, Math.min(8, currentPersona.seatsFrom + delta));
+        document.getElementById('seatsFromCount').textContent = currentPersona.seatsFrom;
+      }
+      updateLegSummary(leg);
+    }
+
+    function renderLegRiders(leg) {
+      const isTo = leg === 'to';
+      const familyChips = document.getElementById(isTo ? 'familyChipsTo' : 'familyChipsFrom');
+      familyChips.innerHTML = '';
+
+      currentPersona.scouts.forEach(s => {
+        const inCar = isTo ? s.inCarTo : s.inCarFrom;
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = inCar 
+          ? 'bg-sky-600 text-white font-bold px-2 py-1 rounded text-[11px] flex items-center gap-1 shadow-sm'
+          : 'bg-white border border-sky-300 text-sky-800 font-bold px-2 py-1 rounded text-[11px] flex items-center gap-1 hover:bg-sky-50';
+        chip.innerHTML = `${inCar ? '✓' : '+'} ${s.name} (${s.patrol})`;
+        chip.onclick = () => toggleFamilyScoutInLeg(leg, s.name);
+        familyChips.appendChild(chip);
+      });
+
+      // Render assigned riders pills
+      const container = document.getElementById(isTo ? 'assignedRidersTo' : 'assignedRidersFrom');
+      container.innerHTML = '';
+
+      const allRiders = [];
+      currentPersona.scouts.forEach(s => {
+        if (isTo && s.inCarTo) allRiders.push({ name: s.name, isFamily: true });
+        if (!isTo && s.inCarFrom) allRiders.push({ name: s.name, isFamily: true });
+      });
+
+      const otherList = isTo ? currentPersona.ridersTo : currentPersona.ridersFrom;
+      otherList.forEach(r => allRiders.push({ name: r, isFamily: false }));
+
+      if (allRiders.length === 0) {
+        container.innerHTML = `<span class="text-slate-400 italic text-[11px]">No riders added for ${isTo ? 'outbound' : 'return'}. Pick scouts above or search below.</span>`;
+      } else {
+        allRiders.forEach(r => {
+          const pill = document.createElement('span');
+          pill.className = r.isFamily 
+            ? 'bg-sky-100 border border-sky-300 text-sky-950 font-semibold px-2 py-1 rounded-lg flex items-center gap-1'
+            : 'bg-slate-100 border border-slate-300 text-slate-800 font-semibold px-2 py-1 rounded-lg flex items-center gap-1';
+          pill.innerHTML = `<span>${r.name} ${r.isFamily ? '⭐' : ''}</span><button type="button" onclick="removeLegRider('${leg}', '${r.name}', ${r.isFamily})" class="text-slate-400 hover:text-red-600 ml-1 font-bold">×</button>`;
+          container.appendChild(pill);
+        });
+      }
+
+      updateLegSummary(leg);
+    }
+
+    function toggleFamilyScoutInLeg(leg, scoutName) {
+      const s = currentPersona.scouts.find(sc => sc.name === scoutName);
+      if (s) {
+        if (leg === 'to') s.inCarTo = !s.inCarTo;
+        if (leg === 'from') s.inCarFrom = !s.inCarFrom;
+        renderLegRiders(leg);
+        renderScoutsIndependentStatus();
+        showToast(`Updated ${leg.toUpperCase()} placement for ${scoutName}`);
+      }
+    }
+
+    function removeLegRider(leg, name, isFamily) {
+      if (isFamily) {
+        toggleFamilyScoutInLeg(leg, name);
+      } else {
+        if (leg === 'to') currentPersona.ridersTo = currentPersona.ridersTo.filter(r => r !== name);
+        if (leg === 'from') currentPersona.ridersFrom = currentPersona.ridersFrom.filter(r => r !== name);
+        renderLegRiders(leg);
+        showToast(`Removed ${name} from ${leg.toUpperCase()}`);
+      }
+    }
+
+    function addScoutToLeg(leg) {
+      const isTo = leg === 'to';
+      const select = document.getElementById(isTo ? 'scoutSelectTo' : 'scoutSelectFrom');
+      const val = select.value;
+      if (!val) return;
+
+      const list = isTo ? currentPersona.ridersTo : currentPersona.ridersFrom;
+      if (!list.includes(val)) {
+        list.push(val);
+        select.value = '';
+        renderLegRiders(leg);
+        showToast(`Added ${val} to ${leg.toUpperCase()} trip`);
+      }
+    }
+
+    function updateLegSummary(leg) {
+      const isTo = leg === 'to';
+      const seats = isTo ? currentPersona.seatsTo : currentPersona.seatsFrom;
+      const familyCount = currentPersona.scouts.filter(s => isTo ? s.inCarTo : s.inCarFrom).length;
+      const otherList = isTo ? currentPersona.ridersTo : currentPersona.ridersFrom;
+      const totalRiders = familyCount + otherList.length;
+
+      const badge = document.getElementById(isTo ? 'ridersBadgeTo' : 'ridersBadgeFrom');
+      if (badge) {
+        badge.textContent = `${totalRiders} / ${seats} Seats Filled`;
+        if (totalRiders > seats) badge.className = 'font-bold text-red-600';
+        else if (totalRiders === seats) badge.className = 'font-bold text-emerald-700';
+        else badge.className = 'font-semibold text-sky-700';
+      }
+
+      const remText = document.getElementById(isTo ? 'seatsToRemainingText' : 'seatsFromRemainingText');
+      if (remText) {
+        const diff = seats - totalRiders;
+        remText.textContent = diff >= 0 ? `${diff} open seat${diff === 1 ? '' : 's'} available` : `Over capacity by ${Math.abs(diff)}!`;
+      }
+    }
+
+    function populateScoutDropdowns(filterText = '') {
+      const q = filterText.toLowerCase();
+      const filtered = attendingScouts.filter(s => s.name.toLowerCase().includes(q) || s.patrol.toLowerCase().includes(q));
+
+      ['to', 'from'].forEach(leg => {
+        const sel = document.getElementById(leg === 'to' ? 'scoutSelectTo' : 'scoutSelectFrom');
+        sel.innerHTML = `<option value="">-- Choose from ${filtered.length} attending scouts --</option>`;
+        filtered.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = `${s.name} (${s.patrol})`;
+          opt.textContent = `${s.name} (Patrol: ${s.patrol})`;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    function filterScoutDropdown(leg, query) {
+      const q = query.toLowerCase();
+      const filtered = attendingScouts.filter(s => s.name.toLowerCase().includes(q) || s.patrol.toLowerCase().includes(q));
+      const sel = document.getElementById(leg === 'to' ? 'scoutSelectTo' : 'scoutSelectFrom');
+      sel.innerHTML = `<option value="">-- Filtered: ${filtered.length} matches --</option>`;
+      filtered.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = `${s.name} (${s.patrol})`;
+        opt.textContent = `${s.name} (Patrol: ${s.patrol})`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function renderScoutsIndependentStatus() {
+      const container = document.getElementById('scoutsIndependentStatusContainer');
+      container.innerHTML = '';
+
+      currentPersona.scouts.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-3';
+
+        // TO leg status
+        let toStatusHtml = '';
+        if (currentPersona.drivingTo && s.inCarTo) {
+          toStatusHtml = `
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-300">
+                ✓ Riding in your car (TO Camp)
+              </span>
+              <button onclick="toggleFamilyScoutInLeg('to', '${s.name}')" class="text-xs text-slate-400 hover:text-slate-600 underline">Change</button>
+            </div>
+          `;
+        } else {
+          toStatusHtml = `
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="inline-flex items-center gap-1 bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded text-[11px] border border-amber-300">
+                  ⏳ Needs Ride TO Camp (Outbound Waitlist)
+                </span>
+                <span class="text-[10px] text-slate-400">Troop placement</span>
+              </div>
+              <input type="text" value="${s.noteTo || ''}" placeholder="Departure note (e.g. Needs late ride after 6 PM)" class="w-full border border-slate-300 rounded-lg p-1.5 text-[11px] bg-white" onchange="s.noteTo = this.value; showToast('Note saved');">
+            </div>
+          `;
+        }
+
+        // FROM leg status
+        let fromStatusHtml = '';
+        if (currentPersona.drivingFrom && s.inCarFrom) {
+          fromStatusHtml = `
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-300">
+                ✓ Riding in your car (FROM Camp)
+              </span>
+              <button onclick="toggleFamilyScoutInLeg('from', '${s.name}')" class="text-xs text-slate-400 hover:text-slate-600 underline">Change</button>
+            </div>
+          `;
+        } else {
+          fromStatusHtml = `
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="inline-flex items-center gap-1 bg-indigo-100 text-indigo-900 font-bold px-2 py-0.5 rounded text-[11px] border border-indigo-300">
+                  ⏳ Needs Ride FROM Camp (Return Waitlist)
+                </span>
+                <span class="text-[10px] text-slate-400">Troop placement</span>
+              </div>
+              <input type="text" value="${s.noteFrom || ''}" placeholder="Return note (e.g. Needs early Sunday return)" class="w-full border border-slate-300 rounded-lg p-1.5 text-[11px] bg-white" onchange="s.noteFrom = this.value; showToast('Note saved');">
+            </div>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+            <div>
+              <span class="font-bold text-slate-900 text-sm">${s.name}</span>
+              <span class="text-[11px] text-slate-500 ml-1.5">Patrol: ${s.patrol}</span>
+            </div>
+            <span class="text-[10px] bg-sky-50 text-sky-700 px-2 py-0.5 rounded font-bold border border-sky-200">Linked Scout</span>
+          </div>
+
+          <div class="space-y-2">
+            <div>
+              <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Friday Outbound (TO Camp):</div>
+              ${toStatusHtml}
+            </div>
+            <div class="pt-1 border-t border-slate-100">
+              <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Sunday Return (FROM Camp):</div>
+              ${fromStatusHtml}
+            </div>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function saveAllChanges() {
+      showToast("All discrete TO & FROM trip commitments saved directly to Turso!");
+    }
+
+    function assignAubreyReturnToMelanie() {
+      // Melanie adds Aubrey for return trip
+      if (!personas.melanie.ridersFrom.includes("Aubrey Haney (Mustang)")) {
+        personas.melanie.ridersFrom.push("Aubrey Haney (Mustang)");
+      }
+      showToast("Aubrey Haney assigned to Melanie Adams for Sunday Return!");
+    }
+
+    function switchView(view) {
+      const portalView = document.getElementById('view-portal');
+      const coordView = document.getElementById('view-coordinator');
+      const tabPortal = document.getElementById('tab-portal');
+      const tabCoord = document.getElementById('tab-coordinator');
+
+      if (view === 'portal') {
+        portalView.classList.remove('hidden');
+        coordView.classList.add('hidden');
+        tabPortal.className = 'pb-3 px-1 active-tab flex items-center gap-2';
+        tabCoord.className = 'pb-3 px-1 text-slate-500 hover:text-slate-800 flex items-center gap-2';
+      } else {
+        portalView.classList.add('hidden');
+        coordView.classList.remove('hidden');
+        tabCoord.className = 'pb-3 px-1 active-tab flex items-center gap-2';
+        tabPortal.className = 'pb-3 px-1 text-slate-500 hover:text-slate-800 flex items-center gap-2';
+      }
+    }
+
+    function simulatePhoneLoginPrompt() {
+      const phone = prompt("Simulate Phone Identification:\nEnter cell phone number:", "516-695-6725");
+      if (phone) {
+        if (phone.includes("516") || phone.toLowerCase().includes("melanie")) selectPersona('melanie');
+        else if (phone.includes("0142") || phone.toLowerCase().includes("amanda")) selectPersona('amanda');
+        else if (phone.includes("0199") || phone.toLowerCase().includes("alison")) selectPersona('alison');
+        else if (phone.includes("0188") || phone.toLowerCase().includes("dave")) selectPersona('dave');
+        else {
+          alert(`Phone number recognized! Loaded Melanie Adams (Demo).`);
+          selectPersona('melanie');
+        }
+      }
+    }
+
+    function copySignupLink() {
+      navigator.clipboard.writeText(window.location.origin + '/signup/1957');
+      showToast("Link copied: /signup/1957 (Share via SMS or Email)");
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('saveToast');
+      document.getElementById('toastMsg').textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 2500);
+    }
+
+    // Initialize
+    selectPersona('melanie');
+  </script>
+</body>
+</html>

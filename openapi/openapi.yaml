@@ -441,3 +441,154 @@ paths:
                 properties:
                   error:
                     type: string
+
+  /api/events/{id}/driver-update:
+    post:
+      operationId: updateEventDriver
+      summary: Update driver comment and capacity directly in TroopWebHost
+      description: Updates a driver's comments, seat count, and travel leg directly in the TroopWebHost event sign-up table with inline conflict checking.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The TroopWebHost event ID
+          schema:
+            type: string
+            example: '1957'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - driverName
+              properties:
+                driverName:
+                  type: string
+                  example: 'Simone, Jason'
+                updatedComment:
+                  type: string
+                  example: 'Taking: Evelyn Adams. Notes: Depart 4:30 PM'
+                passengerSeats:
+                  type: integer
+                  example: 3
+                drivingToFrom:
+                  type: string
+                  enum: [Both, To, From]
+                  example: Both
+                isDriver:
+                  type: boolean
+                  example: true
+                baselineComment:
+                  type: string
+                  example: 'previous comment in TWH'
+                force:
+                  type: boolean
+                  example: false
+      responses:
+        '200':
+          description: Driver successfully updated in TroopWebHost
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  driverName:
+                    type: string
+                  updatedComment:
+                    type: string
+                  passengerSeats:
+                    type: integer
+                  drivingToFrom:
+                    type: string
+        '400':
+          description: Missing or invalid request parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '409':
+          description: Conflict detected - TWH comment has changed since baseline
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conflict:
+                    type: boolean
+                  driverName:
+                    type: string
+                  liveComment:
+                    type: string
+                  proposedComment:
+                    type: string
+                  message:
+                    type: string
+        '500':
+          description: Failed to update driver in TroopWebHost
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/events/{id}/twh-status:
+    get:
+      operationId: getEventTwhStatus
+      summary: Check for external changes in TroopWebHost
+      description: Returns lightweight signature and counts to detect if TroopWebHost has changed while the coordinator was away.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The TroopWebHost event ID
+          schema:
+            type: string
+            example: '1957'
+      responses:
+        '200':
+          description: Current event status signature
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  eventId:
+                    type: string
+                  driverCount:
+                    type: integer
+                  scoutCount:
+                    type: integer
+                  totalSeatsOffered:
+                    type: integer
+                  signature:
+                    type: string
+                  timestamp:
+                    type: integer
+        '400':
+          description: Invalid event ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Failed to fetch event status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+

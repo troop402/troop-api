@@ -130,6 +130,41 @@ describe('API smoke tests', () => {
     });
   });
 
+  it('rejects invalid event ID for driver-update with 400', async () => {
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/driver-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ driverName: 'Test, Driver' }),
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
+  });
+
+  it('rejects missing driverName for driver-update with 400', async () => {
+    const response = await fetch(`${baseUrl}/api/events/1957/driver-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: 'driverName is required.',
+    });
+  });
+
+  it('rejects invalid event ID for twh-status with 400', async () => {
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/twh-status`);
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
+  });
+
   it('redirects /carpool/:id to /carpool.html?id=:id', async () => {
     const response = await fetch(`${baseUrl}/carpool/1957`, { redirect: 'manual' });
     assert.equal(response.status, 302);
@@ -360,6 +395,59 @@ describe('Driver comment parsing unit test', () => {
     assert.ok(!driver.claimedAdults.includes('Emily Polcari'));
     // 4 seatbelts total - 1 driver - 2 scouts - 1 adult = 0 open seats
     assert.equal(driver.openSeats, 0);
+  });
+
+  it('intelligently parses discrete TO and FROM structured driver comments with split capacities and riders', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Knudson, BJ',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'TO (3 seats): Taking Iris Knudson, Julia Parsons. FROM (1 seats): Taking Julia Parsons. Arriving late Friday.',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Knudson, Iris', patrol: 'Dragon' },
+      { name: 'Parsons, Julia', patrol: 'Falcon' },
+      { name: 'Lavrinets, Anya', patrol: 'Dragon' },
+    ];
+
+    const adults = [
+      { name: 'Knudson, BJ', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+
+    const driver = result.enrichedDrivers[0];
+    assert.equal(driver.toSeats, 3);
+    assert.equal(driver.fromSeats, 1);
+    assert.equal(driver.cleanNote, 'Arriving late Friday.');
+
+    assert.equal(driver.claimedScoutsTo.length, 2);
+    assert.ok(driver.claimedScoutsTo.some((s) => s.name === 'Iris Knudson'));
+    assert.ok(driver.claimedScoutsTo.some((s) => s.name === 'Julia Parsons'));
+
+    assert.equal(driver.claimedScoutsFrom.length, 1);
+    assert.equal(driver.claimedScoutsFrom[0].name, 'Julia Parsons');
+
+    const iris = result.enrichedScouts.find((s) => s.name === 'Knudson, Iris');
+    assert.equal(iris.assignedDriverTo, 'Knudson, BJ');
+    assert.equal(iris.assignedDriverFrom, null);
+    assert.equal(iris.rideDirection, 'To');
+
+    const julia = result.enrichedScouts.find((s) => s.name === 'Parsons, Julia');
+    assert.equal(julia.assignedDriverTo, 'Knudson, BJ');
+    assert.equal(julia.assignedDriverFrom, 'Knudson, BJ');
+    assert.equal(julia.rideDirection, 'Both');
+
+    const anya = result.enrichedScouts.find((s) => s.name === 'Lavrinets, Anya');
+    assert.equal(anya.assignedDriverTo, null);
+    assert.equal(anya.assignedDriverFrom, null);
+    assert.equal(anya.rideDirection, 'None');
   });
 });
 

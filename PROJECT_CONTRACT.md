@@ -67,7 +67,7 @@ D.5 It caches the events list in memory to minimize load on TroopWebHost.
 E.1 This endpoint returns combined carpool, attendance details, and comment intelligence for a specific event ID.
 E.2 It retrieves driver registrations (`SectionID=38199`), attending adults (`SectionID=730`), and attending scouts (`SectionID=967`).
 E.3 It calculates scout-centric carpool statistics: total drivers, total seats offered, total attending scouts, assigned scouts in driver notes, unassigned scouts needing rides, adult riders in vehicles, net scout seat balance (surplus/deficit), non-compliant drivers count, and leadership clarifications needed.
-E.4 It cross-references driver contact details (phone, email, registered vehicle) from the cached roster and safety training compliance from the attending adults roster (`sytStatus`, `stateTraining`, `bsaRegistered`, `isCompliant`). A driver is marked compliant only if both SYT and State Training (CA AB 506) statuses are 'Current'.
+E.4 It cross-references driver contact details (phone, email, registered vehicle) from the cached roster and safety training compliance from both the attending adults roster (`SectionID=730`) and the Adult Training export (`Form_ID=403&SectionID=1243` CSV). Compliance requires both BSA Safeguarding Youth Training (`sytStatus`, formerly YPT) and California Mandated Reporter training (`stateTraining`, AB 506) to be 'Current'.
 E.5 It parses driver comments against the attendee roster using layered name resolution:
 E.5.1 Full-name matches and family matches (matching driver surname) are confirmed automatically.
 E.5.2 Unique first-name matches among attendees are matched when unambiguous.
@@ -78,6 +78,8 @@ E.5.6 Tokens consumed by scout assignments are not re-claimed for adult passenge
 E.5.7 Driver self-references (driver's own name, "myself", "me") account for the driver seat and do not occupy passenger seats. Available passenger seats are derived as `Math.max(0, seats - 1)`.
 E.5.8 Ambiguous rider notes occupy passenger slots provisionally to prevent false open seat calculations.
 E.6 It returns 400 for invalid or missing event IDs, and 500 if TroopWebHost retrieval fails.
+E.7 It provides direct TroopWebHost URLs (`twhEventUrl` for event calendar details and `twhSignupUrl` for admin member signup table) rooted at `https://www.troopwebhost.org` without tenant path prefix to avoid HTTP 404s.
+E.8 The accompanying Carpool HTML report (`/carpool.html`) provides an interactive Attending Scouts waitlist table with live search filtering across name, patrol, and assigned driver; clickable column sorting on all columns; and a one-click "⚡ Waitlist at Top" prioritization mode that places unassigned scouts at the top.
 
 ### F. GET /api/events/:id/carpool.xlsx
 F.1 It generates a valid `.xlsx` binary spreadsheet workbook with `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
@@ -89,6 +91,18 @@ F.5 It returns HTTP 400 for missing/invalid event IDs and 500 if TroopWebHost re
 ### G. POST /api/events/:id/carpool.xlsx
 G.1 Accepts live custom working state (`toDrivers`, `fromDrivers`, `unassignedScouts`, `location`, `mapLink`) to produce an on-demand coordinator Excel spreadsheet reflective of in-browser edits.
 G.2 Re-applies standard Lake Berryessa layout, data validation dropdowns, formulas, and roster references to the custom state.
+
+### H. POST /api/events/:id/driver-update
+H.1 Persists coordinator edits to a driver's comments, passenger seats, driving direction (`Both`, `To`, `From`), or driver status directly into TroopWebHost.
+H.2 Submits directly to TroopWebHost's Admin Sign-Up Form (`FormReport.aspx?Menu_Item_ID=45888&Form_ID=3707`) via authenticated HTTP POST, parsing and sending ASP.NET WebForms ViewState.
+H.3 Provides optimistic concurrency / dirty-state conflict checking: callers may pass `baselineComment`. If the current value in TroopWebHost does not match the baseline, the endpoint responds with HTTP 409 Conflict and the latest comment, unless `force: true` is supplied.
+H.4 Injects discrete leg markup when TO and FROM trips are split (e.g. `Taking TO: ... . Taking FROM: ... .`).
+H.5 Returns HTTP 400 for missing or invalid parameters, HTTP 409 for concurrency conflicts, and HTTP 500 for TroopWebHost submission failures.
+
+### I. GET /api/events/:id/twh-status
+I.1 Checks whether the backend's current TroopWebHost credentials have active permission to edit driver sign-up records on the event.
+I.2 Returns JSON with `authenticated: boolean`, `canEdit: boolean`, and edit URL details.
+I.3 Returns HTTP 400 for invalid event IDs and HTTP 500 if checking fails.
 
 
 
