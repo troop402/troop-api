@@ -112,7 +112,7 @@ To prevent architectural drift and regressions across sessions, the repository m
   - `isCarpoolCandidate` boolean flags offsite trips and excludes routine `Location: CABIN` meetings and informational placeholders.
 * **Hosting & Environment**:
   - Target Troop: `https://www.troopwebhost.org/Troop402lafayette/` (Troop 402 Lafayette, CA).
-  - Render URL Behavior: Render default `*.onrender.com` subdomains are permanently allocated at web service creation time and do not change when the service display name is edited. Render deployment active at `https://troop-api.onrender.com`.
+  - Render URL Behavior: Render default `*.onrender.com` subdomains are permanently allocated at web service creation time and do not change when the service display name is edited. Render deployment active at `https://troop402-api.onrender.com`.
   - Production secrets configured in Render environment.
   - Smoke tests and live TWH integration tests passing.
 
