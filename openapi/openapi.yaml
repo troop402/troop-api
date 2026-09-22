@@ -197,6 +197,46 @@ paths:
                   error:
                     type: string
 
+  /api/events/{id}/carpool.xlsx:
+    get:
+      operationId: exportEventCarpoolExcel
+      summary: Download event carpool coordinator Excel spreadsheet
+      description: Generates a pre-populated Excel (.xlsx) workbook modeled after the traditional coordinator sheet, including outbound/return tables, slots 1-9, driver cell phones, and unassigned waitlists.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The TroopWebHost event ID
+          schema:
+            type: string
+            example: '1957'
+      responses:
+        '200':
+          description: Excel spreadsheet download
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid event ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Failed to generate carpool spreadsheet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
   /api/events/{id}/carpool:
     get:
       operationId: getEventCarpool

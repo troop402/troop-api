@@ -299,6 +299,12 @@
           <a id="openCarpoolLink" href="#" target="_blank" class="btn btn-primary" style="font-size: 0.95rem; padding: 0.65rem 1.25rem;">
             🚗 Open Shareable Carpool Page &rarr;
           </a>
+          <a id="openCoordinatorLink" href="#" target="_blank" class="btn btn-success" style="font-size: 0.95rem; padding: 0.65rem 1.25rem;">
+            🗂️ Coordinator Grid &rarr;
+          </a>
+          <a id="downloadExcelLink" href="#" class="btn" style="font-size: 0.95rem; padding: 0.65rem 1rem;">
+            📥 Download Excel (.xlsx)
+          </a>
           <button id="copyCarpoolBtn" class="btn" onclick="copyEventLink()">📋 Copy Shareable Link</button>
         </div>
       </div>
@@ -432,6 +438,8 @@
 
       const carpoolUrl = `/carpool.html?id=${eventId}`;
       document.getElementById('openCarpoolLink').href = carpoolUrl;
+      document.getElementById('openCoordinatorLink').href = `/coordinator.html?id=${eventId}`;
+      document.getElementById('downloadExcelLink').href = `/api/events/${eventId}/carpool.xlsx`;
       box.style.display = 'block';
 
       // Quick preview of capacity
