@@ -1511,7 +1511,7 @@
       const safetyBadge = document.getElementById('safetyBadge');
       const safetyList = document.getElementById('safetyList');
       if (safetyBanner && safetyBadge && safetyList) {
-        const nonCompliantDrivers = (carpoolBaseline.drivers || []).filter(d => d.attending === 'Y' && !d.isCompliant);
+        const nonCompliantDrivers = (carpoolBaseline.drivers || []).filter(d => !d.isCompliant);
         safetyBadge.textContent = nonCompliantDrivers.length;
         if (nonCompliantDrivers.length > 0) {
           safetyBanner.style.display = 'block';
@@ -1619,13 +1619,18 @@
         const maxSeats = d.seats || 0;
         const isOneWay = (d.drivingToFrom || '').toLowerCase() !== 'both';
 
-        if (isOneWay) {
+        if (!d.isCompliant) {
+          tr.style.backgroundColor = '#fffbeb';
+          if (isOneWay) {
+            tr.style.borderLeft = '4px solid #8b5cf6';
+          }
+        } else if (isOneWay) {
           tr.style.backgroundColor = '#faf5ff';
           tr.style.borderLeft = '4px solid #8b5cf6';
         }
 
         let phoneHtml = d.phone ? `<a href="tel:${escapeHtml(d.phone)}" style="color:var(--text); text-decoration:none;">${escapeHtml(d.phone)}</a>` : '<span class="muted">-</span>';
-        let safetyTag = !d.isCompliant && d.attending === 'Y' ? '<br><span style="color:#b91c1c; font-size:0.7rem; font-weight:700;">⚠️ Safety Gaps</span>' : '';
+        let safetyTag = !d.isCompliant ? '<br><span style="color:#b91c1c; font-size:0.7rem; font-weight:700;">⚠️ Safety Gaps</span>' : '';
         let oneWayTag = isOneWay ? `<br><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.68rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span>` : '';
 
         const hasNote = Boolean((d.customNote && d.customNote.trim()) || (d.comment && d.comment.trim()));
@@ -1751,9 +1756,11 @@
             </div>
             <div style="font-size:0.75rem; color:var(--text-muted);">
               ${s.patrol ? `Patrol: ${escapeHtml(s.patrol)}` : 'No Patrol'}
-              ${s.swimTest ? ` • Swim: ${escapeHtml(s.swimTest)}` : ''}
+              ${s.swimTest ? ` • Swim: ${escapeHtml(s.swimTest)}${s.swimDate ? ` (${escapeHtml(s.swimDate)})` : ''}` : ''}
+              ${s.medicalNeeded ? ` • <span style="color:#b45309; font-weight:600;">Needs Med ${escapeHtml(s.medicalNeeded)}</span>` : ''}
             </div>
-            ${s.rideNote ? `<div style="font-size:0.75rem; color:#b45309; background:#fffbeb; padding:0.2rem 0.4rem; border-radius:3px;">${escapeHtml(s.rideNote)}</div>` : ''}
+            ${s.comment ? `<div style="font-size:0.75rem; color:#1e40af; background:#eff6ff; padding:0.2rem 0.4rem; border-radius:3px; margin-top:3px; border:1px solid #bfdbfe;">💬 ${escapeHtml(s.comment)}</div>` : ''}
+            ${s.rideNote ? `<div style="font-size:0.75rem; color:#b45309; background:#fffbeb; padding:0.2rem 0.4rem; border-radius:3px; margin-top:2px;">${escapeHtml(s.rideNote)}</div>` : ''}
           </div>
         `;
       }).join('');
@@ -2071,6 +2078,7 @@
           <div>
             <strong>${escapeHtml(formatLastFirst(s.name))}</strong>
             <span style="font-size:0.75rem; color:var(--text-muted); margin-left:0.5rem;">${escapeHtml(s.patrol || 'No Patrol')}</span>
+            ${s.comment ? `<div style="font-size:0.75rem; color:#1e40af; margin-top:2px;">💬 ${escapeHtml(s.comment)}</div>` : ''}
           </div>
           <span style="color:var(--primary); font-weight:700; font-size:0.8rem;">Select &rarr;</span>
         </div>
