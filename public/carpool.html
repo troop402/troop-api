@@ -356,6 +356,8 @@
           </div>
         </div>
         <div class="actions no-print">
+          <a id="coordGridLink" href="#" class="btn btn-success">🗂️ Coordinator Grid</a>
+          <button id="downloadExcelBtn" class="btn" onclick="downloadExcel()">📥 Download Excel (.xlsx)</button>
           <button id="copyLinkBtn" class="btn" onclick="copyShareableLink()">📋 Copy Shareable Link</button>
           <button class="btn btn-primary" onclick="window.print()">🖨️ Print Departure Sheet</button>
           <button id="refreshBtn" class="btn" onclick="refreshData()">🔄 Refresh</button>
@@ -561,6 +563,7 @@
       document.getElementById('eventDate').textContent = meta?.start ? `📅 ${meta.start}` : '📅 See TroopWebHost';
       document.getElementById('eventLocation').textContent = meta?.location ? `📍 ${meta.location}` : '📍 TBA';
       document.getElementById('cachedAtTime').textContent = cachedAt ? new Date(cachedAt).toLocaleTimeString() : 'Just now';
+      document.getElementById('coordGridLink').href = `/coordinator.html?id=${encodeURIComponent(eventId)}`;
 
       // Capacity Banner (Scout-Centric)
       const banner = document.getElementById('capacityBanner');
@@ -795,6 +798,11 @@
       if (currentData?.scouts) {
         renderScoutsTable(currentData.scouts);
       }
+    }
+
+    function downloadExcel() {
+      if (!eventId) return;
+      window.location.href = `/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`;
     }
 
     function copyShareableLink() {

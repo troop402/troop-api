@@ -90,6 +90,8 @@ To prevent architectural drift and regressions across sessions, the repository m
   - `public/index.html`: Clean, minimal, neutral public status landing page with zero sensitive scout/roster data exposed.
   - `public/manager.html`: Internal manager console with roster sync stats, raw CSV export downloads, and event carpool launcher with Carpool Candidates filtering.
   - `public/carpool.html?id=:id`: Dedicated shareable event carpool and departure clipboard page. Clean URL `/carpool/:id` automatically redirects.
+  - `public/coordinator.html?id=:id`: Dedicated interactive Coordinator Worksheet replicating the traditional Lake Berryessa 1-9 scout slot grid with live in-browser reassignment and real-time capacity meters. Clean URL `/coordinator/:id` automatically redirects.
+  - `GET /api/events/:id/carpool.xlsx`: One-click pre-populated Excel spreadsheet generator replicating the Lake Berryessa coordinator workbook layout with locked, pristine formulas.
 * **Driver Safety & Youth Protection Compliance**:
   - Drivers cross-referenced with the Attending Adults section to inspect `sytStatus` (SYT/YPT Youth Protection), `stateTraining` (California AB 506 mandated reporter training), and `bsaRegistered`.
   - Visual status badges and warning highlights on drivers whose training is not 'Current'.

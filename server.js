@@ -5,6 +5,7 @@ import { CookieJar } from 'tough-cookie';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { pathToFileURL } from 'url';
+import { buildCarpoolWorkbook } from './excel-export.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -940,6 +941,35 @@ app.get('/api/events/:id/carpool', async (req, res) => {
   }
 });
 
+app.get('/api/events/:id/carpool.xlsx', async (req, res) => {
+  const eventId = req.params.id;
+  const forceRefresh = req.query.forceRefresh === 'true';
+
+  if (!eventId || !/^\d+$/.test(eventId)) {
+    return res.status(400).json({ error: 'Valid numeric event ID is required.' });
+  }
+
+  try {
+    getTroopWebHostConfig();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  try {
+    const carpool = await fetchEventCarpoolDetails({ eventId, forceRefresh });
+    const workbook = await buildCarpoolWorkbook(carpool);
+
+    const safeTitle = (carpool.meta?.title || 'event').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="carpool_${eventId}_${safeTitle}.xlsx"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to generate carpool spreadsheet.' });
+  }
+});
+
 // Friendly redirect routes
 app.get('/carpool/:id', (req, res) => {
   const eventId = req.params.id;
@@ -947,6 +977,14 @@ app.get('/carpool/:id', (req, res) => {
     return res.status(400).send('Invalid event ID');
   }
   return res.redirect(`/carpool.html?id=${encodeURIComponent(eventId)}`);
+});
+
+app.get('/coordinator/:id', (req, res) => {
+  const eventId = req.params.id;
+  if (!eventId || !/^\d+$/.test(eventId)) {
+    return res.status(400).send('Invalid event ID');
+  }
+  return res.redirect(`/coordinator.html?id=${encodeURIComponent(eventId)}`);
 });
 
 app.get('/manager', (req, res) => {

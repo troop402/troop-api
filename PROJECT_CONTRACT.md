@@ -75,6 +75,14 @@ E.5.3 Ambiguous first-name collisions (multiple attending scouts sharing the nam
 E.5.4 Explicit open-seat notes in driver comments (e.g. "and 2 more") override derived calculations.
 E.6 It returns 400 for invalid or missing event IDs, and 500 if TroopWebHost retrieval fails.
 
+### F. GET /api/events/:id/carpool.xlsx
+F.1 This endpoint generates and returns a pre-populated Excel workbook (.xlsx) replicating the traditional coordinator carpool spreadsheet.
+F.2 It includes Trip metadata, KPI summary block (scouts, drivers, seats, net balance), and Transport/Insurance guidelines.
+F.3 It renders "TO the event" and "FROM the event" sections with drivers, phone numbers, available seats, special info/notes, and claimed scouts pre-assigned across horizontal slots 1 through 9.
+F.4 It renders a "WAITLIST / UNASSIGNED SCOUTS" section listing all scouts who still need a ride.
+F.5 It returns HTTP 400 for missing/invalid event IDs and 500 if TroopWebHost retrieval fails.
+
+
 
 
 ## 5. Operational promises

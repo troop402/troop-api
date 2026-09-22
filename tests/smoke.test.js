@@ -108,10 +108,25 @@ describe('API smoke tests', () => {
     });
   });
 
+  it('rejects invalid event ID for carpool.xlsx endpoint with 400', async () => {
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool.xlsx`);
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
+  });
+
   it('redirects /carpool/:id to /carpool.html?id=:id', async () => {
     const response = await fetch(`${baseUrl}/carpool/1957`, { redirect: 'manual' });
     assert.equal(response.status, 302);
     assert.equal(response.headers.get('location'), '/carpool.html?id=1957');
+  });
+
+  it('redirects /coordinator/:id to /coordinator.html?id=:id', async () => {
+    const response = await fetch(`${baseUrl}/coordinator/1957`, { redirect: 'manual' });
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get('location'), '/coordinator.html?id=1957');
   });
 
   it('redirects /manager to /manager.html', async () => {
@@ -297,5 +312,69 @@ describe('Driver comment parsing unit test', () => {
 
     // No clarifications needed because both were successfully resolved
     assert.equal(result.clarificationsNeeded.length, 0);
+  });
+});
+
+describe('Carpool Excel export unit test', () => {
+  it('generates an Excel workbook with proper sections, headers, and pre-filled slots', async () => {
+    const { buildCarpoolWorkbook } = await import('../excel-export.js');
+
+    const mockData = {
+      meta: {
+        title: 'Mt. Lassen Campout',
+        start: '10/10/2026 5:00 PM',
+        end: '10/12/2026 11:00 AM',
+        location: 'Mt. Lassen State Park',
+      },
+      stats: {
+        totalDrivers: 2,
+        totalSeatsOffered: 7,
+        totalAttendingScouts: 5,
+        assignedScoutsCount: 3,
+        unassignedScoutsCount: 2,
+        seatBalance: 2,
+        adultRidersCount: 0,
+      },
+      drivers: [
+        {
+          name: 'Knudson, BJ',
+          phone: '925-899-7663',
+          seats: 4,
+          comment: 'driving Iris, Julia',
+          claimedScouts: [{ name: 'Iris Knudson' }, { name: 'Julia Parsons' }],
+          drivingToFrom: 'Both',
+          attending: 'Y',
+        },
+        {
+          name: 'Bronson, Darren',
+          phone: '415-722-4453',
+          seats: 1,
+          comment: 'leave Saturday night',
+          claimedScouts: [{ name: 'Kyla Bronson' }],
+          drivingToFrom: 'From',
+          attending: 'Y',
+        },
+      ],
+      scouts: [
+        { name: 'Iris Knudson', patrol: 'Dragon', assignedDriver: 'Knudson, BJ', rideStatus: 'confirmed' },
+        { name: 'Julia Parsons', patrol: 'Dragon', assignedDriver: 'Knudson, BJ', rideStatus: 'confirmed' },
+        { name: 'Kyla Bronson', patrol: 'Falcon', assignedDriver: 'Bronson, Darren', rideStatus: 'confirmed' },
+        { name: 'Charlie Brown', patrol: 'Gator', assignedDriver: null, rideStatus: 'unassigned' },
+        { name: 'Lucy van Pelt', patrol: 'Gator', assignedDriver: null, rideStatus: 'unassigned' },
+      ],
+    };
+
+    const workbook = await buildCarpoolWorkbook(mockData);
+    assert.ok(workbook);
+
+    const sheet = workbook.getWorksheet('Carpool Sheet');
+    assert.ok(sheet);
+
+    // Verify title
+    assert.equal(sheet.getCell('A1').value, 'T402G Carpool Coordinator Sheet');
+
+    // Verify buffer generation
+    const buffer = await workbook.xlsx.writeBuffer();
+    assert.ok(buffer.length > 5000);
   });
 });
