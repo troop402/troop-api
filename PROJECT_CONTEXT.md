@@ -135,3 +135,42 @@ To enable the application to behave like a fast, responsive website without user
   - Once the data schema and database backing stabilize, extract the user-facing web interface into its own repository (e.g. hosted on GitHub Pages or Vercel).
   - The OpenAPI contract (`openapi/openapi.yaml`) and database schema will serve as the decoupled boundary between the frontend UI repo and the backend TWH ingestion engine.
   - AI tooling will assist in smoothly migrating the frontend into a standalone application without disrupting the core API.
+
+---
+
+## 7. Driver Communication & Automated Messaging Strategy (Exploratory)
+
+Because carpool drivers manage their own vehicle notes on TroopWebHost, situations frequently arise where leadership needs to contact them:
+1. **Clarification on Ambiguous Notes**: A driver lists a first name shared by multiple attending scouts (e.g. "Anya" or "Mila") and needs to be prompted for the scout's surname.
+2. **Driver Safety & Youth Protection Gaps**: A registered driver has missing or incomplete CA State AB 506 training or expired Youth Protection (SYT) records.
+3. **Trip Departure & Logistics Updates**: Broadcast departure times, parking instructions, or open seat changes to all drivers as the trip approaches.
+
+### 7.1 The Telecom & Carrier Landscape (Why Free SMS is Hard)
+* **The Death of Email-to-SMS Gateways**: TroopWebHost historically used free email-to-SMS relays (`number@vtext.com`, `number@txt.att.net`). As documented by [TWH (Help ID 562)](https://www.troopwebhost.org/help.aspx?ID=562), carriers have largely discontinued or heavily throttled these gateways due to spam abuse. Delivery rates are now unacceptably poor.
+* **A2P 10DLC Regulations**: Major US mobile carriers (AT&T, Verizon, T-Mobile) now mandate that **any** cloud/software application sending automated SMS must register via The Campaign Registry (TCR). This requires business entity vetting (EIN/tax ID), one-time registration fees ($15–$50), and recurring monthly campaign fees ($1.50–$10/month), plus per-message carrier surcharges. Unregistered 10-digit cloud SMS is blocked outright by carriers.
+
+### 7.2 Evaluated Tools & Architectural Options
+
+| Approach / Tool | Type | Monthly Cost | Automated by Server? | 1:1 Targeted? | Carrier 10DLC Req? | Notes & Trade-offs |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Native `sms:` Deep-Links** | Mobile URI | $0 | No (1-tap coordinator action) | Yes | No | Generates prefilled text on leader's phone. 100% delivery via peer-to-peer cellular plan. Drivers reply directly to leader. |
+| **Group SMS Launcher** | Mobile URI | $0 | No (1-tap coordinator action) | No (Group) | No | Launches comma-separated group SMS with all driver cell numbers for departure day coordination. |
+| **Resend / SendGrid** | Transactional Email | $0 (Free tier 3k/mo) | Yes (100% hands-off) | Yes | No | Backend automatically dispatches emails using driver email already scraped from TWH roster. Zero parent enrollment required. |
+| **Twilio Toll-Free SMS** | Cloud SMS | ~$2–$3 / mo | Yes (100% hands-off) | Yes | No (Bypasses 10DLC) | Toll-free numbers (800/888) bypass 10DLC via a free verification form. $2.15/mo number rental + $0.0079/msg. Very cheap, but not zero-cost. |
+| **GroupMe Bots API** | Group Messaging | $0 | Yes (via HTTP POST) | No (Group only) | No | Free public Bot API. Parents can receive messages as real SMS. Catch: Bots can only post into the group, not send private 1:1 DMs. |
+| **Remind.com** | EdTech Messaging | Closed / N/A | No | Yes | N/A | Evaluated but ruled out: Remind has no public, self-serve developer REST API. Its Share SDK is restricted to invite-only enterprise partners. |
+| **Self-Hosted Android Relay** | Android HTTP Gateway | $0 (using existing phone plan) | Yes | Yes | No | Runs an open-source SMS gateway app (e.g. `android-sms-gateway`) on a spare Android phone connected to Wi-Fi. Free and automated, but introduces hardware maintenance. |
+
+### 7.3 Candidate Workflow Models
+
+* **Model A: "One-Tap Coordinator Cockpit" (Low Tech, Highest Reliability)**:
+  - Add contextual `📱 Text Driver to Clarify` buttons directly in the Amber Alert box and Drivers table in `carpool.html`.
+  - Clicking pre-fills a targeted message on the leader's phone (e.g., *"Hi Alison, Troop 402 carpool coordinator here regarding Mt. Lassen. In your driver note you listed 'Anya'. We have Anya L. and Anya P. attending—could you let us know which one is riding in your car? Thanks!"*).
+  - Add a `📱 Group Text Drivers` button for departure day announcements.
+* **Model B: "Automated Email Ingestion Bot" (Zero Coordinator Effort)**:
+  - When the background sync detects an ambiguity or incomplete training, the Node server automatically fires a templated email to the driver's email address via Resend.
+  - Drivers can reply to the email or edit their note directly on TroopWebHost.
+* **Model C: "Hybrid Automated Email + Urgent One-Tap Text"**:
+  - The system auto-emails drivers as soon as notes are saved on TWH.
+  - If notes remain unclarified within 48–72 hours of departure, the carpool UI surfaces the one-tap SMS button for the trip lead to quickly ping them by text.
+

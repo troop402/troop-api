@@ -34,7 +34,8 @@
     }
 
     .container {
-      max-width: 1050px;
+      max-width: 1440px;
+      width: 100%;
       margin: 0 auto;
     }
 
@@ -260,15 +261,71 @@
 
     /* Print Formatting */
     @media print {
-      body { background: white; padding: 0; font-size: 10pt; color: black; }
+      @page {
+        size: portrait;
+        margin: 0.35in;
+      }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      body {
+        background: white !important;
+        padding: 0;
+        font-size: 8.5pt;
+        color: black;
+      }
       .actions, .search-input, .no-print { display: none !important; }
-      .container { max-width: 100%; margin: 0; }
-      .card { box-shadow: none; border: 1px solid #ccc; padding: 0.75rem; margin-bottom: 1rem; page-break-inside: avoid; }
-      .capacity-banner { padding: 0.75rem; margin-bottom: 1rem; border: 1px solid #000; }
-      .stat-pill { background: white; border: 1px solid #999; }
-      table { font-size: 9pt; }
-      th, td { padding: 0.35rem 0.5rem; border-color: #ddd; }
-      .table-container { border: 1px solid #ccc; }
+      .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; }
+      .card {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        padding: 0.5rem;
+        margin-bottom: 0.75rem;
+        page-break-inside: avoid;
+      }
+      .capacity-banner {
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.75rem;
+        border: 1px solid #999;
+      }
+      .banner-title { font-size: 10pt; }
+      .banner-desc { font-size: 8pt; }
+      .stat-pill {
+        background: white;
+        border: 1px solid #999;
+        padding: 0.2rem 0.4rem;
+        min-width: 50px;
+      }
+      .stat-pill .num { font-size: 9.5pt; }
+      .stat-pill .lbl { font-size: 6pt; }
+      .section-title { font-size: 9.5pt; }
+      .table-container {
+        overflow: visible !important;
+        border: 1px solid #ccc;
+      }
+      table {
+        font-size: 7.5pt;
+        width: 100%;
+      }
+      th {
+        font-size: 7.5pt;
+        padding: 0.25rem 0.35rem;
+        background: #f1f5f9 !important;
+      }
+      td {
+        padding: 0.25rem 0.35rem;
+        border-color: #e2e8f0;
+        word-break: break-word;
+      }
+      .badge {
+        font-size: 6.5pt;
+        padding: 0.1rem 0.3rem;
+        border: 1px solid #cbd5e1;
+      }
+      .tag-list {
+        gap: 0.2rem;
+      }
       a { text-decoration: none; color: black; }
     }
   </style>
