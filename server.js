@@ -409,6 +409,7 @@ async function fetchUpcomingEvents({ days = 90, forceRefresh = false } = {}) {
       let title = '';
       let eventType = '';
       let location = '';
+      let mapLink = '';
       let start = '';
       let end = '';
 
@@ -417,10 +418,18 @@ async function fetchUpcomingEvents({ days = 90, forceRefresh = false } = {}) {
         const data = $(tr).find('.mobile-grid-data').text().trim().replace(/\s+/g, ' ');
         if (/event type/i.test(caption)) eventType = data;
         else if (/^event$/i.test(caption)) title = data;
-        else if (/location/i.test(caption)) location = data;
+        else if (/location/i.test(caption)) {
+          location = data;
+          const href = $(tr).find('.mobile-grid-data a').attr('href');
+          if (href) mapLink = href;
+        }
         else if (/start/i.test(caption)) start = data;
         else if (/end/i.test(caption)) end = data;
       });
+
+      if (!mapLink && location && !location.toUpperCase().includes('CABIN')) {
+        mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+      }
 
       const loc = (location || '').trim().toUpperCase();
       const isCabin = loc.includes('CABIN');
@@ -433,6 +442,7 @@ async function fetchUpcomingEvents({ days = 90, forceRefresh = false } = {}) {
           title: title || eventType,
           eventType,
           location,
+          mapLink,
           start,
           end,
           isCarpoolCandidate,
@@ -473,6 +483,94 @@ function filterEventsByDays(events, days) {
       return endOrStart >= cutoffDate && startOrEnd <= maxFuture;
     })
     .map(({ startDateObj, endDateObj, ...rest }) => rest);
+}
+
+const NICKNAMES = {
+  tom: ['thomas', 'tommy'],
+  thomas: ['tom', 'tommy'],
+  tommy: ['tom', 'thomas'],
+  mike: ['michael', 'mikey'],
+  michael: ['mike', 'mikey'],
+  mikey: ['mike', 'michael'],
+  chris: ['christopher', 'christina', 'christine'],
+  christopher: ['chris'],
+  dan: ['daniel', 'danny'],
+  daniel: ['dan', 'danny'],
+  dave: ['david', 'davey'],
+  david: ['dave', 'davey'],
+  matt: ['matthew'],
+  matthew: ['matt'],
+  ben: ['benjamin', 'benny'],
+  benjamin: ['ben', 'benny'],
+  alex: ['alexander', 'alexandra', 'alexis'],
+  alexander: ['alex'],
+  alexandra: ['alex', 'ally', 'allie'],
+  sam: ['samuel', 'samantha', 'sammy'],
+  samuel: ['sam', 'sammy'],
+  samantha: ['sam', 'sammy'],
+  nick: ['nicholas'],
+  nicholas: ['nick'],
+  kate: ['katherine', 'catherine', 'katie'],
+  katie: ['katherine', 'catherine', 'kate'],
+  katherine: ['kate', 'katie', 'kathy'],
+  catherine: ['kate', 'katie', 'cathy'],
+  liz: ['elizabeth', 'lizzie', 'beth', 'ellie'],
+  beth: ['elizabeth'],
+  ellie: ['elizabeth', 'eleanor', 'ellen'],
+  elizabeth: ['liz', 'lizzie', 'beth', 'ellie'],
+  jen: ['jennifer', 'jenny'],
+  jenny: ['jennifer', 'jen'],
+  jennifer: ['jen', 'jenny'],
+  em: ['emily', 'emma'],
+  emily: ['em'],
+  emma: ['em'],
+  madi: ['madison', 'madelaine', 'madeline'],
+  maddie: ['madison', 'madelaine', 'madeline'],
+  madison: ['madi', 'maddie'],
+  madeline: ['madi', 'maddie'],
+  madelaine: ['madi', 'maddie'],
+  will: ['william', 'bill', 'billy', 'liam'],
+  bill: ['william', 'will', 'billy'],
+  william: ['will', 'bill', 'billy', 'liam'],
+  rob: ['robert', 'bob', 'bobby'],
+  bob: ['robert', 'rob', 'bobby'],
+  robert: ['rob', 'bob', 'bobby'],
+  jim: ['james', 'jimmy'],
+  james: ['jim', 'jimmy'],
+  joe: ['joseph', 'joey'],
+  joseph: ['joe', 'joey'],
+  jon: ['jonathan', 'john'],
+  john: ['jon', 'johnny', 'jonathan'],
+  jonathan: ['jon', 'john'],
+  greg: ['gregory'],
+  gregory: ['greg'],
+  steve: ['steven', 'stephen'],
+  steven: ['steve'],
+  stephen: ['steve'],
+  andy: ['andrew', 'drew'],
+  andrew: ['andy', 'drew'],
+  zach: ['zachary', 'zack'],
+  zachary: ['zach', 'zack'],
+  josh: ['joshua'],
+  joshua: ['josh'],
+  tim: ['timothy', 'timmy'],
+  timothy: ['tim', 'timmy'],
+  ken: ['kenneth', 'kenny'],
+  kenneth: ['ken', 'kenny'],
+  tony: ['anthony'],
+  anthony: ['tony'],
+};
+
+function firstMatches(token, candidateFirst) {
+  if (!token || !candidateFirst) return false;
+  const t = token.toLowerCase();
+  const c = candidateFirst.toLowerCase();
+  if (t === c) return true;
+  const n1 = NICKNAMES[t] || [];
+  if (n1.includes(c)) return true;
+  const n2 = NICKNAMES[c] || [];
+  if (n2.includes(t)) return true;
+  return false;
 }
 
 function parseDriverComments(drivers, scouts, adults) {
@@ -517,13 +615,16 @@ function parseDriverComments(drivers, scouts, adults) {
 
   const enrichedDrivers = drivers.map((d) => {
     const comment = (d.comment || '').trim();
+    // TWH seats represent total seatbelts; available passenger seats is 1 less (excluding driver)
+    const passengerCapacity = d.seats > 0 ? Math.max(0, d.seats - 1) : 0;
+
     if (!comment) {
       return {
         ...d,
         claimedScouts: [],
         claimedAdults: [],
         ambiguousNotes: [],
-        openSeats: d.attending === 'Y' ? d.seats : 0,
+        openSeats: d.attending === 'Y' ? passengerCapacity : 0,
         explicitOpenNote: '',
       };
     }
@@ -546,15 +647,26 @@ function parseDriverComments(drivers, scouts, adults) {
     const matchedAdults = [];
     const ambiguousNotes = [];
     const checkedFirstNames = new Set();
+    const consumedTokens = new Set();
+
+    // Reserve driver self-references so they do not consume passenger seats or match other attendees
+    ['myself', 'me', 'i', driverFirst, ...(NICKNAMES[driverFirst] || [])].forEach((tok) => {
+      consumedTokens.add(tok.toLowerCase());
+    });
 
     // Match attending scouts with ambiguity & family detection
     for (const sc of scoutEntries) {
       if (sc.first === driverFirst && sc.last === driverLast) continue;
 
-      const hasFullName = sc.last && comment.toLowerCase().includes(sc.last) && comment.toLowerCase().includes(sc.first);
+      const hasFullName = sc.last && comment.toLowerCase().includes(sc.last) && (
+        comment.toLowerCase().includes(sc.first) ||
+        (NICKNAMES[sc.first] || []).some((n) => new RegExp(`\\b${n}\\b`, 'i').test(comment))
+      );
 
       if (hasFullName) {
         checkedFirstNames.add(sc.first);
+        consumedTokens.add(sc.first);
+        (NICKNAMES[sc.first] || []).forEach((n) => consumedTokens.add(n));
         if (!matchedScouts.some((m) => m.name === sc.displayName)) {
           matchedScouts.push({
             name: sc.displayName,
@@ -564,9 +676,14 @@ function parseDriverComments(drivers, scouts, adults) {
           scoutRideMap.set(sc.originalName, { driverName: d.name, status: 'confirmed' });
         }
       } else if (sc.first.length > 2 && !checkedFirstNames.has(sc.first)) {
-        const regex = new RegExp(`\\b${sc.first}\\b`, 'i');
-        if (regex.test(comment)) {
+        // Check exact first name or recognized nicknames
+        const testTokens = [sc.first, ...(NICKNAMES[sc.first] || [])];
+        const matchedToken = testTokens.find((tok) => new RegExp(`\\b${tok}\\b`, 'i').test(comment));
+
+        if (matchedToken) {
           checkedFirstNames.add(sc.first);
+          consumedTokens.add(matchedToken);
+          consumedTokens.add(sc.first);
           const candidates = firstNameFrequency.get(sc.first) || [];
 
           if (candidates.length === 1) {
@@ -580,7 +697,7 @@ function parseDriverComments(drivers, scouts, adults) {
               scoutRideMap.set(singleScout.originalName, { driverName: d.name, status: 'unique_first' });
             }
           } else {
-            // Collision: multiple candidates share first name!
+            // Collision: multiple candidates share first name
             const familyCandidate = candidates.find((c) => c.last === driverLast);
             if (familyCandidate) {
               if (!matchedScouts.some((m) => m.name === familyCandidate.displayName)) {
@@ -594,15 +711,15 @@ function parseDriverComments(drivers, scouts, adults) {
             } else {
               // Ambiguous collision
               const candidateNames = candidates.map((c) => c.displayName);
-              const warningMsg = `Ambiguous "${sc.first}": matches ${candidateNames.length} attending scouts (${candidateNames.join(', ')}). Driver clarification needed.`;
+              const warningMsg = `Ambiguous "${matchedToken}": matches ${candidateNames.length} attending scouts (${candidateNames.join(', ')}). Driver clarification needed.`;
               ambiguousNotes.push({
-                token: sc.first,
+                token: matchedToken,
                 candidates: candidateNames,
                 note: warningMsg,
               });
               allClarifications.push({
                 driverName: d.name,
-                token: sc.first,
+                token: matchedToken,
                 candidates: candidateNames,
                 note: warningMsg,
               });
@@ -623,17 +740,47 @@ function parseDriverComments(drivers, scouts, adults) {
       if (ad.first === driverFirst && ad.last === driverLast) continue;
       if (matchedScouts.some((m) => m.name === ad.displayName)) continue;
 
-      if (ad.last && comment.toLowerCase().includes(ad.last) && comment.toLowerCase().includes(ad.first)) {
+      const adFirst = ad.first;
+      const adLast = ad.last;
+      const isFamily = adLast && adLast === driverLast;
+
+      // Check full name match first
+      const hasFullName = adLast && comment.toLowerCase().includes(adLast) && (
+        comment.toLowerCase().includes(adFirst) ||
+        (NICKNAMES[adFirst] || []).some((n) => new RegExp(`\\b${n}\\b`, 'i').test(comment))
+      );
+
+      if (hasFullName) {
         if (!matchedAdults.includes(ad.displayName)) {
           matchedAdults.push(ad.displayName);
           claimedAdultsSet.add(ad.originalName);
+          consumedTokens.add(adFirst);
+          (NICKNAMES[adFirst] || []).forEach((n) => consumedTokens.add(n));
         }
-      } else if (ad.first.length > 2) {
-        const regex = new RegExp(`\\b${ad.first}\\b`, 'i');
+        continue;
+      }
+
+      // Check first name or nicknames (ensuring token wasn't already consumed by scout)
+      const possibleNames = [adFirst, ...(NICKNAMES[adFirst] || [])];
+      for (const pName of possibleNames) {
+        if (pName.length < 2) continue;
+        if (consumedTokens.has(pName)) continue;
+
+        const regex = new RegExp(`\\b${pName}\\b`, 'i');
         if (regex.test(comment)) {
-          if (!matchedAdults.includes(ad.displayName)) {
-            matchedAdults.push(ad.displayName);
-            claimedAdultsSet.add(ad.originalName);
+          const adultCandidates = adultEntries.filter(
+            (other) => (other.first === adFirst || (NICKNAMES[other.first] || []).includes(pName)) &&
+                       !(other.first === driverFirst && other.last === driverLast)
+          );
+
+          if (adultCandidates.length === 1 || isFamily) {
+            if (!matchedAdults.includes(ad.displayName)) {
+              matchedAdults.push(ad.displayName);
+              claimedAdultsSet.add(ad.originalName);
+              consumedTokens.add(pName);
+              consumedTokens.add(adFirst);
+            }
+            break;
           }
         }
       }
@@ -643,8 +790,9 @@ function parseDriverComments(drivers, scouts, adults) {
     if (explicitOpen !== null) {
       openSeats = explicitOpen;
     } else {
-      const passengerCount = matchedScouts.length + matchedAdults.length;
-      openSeats = Math.max(0, d.seats - passengerCount);
+      // Ambiguous passenger notes occupy seats provisionally so they are not treated as open
+      const passengerCount = matchedScouts.length + matchedAdults.length + ambiguousNotes.length;
+      openSeats = Math.max(0, passengerCapacity - passengerCount);
     }
 
     return {
@@ -777,7 +925,7 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
       const comment = row.Comment || '';
 
       if (attending && seats > 0) {
-        totalSeatsOffered += seats;
+        totalSeatsOffered += Math.max(0, seats - 1);
       }
 
       const rosterInfo = membersMap.get(name.toLowerCase()) || {};
@@ -826,8 +974,40 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
     // Scout-centric seat balance: passenger seats offered vs (scouts + adult ride-alongs)
     const seatBalance = totalSeatsOffered - (totalAttendingScouts + adultRidersCount);
 
+    let meta = {
+      id: eventId,
+      title: `Event #${eventId}`,
+      eventType: 'Troop Event',
+      location: '',
+      mapLink: '',
+      start: '',
+      end: '',
+    };
+
+    try {
+      let eventsList = cache.events;
+      if (!eventsList || eventsList.length === 0) {
+        eventsList = await fetchUpcomingEvents({ days: 365 });
+      }
+      const found = (eventsList || []).find((e) => String(e.id) === String(eventId));
+      if (found) {
+        meta = {
+          id: found.id,
+          title: found.title || `Event #${eventId}`,
+          eventType: found.eventType || 'Troop Event',
+          location: found.location || '',
+          mapLink: found.mapLink || '',
+          start: found.start || '',
+          end: found.end || '',
+        };
+      }
+    } catch {
+      // Best-effort metadata enrichment
+    }
+
     const result = {
       eventId,
+      meta,
       stats: {
         totalDrivers: drivers.filter((d) => d.seats > 0 && d.attending === 'Y').length,
         totalSeatsOffered,
@@ -957,7 +1137,51 @@ app.get('/api/events/:id/carpool.xlsx', async (req, res) => {
 
   try {
     const carpool = await fetchEventCarpoolDetails({ eventId, forceRefresh });
-    const workbook = await buildCarpoolWorkbook(carpool);
+    let rosterSummary = null;
+    try {
+      const rosterData = await getRosterData(false);
+      rosterSummary = rosterData.summary;
+    } catch {
+      // Best-effort roster lookup
+    }
+
+    const workbook = await buildCarpoolWorkbook(carpool, rosterSummary);
+
+    const safeTitle = (carpool.meta?.title || 'event').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="carpool_${eventId}_${safeTitle}.xlsx"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to generate carpool spreadsheet.' });
+  }
+});
+
+app.post('/api/events/:id/carpool.xlsx', async (req, res) => {
+  const eventId = req.params.id;
+  if (!eventId || !/^\d+$/.test(eventId)) {
+    return res.status(400).json({ error: 'Valid numeric event ID is required.' });
+  }
+
+  try {
+    getTroopWebHostConfig();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  try {
+    const carpool = await fetchEventCarpoolDetails({ eventId, forceRefresh: false });
+    let rosterSummary = null;
+    try {
+      const rosterData = await getRosterData(false);
+      rosterSummary = rosterData.summary;
+    } catch {
+      // Best-effort roster lookup
+    }
+
+    const customState = req.body || null;
+    const workbook = await buildCarpoolWorkbook(carpool, rosterSummary, customState);
 
     const safeTitle = (carpool.meta?.title || 'event').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -1000,6 +1224,8 @@ export {
   getRosterData,
   fetchUpcomingEvents,
   fetchEventCarpoolDetails,
+  firstMatches,
+  NICKNAMES,
 };
 
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
