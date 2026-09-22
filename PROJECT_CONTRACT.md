@@ -73,14 +73,22 @@ E.5.1 Full-name matches and family matches (matching driver surname) are confirm
 E.5.2 Unique first-name matches among attendees are matched when unambiguous.
 E.5.3 Ambiguous first-name collisions (multiple attending scouts sharing the name) are never blindly assigned: they are logged in `clarificationsNeeded` with candidate rosters and tagged as `rideStatus: 'ambiguous'` on affected scouts so leaders can prompt drivers for full names.
 E.5.4 Explicit open-seat notes in driver comments (e.g. "and 2 more") override derived calculations.
+E.5.5 Nickname matching (e.g. Tom ↔ Thomas, Mike ↔ Michael) and family-name prioritization are applied to avoid missing adult passengers and family riders.
+E.5.6 Tokens consumed by scout assignments are not re-claimed for adult passengers to prevent duplicate attributions.
+E.5.7 Driver self-references (driver's own name, "myself", "me") account for the driver seat and do not occupy passenger seats. Available passenger seats are derived as `Math.max(0, seats - 1)`.
+E.5.8 Ambiguous rider notes occupy passenger slots provisionally to prevent false open seat calculations.
 E.6 It returns 400 for invalid or missing event IDs, and 500 if TroopWebHost retrieval fails.
 
 ### F. GET /api/events/:id/carpool.xlsx
-F.1 This endpoint generates and returns a pre-populated Excel workbook (.xlsx) replicating the traditional coordinator carpool spreadsheet.
-F.2 It includes Trip metadata, KPI summary block (scouts, drivers, seats, net balance), and Transport/Insurance guidelines.
-F.3 It renders "TO the event" and "FROM the event" sections with drivers, phone numbers, available seats, special info/notes, and claimed scouts pre-assigned across horizontal slots 1 through 9.
-F.4 It renders a "WAITLIST / UNASSIGNED SCOUTS" section listing all scouts who still need a ride.
+F.1 It generates a valid `.xlsx` binary spreadsheet workbook with `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+F.2 It includes 4 tabs replicating the coordinator workbook: `Carpool`, `Summary` (with cross-checking formulas), `Scout roster`, and `Adult roster`.
+F.3 In `Carpool`, available seats represent passenger seats for scouts (excluding driver: `Math.max(0, seats - 1)`), with helper availability formula columns (`=IF($C{row}<N$25, FALSE, TRUE)`), conditional formatting, and ice blue styling.
+F.4 It renders "TO the event" and "FROM the event" sections with drivers, phone numbers, available passenger seats, special info/notes, and claimed scouts pre-assigned across horizontal slots 1 through 9, followed by a "WAITLIST" section.
 F.5 It returns HTTP 400 for missing/invalid event IDs and 500 if TroopWebHost retrieval fails.
+
+### G. POST /api/events/:id/carpool.xlsx
+G.1 Accepts live custom working state (`toDrivers`, `fromDrivers`, `unassignedScouts`, `location`, `mapLink`) to produce an on-demand coordinator Excel spreadsheet reflective of in-browser edits.
+G.2 Re-applies standard Lake Berryessa layout, data validation dropdowns, formulas, and roster references to the custom state.
 
 
 

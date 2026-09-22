@@ -444,9 +444,6 @@
             <span>⛺ Attending Scouts</span>
             <span class="badge badge-neutral" id="scoutsCountBadge">0 Scouts</span>
           </div>
-          <div class="no-print">
-            <input type="text" id="scoutSearch" class="search-input" placeholder="Search scout or patrol..." oninput="filterScouts()">
-          </div>
         </div>
         <div class="table-container">
           <table>
@@ -560,8 +557,17 @@
       document.title = `${title} Carpool | Troop 402`;
       document.getElementById('eventTitle').textContent = title;
       document.getElementById('eventTypeBadge').textContent = meta?.eventType || 'Troop Event';
-      document.getElementById('eventDate').textContent = meta?.start ? `📅 ${meta.start}` : '📅 See TroopWebHost';
-      document.getElementById('eventLocation').textContent = meta?.location ? `📍 ${meta.location}` : '📍 TBA';
+      const dateRange = (meta?.start && meta?.end && meta.start.split(' ')[0] !== meta.end.split(' ')[0])
+        ? `${meta.start} – ${meta.end}`
+        : (meta?.start || 'See TroopWebHost');
+      document.getElementById('eventDate').textContent = `📅 ${dateRange}`;
+
+      const locText = meta?.location ? `📍 ${meta.location}` : '📍 TBA';
+      let locHtml = escapeHtml(locText);
+      if (meta?.mapLink) {
+        locHtml += ` <a href="${escapeHtml(meta.mapLink)}" target="_blank" rel="noopener" style="margin-left:0.5rem; text-decoration:none; font-weight:600; color:var(--primary); font-size:0.85rem;" title="Open in Google Maps">🗺️ View Map</a>`;
+      }
+      document.getElementById('eventLocation').innerHTML = locHtml;
       document.getElementById('cachedAtTime').textContent = cachedAt ? new Date(cachedAt).toLocaleTimeString() : 'Just now';
       document.getElementById('coordGridLink').href = `/coordinator.html?id=${encodeURIComponent(eventId)}`;
 

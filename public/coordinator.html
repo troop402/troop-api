@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Carpool Coordinator Grid | Troop 402</title>
+  <title>Carpool Coordinator Worksheet | Troop 402</title>
   <style>
     :root {
       --bg: #f8fafc;
@@ -22,6 +22,8 @@
       --danger-bg: #fef2f2;
       --danger-text: #991b1b;
       --danger-border: #fecaca;
+      --ice-blue: #cfe2f3;
+      --ice-blue-border: #9fc5e8;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -30,7 +32,7 @@
       background: var(--bg);
       color: var(--text);
       line-height: 1.5;
-      padding: 1.5rem 1rem 4rem;
+      padding: 1rem 0.5rem 3rem;
     }
 
     .container {
@@ -43,13 +45,13 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
       flex-wrap: wrap;
       gap: 1rem;
     }
 
     .header-titles h1 {
-      font-size: 1.7rem;
+      font-size: 1.65rem;
       font-weight: 800;
       color: #0f172a;
       letter-spacing: -0.02em;
@@ -99,299 +101,751 @@
       border-color: #10b981;
     }
     .btn-success:hover { background: #059669; }
+    .btn-danger {
+      background: #fee2e2;
+      color: #991b1b;
+      border-color: #fca5a5;
+    }
+    .btn-danger:hover { background: #fecaca; }
 
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1.25rem;
-      margin-bottom: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    /* Draft banner */
+    .draft-banner {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 1rem;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: #1e40af;
     }
 
     /* KPI Summary Row */
     .kpi-row {
       display: flex;
-      gap: 1rem;
       flex-wrap: wrap;
-      margin-bottom: 1.5rem;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
     }
+
     .kpi-card {
-      background: white;
+      background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
-      flex: 1;
-      min-width: 140px;
-      text-align: center;
+      border-radius: 6px;
+      padding: 0.45rem 0.65rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 62px;
+      width: 152px;
+      flex: 0 0 auto;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
     }
-    .kpi-card .val {
-      font-size: 1.5rem;
+    .kpi-title {
+      font-size: 0.67rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+    .kpi-val {
+      font-size: 1.25rem;
       font-weight: 800;
       color: var(--text);
-      line-height: 1.2;
+      margin-top: 0.1rem;
+      line-height: 1.1;
     }
-    .kpi-card .lbl {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+    .kpi-sub {
+      font-size: 0.64rem;
       color: var(--text-muted);
-      font-weight: 600;
-      margin-top: 0.2rem;
+      margin-top: 0.15rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .kpi-card.surplus { border-color: var(--success-border); background: var(--success-bg); }
-    .kpi-card.surplus .val { color: var(--success-text); }
-    .kpi-card.deficit { border-color: var(--danger-border); background: var(--danger-bg); }
-    .kpi-card.deficit .val { color: var(--danger-text); }
 
-    /* Directional Tabs */
-    .tabs {
+    /* Dual-stat KPI Split */
+    .kpi-split {
       display: flex;
-      gap: 0.5rem;
-      border-bottom: 2px solid var(--border);
-      margin-bottom: 1.25rem;
+      align-items: center;
+      justify-content: space-around;
+      gap: 0.35rem;
+      margin-top: 0.15rem;
     }
-    .tab {
-      padding: 0.65rem 1.25rem;
+    .kpi-split-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+    }
+    .kpi-split-label {
+      font-size: 0.62rem;
       font-weight: 700;
-      font-size: 0.95rem;
       color: var(--text-muted);
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      border-bottom: 3px solid transparent;
-      margin-bottom: -2px;
-      transition: all 0.15s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
-    .tab:hover { color: var(--text); }
-    .tab.active {
-      color: var(--primary);
-      border-bottom-color: var(--primary);
+    .kpi-split-val {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.1;
+    }
+    .kpi-split-divider {
+      width: 1px;
+      background: var(--border);
+      height: 20px;
+      align-self: center;
     }
 
-    /* Grid Table */
-    .table-wrapper {
-      overflow-x: auto;
+    /* Section Cards */
+    .section-card {
+      background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: white;
+      padding: 0.75rem 0.5rem;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
-    table.coord-grid {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.82rem;
-      text-align: left;
-    }
-    table.coord-grid th {
-      background: #f8fafc;
-      color: #334155;
-      font-weight: 700;
-      padding: 0.6rem 0.5rem;
-      border-bottom: 1px solid var(--border);
-      border-right: 1px solid var(--border);
-      white-space: nowrap;
-      text-align: center;
-    }
-    table.coord-grid th.left-align { text-align: left; }
-    table.coord-grid td {
-      padding: 0.45rem 0.5rem;
-      border-bottom: 1px solid #f1f5f9;
-      border-right: 1px solid #f1f5f9;
-      vertical-align: middle;
-    }
-    table.coord-grid tr:hover td { background: #fdfdfd; }
 
-    /* Slots */
-    .slot {
-      border-radius: 6px;
-      padding: 0.35rem 0.5rem;
-      min-width: 105px;
-      font-size: 0.78rem;
-      line-height: 1.25;
-      transition: all 0.15s ease;
-    }
-    .slot-filled {
-      background: #e0f2fe;
-      border: 1px solid #bae6fd;
-      color: #0369a1;
-      font-weight: 600;
+    .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 0.3rem;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
-    .slot-filled.adult {
-      background: #f3e8ff;
-      border-color: #e9d5ff;
-      color: #6b21a8;
+
+    .section-header h2 {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
-    .slot-open {
-      background: #ecfdf5;
-      border: 1px dashed #6ee7b7;
-      color: #047857;
+
+    .section-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Table & Horizontal Grid */
+    .table-wrapper {
+      width: fit-content;
+      max-width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    table.coord-grid {
+      width: auto;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    table.coord-grid th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      padding: 0.4rem 0.3rem;
       text-align: center;
+      border-bottom: 2px solid var(--border);
+      border-right: 1px solid var(--border);
+      font-size: 0.76rem;
+    }
+
+    table.coord-grid th.left-align { text-align: left; padding-left: 0.5rem; }
+
+    table.coord-grid td {
+      padding: 0.3rem 0.3rem;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    table.coord-grid tr:hover td { background-color: #f8fafc; }
+
+    /* Seat Stepper */
+    .seat-stepper {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 1px;
+    }
+    .btn-step {
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 2px;
+      width: 18px;
+      height: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
       cursor: pointer;
+      font-size: 0.72rem;
+      line-height: 1;
+      color: #334155;
+      padding: 0;
+    }
+    .btn-step:hover { background: #e2e8f0; }
+    .seat-num {
+      min-width: 16px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 0.78rem;
+      line-height: 1.1;
+      color: #0f172a;
+    }
+
+    /* Note Button */
+    .btn-note {
+      background: none;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 0.15rem 0.3rem;
+      font-size: 0.9rem;
+      line-height: 1;
+      transition: background 0.15s;
+    }
+    .btn-note:hover { background: #f1f5f9; }
+
+    /* Slots */
+    .slot {
+      min-width: 110px;
+      max-width: 140px;
+      padding: 0.35rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.25rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .slot-filled {
+      background: var(--ice-blue);
+      border: 1px solid var(--ice-blue-border);
+      color: #0c4a6e;
       font-weight: 600;
     }
-    .slot-open:hover {
-      background: #d1fae5;
-      border-color: #10b981;
+
+    .slot-filled.adult {
+      background: #fef3c7;
+      border-color: #fde68a;
+      color: #78350f;
     }
+
+    .slot-ambiguous {
+      background: #fffbeb;
+      border: 1px solid #f59e0b;
+      color: #b45309;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .slot-ambiguous:hover {
+      background: #fef3c7;
+      border-color: #d97706;
+    }
+
+    .btn-resolve {
+      background: #f59e0b;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .btn-resolve:hover {
+      background: #d97706;
+    }
+
+    .slot-open {
+      min-width: 95px;
+      max-width: 115px;
+      padding: 0.35rem 0.35rem;
+      font-size: 0.75rem;
+      background: #f0fdf4;
+      border: 1px dashed #86efac;
+      color: #15803d;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      justify-content: center;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .slot-open:hover {
+      background: #dcfce7;
+      border-color: #4ade80;
+    }
+
     .slot-none {
+      min-width: 95px;
+      max-width: 115px;
+      padding: 0.35rem 0.35rem;
+      font-size: 0.75rem;
       background: #f1f5f9;
       color: #94a3b8;
+      border: 1px solid #e2e8f0;
       text-align: center;
-      font-size: 0.75rem;
-      border: 1px solid transparent;
+      justify-content: center;
     }
+
     .btn-remove {
-      background: transparent;
+      background: none;
       border: none;
-      color: #dc2626;
+      color: #991b1b;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.95rem;
       line-height: 1;
-      padding: 0 0.2rem;
-      opacity: 0.6;
+      font-weight: bold;
+      opacity: 0.65;
+      padding: 0 0.1rem;
     }
     .btn-remove:hover { opacity: 1; }
 
-    /* Unassigned Drawer */
-    .unassigned-pool {
+    /* Unassigned / Waitlist Section at Bottom */
+    .waitlist-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .waitlist-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 0.65rem 0.85rem;
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .waitlist-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .waitlist-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #0f172a;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .badge-both { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-to { background: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
+    .badge-from { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+
+    /* Modal Overlay & Dialog */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(2px);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal-dialog {
+      background: white;
+      border-radius: 10px;
+      max-width: 580px;
+      width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h3 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      cursor: pointer;
+      color: #64748b;
+      line-height: 1;
+    }
+    .modal-close:hover { color: #0f172a; }
+
+    .modal-body {
+      padding: 1.25rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-scout-list {
+      display: flex;
+      flex-direction: column;
       gap: 0.5rem;
       margin-top: 0.75rem;
     }
-    .scout-chip {
-      display: inline-flex;
+
+    .modal-scout-item {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 0.4rem;
-      padding: 0.3rem 0.6rem;
-      background: #fff1f2;
-      border: 1px solid #fecdd3;
-      color: #be123c;
+      padding: 0.65rem 0.85rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       border-radius: 6px;
-      font-size: 0.8rem;
-      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .modal-scout-item:hover {
+      background: #e0f2fe;
+      border-color: #7dd3fc;
+      transform: translateX(2px);
     }
 
-    /* Print Styles */
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      color: #334155;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    /* Print styles */
     @media print {
-      @page { size: landscape; margin: 0.3in; }
-      body { background: white; padding: 0; font-size: 8pt; color: black; }
-      .no-print, .actions, .tabs, .btn-remove { display: none !important; }
-      .container { max-width: 100%; width: 100%; margin: 0; }
-      .card { box-shadow: none; border: 1px solid #ccc; padding: 0.5rem; margin-bottom: 0.5rem; }
-      table.coord-grid { font-size: 7pt; width: 100%; }
-      table.coord-grid th, table.coord-grid td { padding: 0.2rem 0.3rem; border: 1px solid #ccc; }
-      .slot { min-width: auto; padding: 0.15rem 0.25rem; font-size: 7pt; }
-      .slot-open { border-style: solid; }
+      body { background: white; padding: 0; font-size: 8pt; }
+      .container { max-width: 100%; width: 100%; }
+      .no-print, .actions, .seat-stepper button, .btn-remove { display: none !important; }
+      .section-card { box-shadow: none; border: 1px solid #ccc; margin-bottom: 1rem; page-break-inside: avoid; }
+      .table-wrapper { overflow: visible !important; border: none; width: 100% !important; }
+      table.coord-grid { font-size: 7.5pt; width: 100%; }
+      table.coord-grid th, table.coord-grid td { padding: 0.25rem 0.35rem; }
+      .slot { min-width: auto; max-width: none; padding: 0.15rem 0.25rem; font-size: 7pt; }
+      @page { size: landscape; margin: 0.35in; }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div id="loading" style="text-align:center; padding:3rem 1rem; color:var(--text-muted);">
-      <h2>🚗 Loading Carpool Coordinator Grid...</h2>
-      <p>Fetching driver registrations and attendee roster from Troop 402 API.</p>
+    <div id="loading" style="padding: 3rem; text-align: center;">
+      <h2 style="font-size: 1.3rem; margin-bottom: 0.5rem;">🚗 Loading Coordinator Worksheet...</h2>
+      <p style="color: var(--text-muted);">Fetching driver rosters and scout attendance...</p>
     </div>
 
-    <div id="content" style="display:none;">
+    <div id="content" style="display: none;">
+      <!-- Top Header -->
       <header>
         <div class="header-titles">
-          <div style="font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--primary); margin-bottom:0.2rem;">
-            Carpool Coordinator Worksheet
-          </div>
-          <h1 id="eventTitle">Event Name</h1>
+          <h1 id="eventTitle">Event Carpool Worksheet</h1>
           <div class="event-meta">
-            <span id="eventDate">📅 Date</span>
-            <span id="eventLocation">📍 Location</span>
-            <span id="editNotice" class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; display:none;">✏️ Local Worksheet Active</span>
+            <span id="eventDate"></span>
+            <span id="eventLocation"></span>
+            <span id="eventMapLink" style="display:none;"></span>
+            <button type="button" class="btn no-print" style="padding:0.15rem 0.45rem; font-size:0.75rem;" onclick="openLocationModal()">✏️ Edit Location / Map</button>
+            <span style="color:#0284c7; font-weight:600;">Standard Coordinator Layout</span>
           </div>
         </div>
         <div class="actions no-print">
-          <button class="btn btn-success" id="downloadExcelBtn">📥 Download Excel (.xlsx)</button>
+          <button id="addDriverBtn" class="btn btn-primary" onclick="openAddDriverModal()">➕ Add Driver</button>
+          <button id="downloadExcelBtn" class="btn btn-success" onclick="downloadCoordinatorExcel()">📥 Download Excel (.xlsx)</button>
           <button class="btn" onclick="window.print()">🖨️ Print Sheet</button>
-          <a href="#" id="viewCarpoolLink" class="btn">🚗 Public Carpool View</a>
-          <a href="/manager.html" class="btn">🗂️ Manager Console</a>
+          <a id="viewCarpoolLink" href="#" class="btn">🚗 Public View</a>
+          <button class="btn btn-danger" onclick="resetToBaseline()" title="Clear draft and reload from TroopWebHost">🔄 Reset</button>
         </div>
       </header>
 
-      <!-- KPI Summary -->
-      <div class="kpi-row">
+      <!-- Draft Notification Banner -->
+      <div id="draftBanner" class="draft-banner">
+        <span>💾 <strong>Local Working Draft</strong>: Edits are automatically saved in your browser.</span>
+        <button class="btn btn-danger" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="resetToBaseline()">Discard Edits</button>
+      </div>
+
+      <!-- KPI Summary Row -->
+      <div class="kpi-row no-print">
+        <!-- 1: Total Scouts -->
         <div class="kpi-card">
-          <div class="val" id="kpiScouts">0</div>
-          <div class="lbl">Attending Scouts</div>
+          <span class="kpi-title">Total Scouts</span>
+          <span class="kpi-val" id="kpiScouts">0</span>
+          <span class="kpi-sub">Attending event</span>
         </div>
+
+        <!-- 2: Total Drivers -->
         <div class="kpi-card">
-          <div class="val" id="kpiDrivers">0</div>
-          <div class="lbl">Total Drivers</div>
+          <span class="kpi-title">Total Drivers</span>
+          <span class="kpi-val" id="kpiDrivers">0</span>
+          <span class="kpi-sub">Registered drivers</span>
         </div>
+
+        <!-- 3: Assigned Seats -->
         <div class="kpi-card">
-          <div class="val" id="kpiSeats">0</div>
-          <div class="lbl">Seats Offered</div>
+          <span class="kpi-title">Assigned Seats</span>
+          <div class="kpi-split">
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">TO</span>
+              <span class="kpi-split-val" id="kpiAssignedTo">0</span>
+            </div>
+            <div class="kpi-split-divider"></div>
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">FROM</span>
+              <span class="kpi-split-val" id="kpiAssignedFrom">0</span>
+            </div>
+          </div>
+          <span class="kpi-sub">Scouts in cars</span>
         </div>
-        <div class="kpi-card">
-          <div class="val" id="kpiAssigned">0</div>
-          <div class="lbl">Assigned Scouts</div>
+
+        <!-- 4: Open Seats -->
+        <div class="kpi-card" id="kpiOpenCard">
+          <span class="kpi-title">Open Seats</span>
+          <div class="kpi-split">
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">TO</span>
+              <span class="kpi-split-val" id="kpiOpenTo" style="color:#059669;">0</span>
+            </div>
+            <div class="kpi-split-divider"></div>
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">FROM</span>
+              <span class="kpi-split-val" id="kpiOpenFrom" style="color:#059669;">0</span>
+            </div>
+          </div>
+          <span class="kpi-sub">Available in cars</span>
         </div>
-        <div class="kpi-card">
-          <div class="val" id="kpiUnassigned">0</div>
-          <div class="lbl">Unassigned Scouts</div>
+
+        <!-- 5: Needs Ride -->
+        <div class="kpi-card" id="kpiNeedsRideCard">
+          <span class="kpi-title">Needs Ride</span>
+          <div class="kpi-split">
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">TO</span>
+              <span class="kpi-split-val" id="kpiNeedsTo" style="color:#b91c1c;">0</span>
+            </div>
+            <div class="kpi-split-divider"></div>
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">FROM</span>
+              <span class="kpi-split-val" id="kpiNeedsFrom" style="color:#b91c1c;">0</span>
+            </div>
+          </div>
+          <span class="kpi-sub" id="kpiNeedsTotalSub">0 scouts total</span>
         </div>
-        <div class="kpi-card" id="kpiBalanceCard">
-          <div class="val" id="kpiBalance">0</div>
-          <div class="lbl">Net Seat Balance</div>
+
+        <!-- 6: Extra Seats Needed -->
+        <div class="kpi-card" id="kpiExtraCard">
+          <span class="kpi-title" title="Additional passenger seats needed to accommodate all attending scouts">Extra Seats Needed</span>
+          <div class="kpi-split">
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">TO</span>
+              <span class="kpi-split-val" id="kpiExtraTo">0</span>
+            </div>
+            <div class="kpi-split-divider"></div>
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">FROM</span>
+              <span class="kpi-split-val" id="kpiExtraFrom">0</span>
+            </div>
+          </div>
+          <span class="kpi-sub">Capacity shortage</span>
         </div>
       </div>
 
-      <!-- Unassigned Scouts Pool -->
-      <div class="card" id="unassignedCard">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h3 style="font-size:0.95rem; font-weight:700;">⛺ Unassigned Scouts Pool (<span id="unassignedCount">0</span>)</h3>
-          <span style="font-size:0.8rem; color:var(--text-muted);" class="no-print">Click "+ Open Seat" on any car below to assign</span>
-        </div>
-        <div class="unassigned-pool" id="unassignedPool">
-          <span style="font-size:0.85rem; color:var(--text-muted);">Loading scouts...</span>
-        </div>
-      </div>
-
-      <!-- Directional Tabs -->
-      <div class="tabs no-print">
-        <button class="tab active" id="tabTo" onclick="switchDirection('TO')">🚗 "TO" Event (Outbound Caravan)</button>
-        <button class="tab" id="tabFrom" onclick="switchDirection('FROM')">🚙 "FROM" Event (Return Caravan)</button>
-      </div>
-
-      <!-- Grid Table -->
-      <div class="card">
-        <div style="margin-bottom:0.75rem; display:flex; justify-content:space-between; align-items:center;">
-          <h2 id="sectionHeading" style="font-size:1.1rem; font-weight:800;">TO the Event (Outbound)</h2>
-          <span style="font-size:0.8rem; color:var(--text-muted);" class="no-print">Standard format: 9 horizontal scout seats</span>
+      <!-- Section 1: TO the Event (Outbound) -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 id="toSectionTitle">🚗 "TO" the Event (Outbound)</h2>
         </div>
         <div class="table-wrapper">
-          <table class="coord-grid">
-            <thead>
-              <tr>
-                <th class="left-align" style="width:180px;">Driver Name</th>
-                <th style="width:110px;">Cell#</th>
-                <th style="width:65px;">Seats</th>
-                <th class="left-align" style="width:230px;">Special Info / Notes</th>
-                <th>Seat 1</th>
-                <th>Seat 2</th>
-                <th>Seat 3</th>
-                <th>Seat 4</th>
-                <th>Seat 5</th>
-                <th>Seat 6</th>
-                <th>Seat 7</th>
-                <th>Seat 8</th>
-                <th>Seat 9</th>
-              </tr>
-            </thead>
-            <tbody id="gridTbody">
-              <tr><td colspan="13" style="text-align:center; padding:1.5rem;" class="muted">Loading grid...</td></tr>
-            </tbody>
+          <table class="coord-grid" id="toGridTable">
+            <thead id="toGridThead"></thead>
+            <tbody id="toGridTbody"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Section 2: FROM the Event (Return) -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 id="fromSectionTitle">🚙 "FROM" the Event (Return)</h2>
+        </div>
+        <div class="table-wrapper">
+          <table class="coord-grid" id="fromGridTable">
+            <thead id="fromGridThead"></thead>
+            <tbody id="fromGridTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 3: WAITLIST / UNASSIGNED SCOUTS -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2>📋 Waitlist / Unassigned Scouts</h2>
+          <span class="section-subtitle">Scouts who still need ride placement (<span id="unassignedTotalCount">0</span> scouts)</span>
+        </div>
+        <div id="waitlistContainer" class="waitlist-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Assign Scout Picker -->
+  <div id="assignModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'assignModal')">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="assignModalTitle">Assign Scout</h3>
+        <button class="modal-close" onclick="closeModal('assignModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">
+          Click any scout below to assign them to this seat:
+        </p>
+        <div id="modalScoutList" class="modal-scout-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Resolve Ambiguous Rider -->
+  <div id="resolveModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'resolveModal')">
+    <div class="modal-dialog" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 id="resolveModalTitle">⚠️ Resolve Ambiguous Rider</h3>
+        <button class="modal-close" onclick="closeModal('resolveModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="resolveModalDesc" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.5;"></p>
+        <div style="font-weight:700; font-size:0.85rem; margin-bottom:0.5rem; color:var(--text);">Select Matching Scout:</div>
+        <div id="resolveCandidateList" class="modal-scout-list"></div>
+        <div style="margin-top:1rem; border-top:1px solid #e2e8f0; padding-top:0.75rem; display:flex; justify-content:space-between; gap:0.5rem;">
+          <button type="button" class="btn btn-danger" onclick="clearAmbiguousSlot()">Leave Seat Open</button>
+          <button type="button" class="btn" onclick="openAssignModalFromResolve()">Choose Other Scout...</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Location & Map -->
+  <div id="locationModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'locationModal')">
+    <div class="modal-dialog" style="max-width: 460px;">
+      <div class="modal-header">
+        <h3>📍 Edit Event Location &amp; Map</h3>
+        <button class="modal-close" onclick="closeModal('locationModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form onsubmit="saveLocationEdits(event)">
+          <div class="form-group">
+            <label for="editLocationInput">Event Destination / Address</label>
+            <input type="text" id="editLocationInput" placeholder="e.g. Manzanita Lake Campground, Lassen">
+          </div>
+          <div class="form-group">
+            <label for="editMapLinkInput">Map Link URL</label>
+            <input type="url" id="editMapLinkInput" placeholder="https://maps.google.com/...">
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem;">
+            <button type="button" class="btn" onclick="closeModal('locationModal')">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Driver -->
+  <div id="addDriverModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'addDriverModal')">
+    <div class="modal-dialog" style="max-width: 460px;">
+      <div class="modal-header">
+        <h3>➕ Add Driver</h3>
+        <button class="modal-close" onclick="closeModal('addDriverModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="addDriverForm" onsubmit="submitAddDriver(event)">
+          <div class="form-group">
+            <label for="newDriverName">Driver Name (First &amp; Last)</label>
+            <input type="text" id="newDriverName" required placeholder="e.g. Jane Doe">
+          </div>
+          <div class="form-group">
+            <label for="newDriverPhone">Driver Cell#</label>
+            <input type="tel" id="newDriverPhone" placeholder="e.g. 925-555-0123">
+          </div>
+          <div class="form-group">
+            <label for="newDriverSeats">Available Passenger Seats for Scouts</label>
+            <input type="number" id="newDriverSeats" required min="1" max="12" value="3">
+          </div>
+          <div class="form-group">
+            <label for="newDriverLeg">Driving Direction</label>
+            <select id="newDriverLeg">
+              <option value="Both">Both TO and FROM</option>
+              <option value="To">TO the Event only</option>
+              <option value="From">FROM the Event only</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="newDriverComment">Special Info / Note</label>
+            <input type="text" id="newDriverComment" placeholder="e.g. Leaving early at 8am">
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem;">
+            <button type="button" class="btn" onclick="closeModal('addDriverModal')">Cancel</button>
+            <button type="submit" class="btn btn-primary">Add Driver</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: View/Edit Driver Note -->
+  <div id="noteModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'noteModal')">
+    <div class="modal-dialog" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 id="noteModalTitle">Driver Note</h3>
+        <button class="modal-close" onclick="closeModal('noteModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="noteModalContent" style="font-size:0.95rem; color:#1e293b; background:#f8fafc; padding:1rem; border-radius:6px; border:1px solid #e2e8f0; line-height:1.6;"></p>
+        <div style="display:flex; justify-content:flex-end; margin-top:1rem;">
+          <button class="btn" onclick="closeModal('noteModal')">Close</button>
         </div>
       </div>
     </div>
@@ -400,14 +854,35 @@
   <script>
     const params = new URLSearchParams(window.location.search);
     const eventId = params.get('id');
-    let currentDirection = 'TO';
-    let carpoolState = null;
 
-    // Local assignment overrides: direction -> Map(driverName -> Array of scoutNames)
-    const localAssignments = {
-      TO: new Map(),
-      FROM: new Map(),
-    };
+    let carpoolBaseline = null;
+    let localDraft = null;
+
+    // Active pending assignment context
+    let pendingAssignment = null; // { dir: 'TO'|'FROM', driverName: string, slotIndex: number }
+
+    // Helper: Normalize name for matching across "Last, First" and "First Last"
+    function normalizeName(name) {
+      if (!name || typeof name !== 'string') return '';
+      const trimmed = name.trim().toLowerCase();
+      if (trimmed.includes(',')) {
+        const [last, ...firstParts] = trimmed.split(',');
+        return `${firstParts.join(' ').trim()} ${last.trim()}`.replace(/\s+/g, ' ');
+      }
+      return trimmed.replace(/\s+/g, ' ');
+    }
+
+    // Helper: Format to "Last, First"
+    function formatLastFirst(fullName) {
+      if (!fullName || typeof fullName !== 'string') return '';
+      const trimmed = fullName.trim();
+      if (trimmed.includes(',')) return trimmed;
+      const parts = trimmed.split(/\s+/);
+      if (parts.length <= 1) return trimmed;
+      const last = parts.pop();
+      const first = parts.join(' ');
+      return `${last}, ${first}`;
+    }
 
     if (!eventId) {
       document.getElementById('loading').innerHTML = `
@@ -416,15 +891,41 @@
         <a href="/manager.html" class="btn" style="margin-top:1rem;">Go to Event Manager</a>
       `;
     } else {
-      loadCoordinatorData();
+      initCoordinator();
     }
 
-    async function loadCoordinatorData() {
+    async function initCoordinator() {
       try {
         const res = await fetch(`/api/events/${eventId}/carpool`);
         if (!res.ok) throw new Error('Failed to load event carpool data');
-        carpoolState = await res.json();
-        initAssignments();
+        carpoolBaseline = await res.json();
+
+        if (!carpoolBaseline.meta || !carpoolBaseline.meta.title) {
+          try {
+            const evRes = await fetch('/api/events');
+            if (evRes.ok) {
+              const evJson = await evRes.json();
+              const found = (evJson.events || []).find(e => String(e.id) === String(eventId));
+              if (found) carpoolBaseline.meta = { ...found };
+            }
+          } catch {}
+        }
+
+        // Check localStorage for saved draft
+        const storageKey = `troop402_coord_v1_${eventId}`;
+        const savedDraftJson = localStorage.getItem(storageKey);
+
+        if (savedDraftJson) {
+          try {
+            localDraft = JSON.parse(savedDraftJson);
+            document.getElementById('draftBanner').style.display = 'flex';
+          } catch {
+            localDraft = buildBaselineDraft();
+          }
+        } else {
+          localDraft = buildBaselineDraft();
+        }
+
         renderPage();
       } catch (err) {
         document.getElementById('loading').innerHTML = `
@@ -435,160 +936,250 @@
       }
     }
 
-    function initAssignments() {
-      // Seed TO and FROM assignments from parsed data
-      ['TO', 'FROM'].forEach(dir => {
-        carpoolState.drivers.forEach(d => {
-          const list = [];
-          (d.claimedScouts || []).forEach(sc => {
-            const scName = typeof sc === 'string' ? sc : sc.name;
-            list.push({ name: scName, type: 'scout' });
-          });
-          (d.claimedAdults || []).forEach(ad => {
-            const adName = typeof ad === 'string' ? ad : ad.name;
-            list.push({ name: adName, type: 'adult' });
-          });
-          localAssignments[dir].set(d.name, list);
+    function buildBaselineDraft() {
+      // Map initial drivers and their claimed riders
+      const toDrivers = [];
+      const fromDrivers = [];
+
+      (carpoolBaseline.drivers || []).forEach(d => {
+        // Available seats: subtract 1 driver from vehicle seats
+        const availableSeats = d.seats > 0 ? Math.max(0, d.seats - 1) : 0;
+
+        const riders = [];
+        (d.claimedScouts || []).forEach(sc => {
+          const scName = typeof sc === 'string' ? sc : sc.name;
+          riders.push({ name: formatLastFirst(scName), type: 'scout' });
         });
+        (d.claimedAdults || []).forEach(ad => {
+          const adName = typeof ad === 'string' ? ad : ad.name;
+          riders.push({ name: formatLastFirst(adName), type: 'adult' });
+        });
+        (d.ambiguousNotes || []).forEach(amb => {
+          riders.push({
+            name: `⚠️ Ambiguous: "${amb.token}"`,
+            type: 'ambiguous',
+            token: amb.token,
+            candidates: amb.candidates || [],
+            note: amb.note || '',
+          });
+        });
+
+        // Cross-check with scouts to guarantee any scout assigned to this driver is in riders
+        (carpoolBaseline.scouts || []).forEach(s => {
+          if (s.assignedDriver && (s.assignedDriver === d.name || normalizeName(s.assignedDriver) === normalizeName(d.name))) {
+            const formattedScout = formatLastFirst(s.name);
+            const alreadyInRiders = riders.some(r => normalizeName(r.name) === normalizeName(formattedScout));
+            if (!alreadyInRiders) {
+              riders.push({ name: formattedScout, type: 'scout' });
+            }
+          }
+        });
+
+        const driverObj = {
+          name: formatLastFirst(d.name),
+          phone: d.phone || '',
+          seats: availableSeats,
+          comment: d.comment || '',
+          drivingToFrom: d.drivingToFrom || 'Both',
+          isCompliant: d.isCompliant !== false,
+          attending: d.attending || 'Y',
+          riders: riders,
+        };
+
+        if (d.drivingToFrom === 'Both' || d.drivingToFrom === 'To' || !d.drivingToFrom) {
+          toDrivers.push(JSON.parse(JSON.stringify(driverObj)));
+        }
+        if (d.drivingToFrom === 'Both' || d.drivingToFrom === 'From') {
+          fromDrivers.push(JSON.parse(JSON.stringify(driverObj)));
+        }
       });
+
+      return {
+        location: carpoolBaseline.meta?.location || '',
+        mapLink: carpoolBaseline.meta?.mapLink || '',
+        toDrivers,
+        fromDrivers,
+        isCustom: false,
+      };
     }
 
-    function switchDirection(dir) {
-      currentDirection = dir;
-      document.getElementById('tabTo').className = dir === 'TO' ? 'tab active' : 'tab';
-      document.getElementById('tabFrom').className = dir === 'FROM' ? 'tab active' : 'tab';
-      document.getElementById('sectionHeading').textContent = dir === 'TO' ? 'TO the Event (Outbound)' : 'FROM the Event (Return)';
-      renderGrid();
-      renderUnassignedPool();
+    function saveDraft() {
+      localDraft.isCustom = true;
+      const storageKey = `troop402_coord_v1_${eventId}`;
+      localStorage.setItem(storageKey, JSON.stringify(localDraft));
+      document.getElementById('draftBanner').style.display = 'flex';
+      renderPage();
+    }
+
+    function resetToBaseline() {
+      if (confirm('Reset coordinator worksheet to TroopWebHost baseline? All local changes will be cleared.')) {
+        const storageKey = `troop402_coord_v1_${eventId}`;
+        localStorage.removeItem(storageKey);
+        localDraft = buildBaselineDraft();
+        document.getElementById('draftBanner').style.display = 'none';
+        renderPage();
+      }
     }
 
     function renderPage() {
-      const { meta, stats } = carpoolState;
-      document.getElementById('eventTitle').textContent = meta.title || `Event #${eventId}`;
-      document.getElementById('eventDate').textContent = meta.start ? `📅 ${meta.start}` : '';
-      document.getElementById('eventLocation').textContent = meta.location ? `📍 ${meta.location}` : '';
-      document.getElementById('viewCarpoolLink').href = `/carpool.html?id=${encodeURIComponent(eventId)}`;
-      document.getElementById('downloadExcelBtn').onclick = () => {
-        window.location.href = `/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`;
-      };
+      const meta = carpoolBaseline.meta || {};
+      const loc = (localDraft && localDraft.location !== undefined) ? localDraft.location : (meta.location || '');
+      const map = (localDraft && localDraft.mapLink !== undefined) ? localDraft.mapLink : (meta.mapLink || '');
 
-      renderGrid();
-      renderUnassignedPool();
+      document.getElementById('eventTitle').textContent = meta.title || `Event #${eventId}`;
+
+      const dateRange = (meta.start && meta.end && meta.start.split(' ')[0] !== meta.end.split(' ')[0])
+        ? `${meta.start} – ${meta.end}`
+        : (meta.start || '');
+      document.getElementById('eventDate').textContent = dateRange ? `📅 ${dateRange}` : '';
+
+      const toDate = meta.start ? meta.start.split(' ')[0] : '';
+      const fromDate = meta.end ? meta.end.split(' ')[0] : '';
+      const toTitle = document.getElementById('toSectionTitle');
+      if (toTitle) {
+        toTitle.textContent = `🚗 "TO" the Event (Outbound${toDate ? ` – ${toDate}` : ''})`;
+      }
+      const fromTitle = document.getElementById('fromSectionTitle');
+      if (fromTitle) {
+        fromTitle.textContent = `🚙 "FROM" the Event (Return${fromDate ? ` – ${fromDate}` : ''})`;
+      }
+
+      document.getElementById('eventLocation').textContent = loc ? `📍 ${loc}` : '📍 TBA';
+
+      const mapLinkEl = document.getElementById('eventMapLink');
+      if (mapLinkEl) {
+        if (map) {
+          mapLinkEl.innerHTML = `<a href="${escapeHtml(map)}" target="_blank" rel="noopener" style="color:var(--primary); font-weight:600; text-decoration:none;">🗺️ Map</a>`;
+          mapLinkEl.style.display = 'inline';
+        } else {
+          mapLinkEl.innerHTML = '';
+          mapLinkEl.style.display = 'none';
+        }
+      }
+
+      document.getElementById('viewCarpoolLink').href = `/carpool.html?id=${encodeURIComponent(eventId)}`;
+
+      renderTable('TO');
+      renderTable('FROM');
+      renderWaitlist();
       updateKpis();
 
       document.getElementById('loading').style.display = 'none';
       document.getElementById('content').style.display = 'block';
     }
 
-    function getActiveAssignedScoutNames(dir) {
-      const assigned = new Set();
-      const driverMap = localAssignments[dir];
-      for (const [_, riders] of driverMap.entries()) {
-        riders.forEach(r => {
-          if (r.type === 'scout') assigned.add(r.name);
+    function getAssignedScoutNormalizedSet(dir) {
+      const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+      const set = new Set();
+      drivers.forEach(d => {
+        (d.riders || []).forEach(r => {
+          if (r && r.type === 'scout') {
+            set.add(normalizeName(r.name));
+          }
         });
-      }
-      return assigned;
+      });
+      return set;
     }
 
-    function renderUnassignedPool() {
-      const assigned = getActiveAssignedScoutNames(currentDirection);
-      const allScouts = carpoolState.scouts || [];
-      const unassigned = allScouts.filter(s => !assigned.has(s.name));
+    function renderTable(dir) {
+      const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+      const thead = document.getElementById(dir === 'TO' ? 'toGridThead' : 'fromGridThead');
+      const tbody = document.getElementById(dir === 'TO' ? 'toGridTbody' : 'fromGridTbody');
 
-      document.getElementById('unassignedCount').textContent = unassigned.length;
-      const pool = document.getElementById('unassignedPool');
-
-      if (unassigned.length === 0) {
-        pool.innerHTML = '<span style="color:#059669; font-weight:600;">🎉 All attending scouts are assigned to a vehicle!</span>';
-        return;
-      }
-
-      pool.innerHTML = unassigned.map(s => `
-        <span class="scout-chip">
-          <span>${escapeHtml(s.name)}</span>
-          <span style="font-size:0.7rem; opacity:0.8;">(${escapeHtml(s.patrol || 'No Patrol')})</span>
-        </span>
-      `).join('');
-    }
-
-    function updateKpis() {
-      const assigned = getActiveAssignedScoutNames(currentDirection);
-      const totalScouts = (carpoolState.scouts || []).length;
-      const unassignedCount = totalScouts - assigned.size;
-      const totalDrivers = (carpoolState.drivers || []).length;
-      const totalSeats = (carpoolState.drivers || []).reduce((acc, d) => acc + (d.seats || 0), 0);
-      const balance = totalSeats - totalScouts;
-
-      document.getElementById('kpiScouts').textContent = totalScouts;
-      document.getElementById('kpiDrivers').textContent = totalDrivers;
-      document.getElementById('kpiSeats').textContent = totalSeats;
-      document.getElementById('kpiAssigned').textContent = assigned.size;
-      document.getElementById('kpiUnassigned').textContent = unassignedCount;
-
-      const balanceEl = document.getElementById('kpiBalance');
-      const balanceCard = document.getElementById('kpiBalanceCard');
-      balanceEl.textContent = balance >= 0 ? `+${balance}` : balance;
-      balanceCard.className = balance >= 0 ? 'kpi-card surplus' : 'kpi-card deficit';
-    }
-
-    function renderGrid() {
-      const tbody = document.getElementById('gridTbody');
-      tbody.innerHTML = '';
-      const drivers = carpoolState.drivers || [];
-
-      // Filter drivers by direction
-      const filteredDrivers = drivers.filter(d => {
-        if (currentDirection === 'TO') {
-          return d.drivingToFrom === 'Both' || d.drivingToFrom === 'To' || !d.drivingToFrom;
-        } else {
-          return d.drivingToFrom === 'Both' || d.drivingToFrom === 'From';
-        }
+      // Determine max seat columns across drivers (minimum 7)
+      let maxCols = 7;
+      drivers.forEach(d => {
+        if (d.seats > maxCols) maxCols = d.seats;
       });
 
-      if (filteredDrivers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:1.5rem;" class="muted">No drivers registered for this trip leg.</td></tr>';
+      // Check which seat columns have any rider content across all drivers in this leg
+      const colHasRider = [];
+      for (let s = 0; s < maxCols; s++) {
+        colHasRider[s] = drivers.some(d => d.riders && d.riders[s]);
+      }
+
+      // Render thead
+      let thHtml = `
+        <tr>
+          <th class="left-align" style="width:160px;">Driver Name</th>
+          <th style="width:98px;">Cell#</th>
+          <th style="width:46px;" title="Available passenger seats for scouts">Seats</th>
+          <th style="width:36px;">Note</th>
+      `;
+      for (let s = 0; s < maxCols; s++) {
+        const hasRider = colHasRider[s];
+        // Reduce min-width by 25-30px when the column has no rider content
+        const colStyle = hasRider ? 'min-width:110px;' : 'min-width:92px; width:92px;';
+        thHtml += `<th style="${colStyle}">Seat ${s + 1}</th>`;
+      }
+      thHtml += `<th style="width:32px; padding:0.2rem;" class="no-print"></th></tr>`;
+      thead.innerHTML = thHtml;
+
+      // Render tbody
+      if (drivers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${maxCols + 5}" style="text-align:center; padding:1.5rem;" class="muted">No drivers registered for this trip leg.</td></tr>`;
         return;
       }
 
-      const assignedScoutNames = getActiveAssignedScoutNames(currentDirection);
-      const unassignedScouts = (carpoolState.scouts || []).filter(s => !assignedScoutNames.has(s.name));
-
-      filteredDrivers.forEach(d => {
+      tbody.innerHTML = '';
+      drivers.forEach((d, driverIdx) => {
         const tr = document.createElement('tr');
-        const riders = localAssignments[currentDirection].get(d.name) || [];
+        const riders = d.riders || [];
         const maxSeats = d.seats || 0;
 
-        // Driver details
         let phoneHtml = d.phone ? `<a href="tel:${escapeHtml(d.phone)}" style="color:var(--text); text-decoration:none;">${escapeHtml(d.phone)}</a>` : '<span class="muted">-</span>';
         let safetyTag = !d.isCompliant && d.attending === 'Y' ? '<br><span style="color:#b91c1c; font-size:0.7rem; font-weight:700;">⚠️ Safety Gaps</span>' : '';
+
+        let noteBtnHtml = d.comment
+          ? `<button type="button" class="btn-note" title="${escapeHtml(d.comment)}" onclick="viewDriverNote('${escapeHtml(d.name)}', '${escapeHtml(d.comment)}')">💬</button>`
+          : `<span class="muted">-</span>`;
 
         let cellsHtml = `
           <td><strong>${escapeHtml(d.name)}</strong>${safetyTag}</td>
           <td style="text-align:center;">${phoneHtml}</td>
-          <td style="text-align:center; font-weight:700;">${maxSeats}</td>
-          <td style="font-size:0.8rem; color:#475569;">${escapeHtml(d.comment || '-')}</td>
+          <td style="text-align:center;">
+            <div class="seat-stepper">
+              <button type="button" class="btn-step no-print" title="Increase seats" onclick="changeDriverSeats('${dir}', ${driverIdx}, 1)">+</button>
+              <span class="seat-num">${maxSeats}</span>
+              <button type="button" class="btn-step no-print" title="Decrease seats" onclick="changeDriverSeats('${dir}', ${driverIdx}, -1)">−</button>
+            </div>
+          </td>
+          <td style="text-align:center;">${noteBtnHtml}</td>
         `;
 
-        // 9 slots
-        for (let i = 0; i < 9; i++) {
-          const rider = riders[i];
-          const isWithinCapacity = i < maxSeats;
+        // Render seat slots up to maxCols
+        for (let s = 0; s < maxCols; s++) {
+          const rider = riders[s];
+          const isWithinCapacity = s < maxSeats;
 
           if (rider) {
             const isAdult = rider.type === 'adult';
-            cellsHtml += `
-              <td>
-                <div class="slot slot-filled ${isAdult ? 'adult' : ''}">
-                  <span>${escapeHtml(rider.name)}</span>
-                  <button class="btn-remove no-print" title="Remove rider" onclick="removeRider('${escapeHtml(d.name)}', ${i})">&times;</button>
-                </div>
-              </td>
-            `;
+            const isAmbiguous = rider.type === 'ambiguous';
+
+            if (isAmbiguous) {
+              cellsHtml += `
+                <td>
+                  <div class="slot slot-ambiguous" onclick="openResolveAmbiguityModal('${dir}', ${driverIdx}, ${s})" title="${escapeHtml(rider.note || 'Click to resolve this ambiguous name')}">
+                    <span style="font-weight:700;">⚠️ "${escapeHtml(rider.token || 'Ambiguous')}"</span>
+                    <button class="btn-resolve no-print" type="button">Resolve</button>
+                    <button class="btn-remove no-print" type="button" title="Remove rider" onclick="event.stopPropagation(); removeRider('${dir}', ${driverIdx}, ${s})">&times;</button>
+                  </div>
+                </td>
+              `;
+            } else {
+              cellsHtml += `
+                <td>
+                  <div class="slot slot-filled ${isAdult ? 'adult' : ''}">
+                    <span>${escapeHtml(rider.name)}</span>
+                    <button class="btn-remove no-print" title="Remove rider" onclick="removeRider('${dir}', ${driverIdx}, ${s})">&times;</button>
+                  </div>
+                </td>
+              `;
+            }
           } else if (isWithinCapacity) {
             cellsHtml += `
               <td>
-                <div class="slot slot-open no-print" onclick="promptAssignRider('${escapeHtml(d.name)}', ${i})">
+                <div class="slot slot-open no-print" onclick="openAssignModal('${dir}', '${escapeHtml(d.name)}', ${s})">
                   + Open Seat
                 </div>
                 <div class="slot slot-open" style="display:none; @media print { display:block; }">
@@ -605,52 +1196,482 @@
           }
         }
 
+        cellsHtml += `
+          <td style="text-align:center; padding:0.2rem;" class="no-print">
+            <button class="btn-remove" title="Remove driver" onclick="removeDriver('${dir}', ${driverIdx})">🗑️</button>
+          </td>
+        `;
+
         tr.innerHTML = cellsHtml;
         tbody.appendChild(tr);
       });
     }
 
-    function promptAssignRider(driverName, slotIndex) {
-      const assigned = getActiveAssignedScoutNames(currentDirection);
-      const unassigned = (carpoolState.scouts || []).filter(s => !assigned.has(s.name));
+    function renderWaitlist() {
+      const container = document.getElementById('waitlistContainer');
+      const allScouts = carpoolBaseline.scouts || [];
 
-      if (unassigned.length === 0) {
-        alert('All attending scouts are currently assigned! Remove a scout from another vehicle first if you wish to reassign.');
+      const assignedToSet = getAssignedScoutNormalizedSet('TO');
+      const assignedFromSet = getAssignedScoutNormalizedSet('FROM');
+
+      // Filter scouts who are unassigned in at least one direction
+      const waitlist = allScouts.filter(s => {
+        const norm = normalizeName(s.name);
+        return !assignedToSet.has(norm) || !assignedFromSet.has(norm);
+      });
+
+      document.getElementById('unassignedTotalCount').textContent = waitlist.length;
+
+      if (waitlist.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; padding: 1.5rem; text-align: center; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; color: #065f46; font-weight: 700;">
+            🎉 All attending scouts are assigned to rides in both directions!
+          </div>
+        `;
         return;
       }
 
-      const scoutNames = unassigned.map(s => s.name);
-      const promptText = `Assign a scout to ${driverName} (Seat #${slotIndex + 1}):\n\nAvailable Scouts:\n${scoutNames.map((n, idx) => `${idx + 1}. ${n}`).join('\n')}\n\nEnter number (1-${scoutNames.length}):`;
+      container.innerHTML = waitlist.map(s => {
+        const norm = normalizeName(s.name);
+        const needsTo = !assignedToSet.has(norm);
+        const needsFrom = !assignedFromSet.has(norm);
 
-      const choice = prompt(promptText);
-      if (!choice) return;
+        let badgeHtml = '';
+        if (needsTo && needsFrom) {
+          badgeHtml = '<span class="badge badge-both">TO &amp; FROM</span>';
+        } else if (needsTo) {
+          badgeHtml = '<span class="badge badge-to">TO only</span>';
+        } else {
+          badgeHtml = '<span class="badge badge-from">FROM only</span>';
+        }
 
-      const choiceIdx = parseInt(choice, 10) - 1;
-      if (isNaN(choiceIdx) || choiceIdx < 0 || choiceIdx >= scoutNames.length) {
-        alert('Invalid selection.');
-        return;
-      }
-
-      const selectedScout = scoutNames[choiceIdx];
-      const riders = localAssignments[currentDirection].get(driverName) || [];
-      riders.push({ name: selectedScout, type: 'scout' });
-      localAssignments[currentDirection].set(driverName, riders);
-
-      document.getElementById('editNotice').style.display = 'inline-flex';
-      renderGrid();
-      renderUnassignedPool();
-      updateKpis();
+        return `
+          <div class="waitlist-card">
+            <div class="waitlist-card-header">
+              <span class="waitlist-name">${escapeHtml(formatLastFirst(s.name))}</span>
+              ${badgeHtml}
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">
+              ${s.patrol ? `Patrol: ${escapeHtml(s.patrol)}` : 'No Patrol'}
+              ${s.swimTest ? ` • Swim: ${escapeHtml(s.swimTest)}` : ''}
+            </div>
+            ${s.rideNote ? `<div style="font-size:0.75rem; color:#b45309; background:#fffbeb; padding:0.2rem 0.4rem; border-radius:3px;">${escapeHtml(s.rideNote)}</div>` : ''}
+          </div>
+        `;
+      }).join('');
     }
 
-    function removeRider(driverName, slotIndex) {
-      const riders = localAssignments[currentDirection].get(driverName) || [];
-      riders.splice(slotIndex, 1);
-      localAssignments[currentDirection].set(driverName, riders);
+    function updateKpis() {
+      const allScouts = carpoolBaseline.scouts || [];
+      const totalScouts = allScouts.length;
 
-      document.getElementById('editNotice').style.display = 'inline-flex';
-      renderGrid();
-      renderUnassignedPool();
-      updateKpis();
+      const assignedToSet = getAssignedScoutNormalizedSet('TO');
+      const assignedFromSet = getAssignedScoutNormalizedSet('FROM');
+
+      // Unique drivers
+      const uniqueDrivers = new Set();
+      localDraft.toDrivers.forEach(d => uniqueDrivers.add(normalizeName(d.name)));
+      localDraft.fromDrivers.forEach(d => uniqueDrivers.add(normalizeName(d.name)));
+
+      // Total vehicle seats for each leg
+      const totalSeatsTo = localDraft.toDrivers.reduce((sum, d) => sum + (d.seats || 0), 0);
+      const totalSeatsFrom = localDraft.fromDrivers.reduce((sum, d) => sum + (d.seats || 0), 0);
+
+      // Assigned counts for each leg
+      const assignedToCount = assignedToSet.size;
+      const assignedFromCount = assignedFromSet.size;
+
+      // Open seats available in vehicles right now (totalSeats - total filled passenger slots)
+      let filledSlotsTo = 0;
+      localDraft.toDrivers.forEach(d => {
+        const riders = d.riders || [];
+        for (let s = 0; s < (d.seats || 0); s++) {
+          if (riders[s]) filledSlotsTo++;
+        }
+      });
+      let filledSlotsFrom = 0;
+      localDraft.fromDrivers.forEach(d => {
+        const riders = d.riders || [];
+        for (let s = 0; s < (d.seats || 0); s++) {
+          if (riders[s]) filledSlotsFrom++;
+        }
+      });
+      const openSeatsTo = Math.max(0, totalSeatsTo - filledSlotsTo);
+      const openSeatsFrom = Math.max(0, totalSeatsFrom - filledSlotsFrom);
+
+      // Scouts needing a ride
+      const needsToCount = Math.max(0, totalScouts - assignedToCount);
+      const needsFromCount = Math.max(0, totalScouts - assignedFromCount);
+
+      // Scouts missing a ride in ONE OR BOTH directions (Waitlist)
+      const waitlistScouts = allScouts.filter(s => {
+        const norm = normalizeName(s.name);
+        return !assignedToSet.has(norm) || !assignedFromSet.has(norm);
+      });
+      const waitlistTotal = waitlistScouts.length;
+
+      // Overall vehicle capacity margin: total seats provided - scouts attending
+      const marginTo = totalSeatsTo - totalScouts;
+      const marginFrom = totalSeatsFrom - totalScouts;
+
+      // 1: Total Scouts
+      document.getElementById('kpiScouts').textContent = totalScouts;
+
+      // 2: Total Drivers
+      document.getElementById('kpiDrivers').textContent = uniqueDrivers.size;
+
+      // 3: Assigned Seats
+      document.getElementById('kpiAssignedTo').textContent = assignedToCount;
+      document.getElementById('kpiAssignedFrom').textContent = assignedFromCount;
+
+      // 4: Open Seats
+      document.getElementById('kpiOpenTo').textContent = openSeatsTo;
+      document.getElementById('kpiOpenFrom').textContent = openSeatsFrom;
+
+      // 5: Needs Ride
+      document.getElementById('kpiNeedsTo').textContent = needsToCount;
+      document.getElementById('kpiNeedsFrom').textContent = needsFromCount;
+      document.getElementById('kpiNeedsTotalSub').textContent = `${waitlistTotal} scout${waitlistTotal === 1 ? '' : 's'} total`;
+
+      const needsCard = document.getElementById('kpiNeedsRideCard');
+      if (needsCard) {
+        if (waitlistTotal === 0) {
+          needsCard.style.borderLeft = '3px solid #10b981';
+          document.getElementById('kpiNeedsTo').style.color = '#047857';
+          document.getElementById('kpiNeedsFrom').style.color = '#047857';
+        } else {
+          needsCard.style.borderLeft = '3px solid #ef4444';
+          document.getElementById('kpiNeedsTo').style.color = '#b91c1c';
+          document.getElementById('kpiNeedsFrom').style.color = '#b91c1c';
+        }
+      }
+
+      // 6: Extra Seats Needed (Capacity shortage: totalScouts - totalSeats; 0 if surplus)
+      const extraNeededTo = Math.max(0, totalScouts - totalSeatsTo);
+      const extraNeededFrom = Math.max(0, totalScouts - totalSeatsFrom);
+
+      const extraToEl = document.getElementById('kpiExtraTo');
+      const extraFromEl = document.getElementById('kpiExtraFrom');
+      if (extraToEl) {
+        extraToEl.textContent = extraNeededTo;
+        extraToEl.style.color = extraNeededTo === 0 ? '#047857' : '#b91c1c';
+      }
+      if (extraFromEl) {
+        extraFromEl.textContent = extraNeededFrom;
+        extraFromEl.style.color = extraNeededFrom === 0 ? '#047857' : '#b91c1c';
+      }
+
+      const extraCard = document.getElementById('kpiExtraCard');
+      if (extraCard) {
+        extraCard.style.borderLeft = (extraNeededTo === 0 && extraNeededFrom === 0)
+          ? '3px solid #10b981'
+          : '3px solid #ef4444';
+      }
+    }
+
+    function openModal(modalId) {
+      document.getElementById(modalId).style.display = 'flex';
+    }
+
+    // Ambiguity Resolution Modal Logic
+    let resolvingContext = null;
+
+    function openResolveAmbiguityModal(dir, driverIdx, slotIdx) {
+      const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+      const driver = drivers[driverIdx];
+      const rider = (driver.riders || [])[slotIdx];
+      if (!rider || rider.type !== 'ambiguous') return;
+
+      resolvingContext = { dir, driverIdx, slotIdx, token: rider.token, candidates: rider.candidates || [], note: rider.note || '' };
+
+      document.getElementById('resolveModalTitle').textContent = `⚠️ Resolve Ambiguous Name: "${rider.token}"`;
+      document.getElementById('resolveModalDesc').innerHTML = `
+        Driver <strong>${escapeHtml(driver.name)}</strong> wrote <em>"${escapeHtml(rider.token)}"</em> in their driver comment.<br>
+        Select the intended scout to assign them to this seat:
+      `;
+
+      const candidateContainer = document.getElementById('resolveCandidateList');
+      const allScouts = carpoolBaseline.scouts || [];
+
+      // Look up candidates from carpoolBaseline.scouts to get patrol info
+      const candidateScouts = [];
+      (rider.candidates || []).forEach(candName => {
+        const found = allScouts.find(s => normalizeName(s.name) === normalizeName(candName) || s.name.toLowerCase().includes(candName.toLowerCase()));
+        if (found) candidateScouts.push(found);
+        else candidateScouts.push({ name: candName, patrol: '' });
+      });
+
+      if (candidateScouts.length === 0) {
+        candidateContainer.innerHTML = `<div style="text-align:center; padding:1rem; color:var(--text-muted);">No candidate suggestions found.</div>`;
+      } else {
+        candidateContainer.innerHTML = candidateScouts.map(c => `
+          <div class="modal-scout-item" onclick="resolveAmbiguousToScout('${escapeHtml(formatLastFirst(c.name))}')">
+            <div>
+              <strong>${escapeHtml(formatLastFirst(c.name))}</strong>
+              ${c.patrol ? `<span style="font-size:0.75rem; color:var(--text-muted); margin-left:0.5rem;">${escapeHtml(c.patrol)}</span>` : ''}
+            </div>
+            <span style="color:var(--primary); font-weight:700; font-size:0.8rem;">Assign &rarr;</span>
+          </div>
+        `).join('');
+      }
+
+      openModal('resolveModal');
+    }
+
+    function resolveAmbiguousToScout(scoutFormattedName) {
+      if (!resolvingContext) return;
+      const { dir, driverIdx, slotIdx } = resolvingContext;
+      const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+      drivers[driverIdx].riders[slotIdx] = {
+        name: scoutFormattedName,
+        type: 'scout',
+      };
+      closeModal('resolveModal');
+      resolvingContext = null;
+      saveDraft();
+    }
+
+    function clearAmbiguousSlot() {
+      if (!resolvingContext) return;
+      const { dir, driverIdx, slotIdx } = resolvingContext;
+      const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+      drivers[driverIdx].riders.splice(slotIdx, 1);
+      closeModal('resolveModal');
+      resolvingContext = null;
+      saveDraft();
+    }
+
+    function openAssignModalFromResolve() {
+      if (!resolvingContext) return;
+      const { dir, driverIdx, slotIdx } = resolvingContext;
+      const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+      const driverName = drivers[driverIdx].name;
+      closeModal('resolveModal');
+      openAssignModal(dir, driverName, slotIdx);
+    }
+
+    // Location & Map Modal Logic
+    function openLocationModal() {
+      const meta = carpoolBaseline.meta || {};
+      document.getElementById('editLocationInput').value = (localDraft && localDraft.location !== undefined) ? localDraft.location : (meta.location || '');
+      document.getElementById('editMapLinkInput').value = (localDraft && localDraft.mapLink !== undefined) ? localDraft.mapLink : (meta.mapLink || '');
+      openModal('locationModal');
+    }
+
+    function saveLocationEdits(event) {
+      event.preventDefault();
+      localDraft.location = (document.getElementById('editLocationInput').value || '').trim();
+      localDraft.mapLink = (document.getElementById('editMapLinkInput').value || '').trim();
+      closeModal('locationModal');
+      saveDraft();
+    }
+
+    // Assign Scout Modal Logic
+    function openAssignModal(dir, driverName, slotIndex) {
+      pendingAssignment = { dir, driverName, slotIndex };
+      document.getElementById('assignModalTitle').textContent = `Assign Scout to ${driverName} (${dir} - Seat #${slotIndex + 1})`;
+
+      renderModalScoutList();
+      openModal('assignModal');
+    }
+
+    function renderModalScoutList() {
+      const { dir } = pendingAssignment;
+      const assignedSet = getAssignedScoutNormalizedSet(dir);
+      const allScouts = carpoolBaseline.scouts || [];
+
+      // Filter to scouts who need a ride in this direction
+      const unassignedForDir = allScouts.filter(s => !assignedSet.has(normalizeName(s.name)));
+
+      const listContainer = document.getElementById('modalScoutList');
+      if (unassignedForDir.length === 0) {
+        listContainer.innerHTML = `<div style="text-align:center; padding:1.5rem; color:var(--text-muted);">No unassigned scouts found.</div>`;
+        return;
+      }
+
+      listContainer.innerHTML = unassignedForDir.map(s => `
+        <div class="modal-scout-item" onclick="selectScoutForSeat('${escapeHtml(formatLastFirst(s.name))}')">
+          <div>
+            <strong>${escapeHtml(formatLastFirst(s.name))}</strong>
+            <span style="font-size:0.75rem; color:var(--text-muted); margin-left:0.5rem;">${escapeHtml(s.patrol || 'No Patrol')}</span>
+          </div>
+          <span style="color:var(--primary); font-weight:700; font-size:0.8rem;">Select &rarr;</span>
+        </div>
+      `).join('');
+    }
+
+    function selectScoutForSeat(scoutName) {
+      if (!pendingAssignment) return;
+      const { dir, driverName, slotIndex } = pendingAssignment;
+      const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+      const driver = drivers.find(d => d.name === driverName);
+
+      if (driver) {
+        if (!driver.riders) driver.riders = [];
+        driver.riders[slotIndex] = { name: scoutName, type: 'scout' };
+        saveDraft();
+      }
+
+      closeModal('assignModal');
+      pendingAssignment = null;
+    }
+
+    function removeRider(dir, driverIdx, slotIndex) {
+      const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+      const driver = drivers[driverIdx];
+      if (driver && driver.riders) {
+        driver.riders.splice(slotIndex, 1);
+        saveDraft();
+      }
+    }
+
+    function changeDriverSeats(dir, driverIdx, delta) {
+      const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+      const driver = drivers[driverIdx];
+      if (!driver) return;
+
+      const newSeats = (driver.seats || 0) + delta;
+      if (newSeats < 0) return;
+
+      // If decreasing and a rider exists at the removed slot
+      if (delta < 0 && driver.riders && driver.riders.length > newSeats) {
+        const removedRider = driver.riders[driver.riders.length - 1];
+        if (!confirm(`Decrease seats? This will remove ${removedRider.name} back to the unassigned pool.`)) {
+          return;
+        }
+        driver.riders.pop();
+      }
+
+      driver.seats = newSeats;
+      saveDraft();
+    }
+
+    function removeDriver(dir, driverIdx) {
+      const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+      const driver = drivers[driverIdx];
+      if (!driver) return;
+
+      if (confirm(`Remove driver ${driver.name} from ${dir} carpool? Any assigned riders will return to the unassigned pool.`)) {
+        drivers.splice(driverIdx, 1);
+        saveDraft();
+      }
+    }
+
+    // Add Driver Logic
+    function openAddDriverModal() {
+      document.getElementById('addDriverForm').reset();
+      document.getElementById('addDriverModal').style.display = 'flex';
+    }
+
+    function submitAddDriver(e) {
+      e.preventDefault();
+      const name = formatLastFirst(document.getElementById('newDriverName').value.trim());
+      const phone = document.getElementById('newDriverPhone').value.trim();
+      const seats = parseInt(document.getElementById('newDriverSeats').value, 10) || 3;
+      const leg = document.getElementById('newDriverLeg').value;
+      const comment = document.getElementById('newDriverComment').value.trim();
+
+      const newDriverObj = {
+        name,
+        phone,
+        seats,
+        comment,
+        drivingToFrom: leg,
+        isCompliant: true,
+        attending: 'Y',
+        riders: [],
+      };
+
+      if (leg === 'Both' || leg === 'To') {
+        localDraft.toDrivers.push(JSON.parse(JSON.stringify(newDriverObj)));
+      }
+      if (leg === 'Both' || leg === 'From') {
+        localDraft.fromDrivers.push(JSON.parse(JSON.stringify(newDriverObj)));
+      }
+
+      closeModal('addDriverModal');
+      saveDraft();
+    }
+
+    // View Note Logic
+    function viewDriverNote(driverName, note) {
+      document.getElementById('noteModalTitle').textContent = `Note: ${driverName}`;
+      document.getElementById('noteModalContent').textContent = note;
+      document.getElementById('noteModal').style.display = 'flex';
+    }
+
+    // Modal Helpers
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+
+    function handleModalOverlayClick(e, modalId) {
+      if (e.target.id === modalId) {
+        closeModal(modalId);
+      }
+    }
+
+    // Live Excel Export with custom edits
+    async function downloadCoordinatorExcel() {
+      try {
+        const btn = document.getElementById('downloadExcelBtn');
+        const origText = btn.textContent;
+        btn.textContent = '⏳ Preparing Excel...';
+        btn.disabled = true;
+
+        const unassignedScouts = (carpoolBaseline.scouts || []).filter(s => {
+          const norm = normalizeName(s.name);
+          const inTo = getAssignedScoutNormalizedSet('TO').has(norm);
+          const inFrom = getAssignedScoutNormalizedSet('FROM').has(norm);
+          return !inTo || !inFrom;
+        }).map(s => {
+          const norm = normalizeName(s.name);
+          const inTo = getAssignedScoutNormalizedSet('TO').has(norm);
+          const inFrom = getAssignedScoutNormalizedSet('FROM').has(norm);
+          let needsDirection = 'To and From';
+          if (!inTo && inFrom) needsDirection = 'To only';
+          else if (inTo && !inFrom) needsDirection = 'From only';
+          return {
+            ...s,
+            needsDirection,
+          };
+        });
+
+        const payload = {
+          location: (localDraft && localDraft.location !== undefined) ? localDraft.location : (carpoolBaseline.meta?.location || ''),
+          mapLink: (localDraft && localDraft.mapLink !== undefined) ? localDraft.mapLink : (carpoolBaseline.meta?.mapLink || ''),
+          toDrivers: localDraft.toDrivers,
+          fromDrivers: localDraft.fromDrivers,
+          unassignedScouts: unassignedScouts,
+        };
+
+        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error('Failed to generate Excel export with current edits');
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeTitle = (carpoolBaseline.meta?.title || 'event').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+        a.download = `carpool_${eventId}_${safeTitle}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        btn.textContent = origText;
+        btn.disabled = false;
+      } catch (err) {
+        alert('Error downloading Excel: ' + err.message);
+        const btn = document.getElementById('downloadExcelBtn');
+        btn.textContent = '📥 Download Excel (.xlsx)';
+        btn.disabled = false;
+      }
     }
 
     function escapeHtml(str) {

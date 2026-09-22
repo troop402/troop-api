@@ -236,6 +236,64 @@ paths:
                 properties:
                   error:
                     type: string
+    post:
+      operationId: exportEventCarpoolExcelWithCustomState
+      summary: Download event carpool coordinator Excel spreadsheet with live working state
+      description: Generates an Excel (.xlsx) workbook applying live coordinator edits (custom drivers, reconfigured seats, and manual assignments).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The TroopWebHost event ID
+          schema:
+            type: string
+            example: '1957'
+      requestBody:
+        description: Custom coordinator working state
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                toDrivers:
+                  type: array
+                  items:
+                    type: object
+                fromDrivers:
+                  type: array
+                  items:
+                    type: object
+                unassignedScouts:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Excel spreadsheet download reflecting live coordinator edits
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid event ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Failed to generate carpool spreadsheet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
 
   /api/events/{id}/carpool:
     get:

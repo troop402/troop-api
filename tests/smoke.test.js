@@ -117,6 +117,19 @@ describe('API smoke tests', () => {
     });
   });
 
+  it('rejects invalid event ID for POST carpool.xlsx endpoint with 400', async () => {
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool.xlsx`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ toDrivers: [] }),
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
+  });
+
   it('redirects /carpool/:id to /carpool.html?id=:id', async () => {
     const response = await fetch(`${baseUrl}/carpool/1957`, { redirect: 'manual' });
     assert.equal(response.status, 302);
@@ -181,10 +194,10 @@ describe('Driver comment parsing unit test', () => {
     assert.equal(result.adultRidersCount, 1); // Chris Tzortzis is riding
     assert.equal(result.assignedScoutsCount, 4); // Allison, Gwyneth, Rachael, Alina
 
-    // Check Elena's vehicle
+    // Check Elena's vehicle (4 seatbelts - 1 driver - 3 scouts = 0 open seats)
     const elena = result.enrichedDrivers.find((d) => d.name === 'Ayers, Elena');
     assert.equal(elena.claimedScouts.length, 3);
-    assert.equal(elena.openSeats, 1);
+    assert.equal(elena.openSeats, 0);
 
     // Check Heather's vehicle with explicit "and 2 more"
     const heather = result.enrichedDrivers.find((d) => d.name === 'Tzortzis, Heather');
@@ -192,9 +205,9 @@ describe('Driver comment parsing unit test', () => {
     assert.equal(heather.claimedAdults.length, 1);
     assert.equal(heather.openSeats, 2);
 
-    // Check Brad's vehicle (no comment)
+    // Check Brad's vehicle (4 seatbelts - 1 driver = 3 available passenger seats)
     const brad = result.enrichedDrivers.find((d) => d.name === 'Hoover, Brad');
-    assert.equal(brad.openSeats, 4);
+    assert.equal(brad.openSeats, 3);
 
     // Check scout ride status
     const allison = result.enrichedScouts.find((s) => s.name === 'Annis, Allison');
@@ -313,6 +326,41 @@ describe('Driver comment parsing unit test', () => {
     // No clarifications needed because both were successfully resolved
     assert.equal(result.clarificationsNeeded.length, 0);
   });
+
+  it('resolves adult nicknames, prevents token re-use, and handles capacity', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Renno, Amanda',
+        attending: 'Y',
+        seats: 4,
+        comment: 'Amanda, Tom, Emily, Mackenzie',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Renno, Emily', patrol: 'Gator' },
+      { name: 'Renno, Mackenzie', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Renno, Amanda', leadership: 'Adult' },
+      { name: 'Renno, Thomas', leadership: 'Adult' },
+      { name: 'Polcari, Emily', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+
+    const driver = result.enrichedDrivers[0];
+    assert.equal(driver.claimedScouts.length, 2);
+    assert.equal(driver.claimedAdults.length, 1);
+    assert.equal(driver.claimedAdults[0], 'Thomas Renno');
+    // Emily token was consumed by Emily Renno, so Emily Polcari was not claimed
+    assert.ok(!driver.claimedAdults.includes('Emily Polcari'));
+    // 4 seatbelts total - 1 driver - 2 scouts - 1 adult = 0 open seats
+    assert.equal(driver.openSeats, 0);
+  });
 });
 
 describe('Carpool Excel export unit test', () => {
@@ -367,14 +415,80 @@ describe('Carpool Excel export unit test', () => {
     const workbook = await buildCarpoolWorkbook(mockData);
     assert.ok(workbook);
 
-    const sheet = workbook.getWorksheet('Carpool Sheet');
-    assert.ok(sheet);
+    // Verify all 4 sheets are present
+    const carpoolSheet = workbook.getWorksheet('Carpool');
+    const summarySheet = workbook.getWorksheet('Summary');
+    const scoutSheet = workbook.getWorksheet('Scout roster');
+    const adultSheet = workbook.getWorksheet('Adult roster');
 
-    // Verify title
-    assert.equal(sheet.getCell('A1').value, 'T402G Carpool Coordinator Sheet');
+    assert.ok(carpoolSheet, 'Carpool sheet should exist');
+    assert.ok(summarySheet, 'Summary sheet should exist');
+    assert.ok(scoutSheet, 'Scout roster sheet should exist');
+    assert.ok(adultSheet, 'Adult roster sheet should exist');
+
+    // Verify title and metadata
+    assert.equal(carpoolSheet.getCell('A1').value, 'T402G carpool sheet');
+    assert.equal(carpoolSheet.getCell('B2').value, 'Mt. Lassen Campout');
+
+    // Verify BJ Knudson available passenger seats = 3 (4 total minus 1 driver)
+    assert.equal(carpoolSheet.getCell('C27').value, 3);
+    assert.equal(carpoolSheet.getCell('A27').value, 'Knudson, BJ');
+
+    // Verify Data Validation dropdown on scout seat cell E27
+    assert.equal(carpoolSheet.getCell('E27').dataValidation?.type, 'list');
+    assert.ok(carpoolSheet.getCell('E27').dataValidation?.formulae[0].includes("'Scout roster'"));
+
+    // Verify real math KPI formulas
+    assert.equal(carpoolSheet.getCell('E6').value.formula, 'COUNTA(E27:M27)');
+    assert.equal(carpoolSheet.getCell('E7').value.formula, 'E2-E6');
+    assert.equal(carpoolSheet.getCell('E8').value.formula, 'SUM(C27:C27)-E2');
+
+    // Verify boolean availability formula in column N (seat 1)
+    assert.equal(carpoolSheet.getCell('N27').value.formula, 'IF($C27<N$25, FALSE, TRUE)');
+    assert.equal(carpoolSheet.getCell('N27').value.result, true);
+
+    // Verify Summary sheet has formulas referencing rosters and Carpool
+    assert.ok(summarySheet.getCell('A2').value.formula.includes("'Scout roster'!A2"));
+    assert.ok(summarySheet.getCell('B2').value.formula.includes("COUNTIF(Carpool!"));
 
     // Verify buffer generation
     const buffer = await workbook.xlsx.writeBuffer();
     assert.ok(buffer.length > 5000);
+  });
+
+  it('generates workbook with custom state and live coordinator edits', async () => {
+    const { buildCarpoolWorkbook } = await import('../excel-export.js');
+
+    const mockData = {
+      meta: { title: 'Campout Test' },
+      stats: {},
+      drivers: [],
+      scouts: [],
+    };
+
+    const customState = {
+      toDrivers: [
+        {
+          name: 'Leader, Jane',
+          phone: '925-555-1234',
+          seats: 4,
+          comment: 'leaving at 7am',
+          riders: ['Scout, One', 'Scout, Two'],
+        },
+      ],
+      fromDrivers: [],
+      unassignedScouts: [{ name: 'Scout, Three', patrol: 'Dragon' }],
+    };
+
+    const workbook = await buildCarpoolWorkbook(mockData, null, customState);
+    assert.ok(workbook);
+
+    const sheet = workbook.getWorksheet('Carpool');
+    assert.equal(sheet.getCell('A27').value, 'Leader, Jane');
+    assert.equal(sheet.getCell('C27').value, 4);
+    assert.equal(sheet.getCell('E27').value, 'Scout, One');
+    assert.equal(sheet.getCell('F27').value, 'Scout, Two');
+    // Open seat ready for coordinator
+    assert.equal(sheet.getCell('G27').value, null);
   });
 });
