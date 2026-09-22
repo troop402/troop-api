@@ -228,7 +228,11 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
 * Updated backend to generate direct URLs rooted at `https://www.troopwebhost.org/FormReport.aspx?...`, allowing logged-in coordinators to jump directly to TWH event records with one click.
 
 ### 9.4 Adult Safety Training & SYT (Youth Protection) Resolution
-* **California AB-506 State Training**: Scraped from TroopWebHost Section 1243 CSV (`Form_ID=403&SectionID=1243`).
+* **Centralized Compliance Scraping**: Rather than relying solely on individual course records in Section 1243, the backend queries TroopWebHost's centralized troop-wide report: **"Required Training By Person"** (`Menu_Item_ID=46029` &rarr; `FormReport.aspx?Menu_Item_ID=46029&Stack=1&ReportFormat=CSV`).
+* **Dual California AB-506 Requirements**: California youth organization compliance mandates BOTH:
+  1. Mandated Reporter Training (`AB-506 - CA Mandated Reporter`)
+  2. DOJ Live Scan Fingerprint Background Check (`Live Scan - Finger Print Registration`)
+* **Accurate Status Granularity**: Adults who completed the mandated reporter training but lack Live Scan fingerprinting (e.g. Vanessa Stewart, David Kersten) are accurately flagged with `stateTraining: 'Missing Live Scan'`, making `isCompliant: false`.
 * **Terminology Modernization**: Completely replaced legacy "YPT" with BSA's official "SYT" (Safeguarding Youth Training) across backend, exports, and frontends.
 * **Dual Compliance Rule**: A driver is marked `isCompliant: true` only if both SYT status and CA AB-506 State Training status are 'Current'.
 
@@ -248,5 +252,12 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
 * Implemented multi-column sorting (Scout Name, Patrol, Ride TO, Ride FROM, Permission Slip, Swim Test) with toggleable sort indicators (`▲`/`▼`).
 * Added "⚡ Waitlist at Top" prioritization placing unassigned scouts needing rides at the very top.
 * Added quick filter buttons (`All`, `⚠️ Needs Ride`, `🚗 Has Ride`) with dynamic scout counters.
+
+### 9.8 Client-Side LocalStorage Instant Caching & Cross-Page Synchronization
+* Both `carpool.html` and `coordinator.html` utilize `localStorage` with a stale-while-revalidate pattern (`twh_event_carpool_${eventId}`).
+* **0ms Instant Render**: When navigating between the public carpool view and coordinator worksheet, or returning to a previously viewed event, the page renders immediately from `localStorage` without showing a loading spinner.
+* **Background Revalidation**: Fetches fresh data silently in the background and updates the UI if upstream changes occurred.
+* **Cross-Page Synchrony**: When a coordinator saves an edit on `coordinator.html`, the updated state is immediately saved to `localStorage`, so switching to `carpool.html` displays the updated assignments instantly without network delay.
+* **Hard Refresh Flush**: Clicking the "🔄 Refresh" button clears `localStorage` and requests `/api/events/:id/carpool?forceRefresh=true`, forcing the server to bypass in-memory caches and fetch fresh from TroopWebHost.
 
 

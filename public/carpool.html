@@ -638,11 +638,12 @@
                 <th>Adult Name</th>
                 <th>Leadership Role</th>
                 <th>SYT (Youth Protection)</th>
+                <th>State Training (AB 506)</th>
                 <th>Driver Status</th>
               </tr>
             </thead>
             <tbody id="adultsTbody">
-              <tr><td colspan="4" class="muted" style="text-align:center;">Loading adults...</td></tr>
+              <tr><td colspan="5" class="muted" style="text-align:center;">Loading adults...</td></tr>
             </tbody>
           </table>
         </div>
@@ -691,9 +692,35 @@
         return;
       }
 
-      document.getElementById('loadingView').style.display = 'block';
-      document.getElementById('errorView').style.display = 'none';
-      document.getElementById('carpoolContent').style.display = 'none';
+      const storageKey = `twh_event_carpool_${eventId}`;
+      let renderedFromCache = false;
+
+      // 1. Instant Render from LocalStorage if available
+      if (!forceRefresh) {
+        try {
+          const cachedJson = localStorage.getItem(storageKey);
+          if (cachedJson) {
+            const cached = JSON.parse(cachedJson);
+            if (cached && cached.data) {
+              currentData = cached.data;
+              renderPage(currentData, cached.meta || null);
+              document.getElementById('loadingView').style.display = 'none';
+              document.getElementById('errorView').style.display = 'none';
+              document.getElementById('carpoolContent').style.display = 'block';
+              renderedFromCache = true;
+            }
+          }
+        } catch (e) {
+          console.warn('LocalStorage carpool cache read error:', e);
+        }
+      }
+
+      // If no cache, show initial loading spinner
+      if (!renderedFromCache) {
+        document.getElementById('loadingView').style.display = 'block';
+        document.getElementById('errorView').style.display = 'none';
+        document.getElementById('carpoolContent').style.display = 'none';
+      }
 
       try {
         // Fetch event metadata from events list if available
@@ -713,12 +740,26 @@
         currentData = await res.json();
         renderPage(currentData, eventMeta);
 
+        // Save to localStorage for instant subsequent loads
+        try {
+          localStorage.setItem(storageKey, JSON.stringify({
+            savedAt: Date.now(),
+            data: currentData,
+            meta: eventMeta,
+          }));
+        } catch (e) {
+          console.warn('LocalStorage carpool cache save error:', e);
+        }
+
         document.getElementById('loadingView').style.display = 'none';
+        document.getElementById('errorView').style.display = 'none';
         document.getElementById('carpoolContent').style.display = 'block';
       } catch (err) {
-        document.getElementById('loadingView').style.display = 'none';
-        document.getElementById('errorView').style.display = 'block';
-        document.getElementById('errorMsg').textContent = err.message || 'Failed to fetch carpool details.';
+        if (!renderedFromCache) {
+          document.getElementById('loadingView').style.display = 'none';
+          document.getElementById('errorView').style.display = 'block';
+          document.getElementById('errorMsg').textContent = err.message || 'Failed to fetch carpool details.';
+        }
       }
     }
 
@@ -1315,7 +1356,7 @@
       const adultsTbody = document.getElementById('adultsTbody');
       adultsTbody.innerHTML = '';
       if (adults.length === 0) {
-        adultsTbody.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center; padding: 1.5rem;">No adult leaders registered yet.</td></tr>';
+        adultsTbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center; padding: 1.5rem;">No adult leaders registered yet.</td></tr>';
       } else {
         adults.forEach(a => {
           const isDriver = drivers.some(d => d.name.toLowerCase() === a.name.toLowerCase() && d.attending === 'Y');
@@ -1332,11 +1373,17 @@
             ? '<span class="badge badge-success">Current</span>'
             : `<span class="badge badge-warning">${escapeHtml(a.sytStatus || 'Unknown')}</span>`;
 
+          const stateIsCurrent = a.stateTraining?.toLowerCase() === 'current';
+          const stateBadge = stateIsCurrent
+            ? '<span class="badge badge-success">Current</span>'
+            : `<span class="badge badge-danger">⚠️ ${escapeHtml(a.stateTraining || 'Missing')}</span>`;
+
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td><strong>${escapeHtml(a.name)}</strong></td>
             <td>${escapeHtml(a.leadership || 'Adult Leader')}</td>
             <td>${sytBadge}</td>
+            <td>${stateBadge}</td>
             <td>${driveBadge}</td>
           `;
           adultsTbody.appendChild(tr);
@@ -1376,6 +1423,8 @@
     }
 
     function refreshData() {
+      const storageKey = `twh_event_carpool_${eventId}`;
+      try { localStorage.removeItem(storageKey); } catch {}
       loadCarpool(true);
     }
 
