@@ -1142,10 +1142,46 @@
     }
 
     async function initCoordinator() {
+      const carpoolStorageKey = `twh_event_carpool_${eventId}`;
+      const draftStorageKey = `troop402_coord_v1_${eventId}`;
+      let renderedFromCache = false;
+
+      // 1. Instant Render from LocalStorage if available
+      try {
+        const cachedCarpool = localStorage.getItem(carpoolStorageKey);
+        if (cachedCarpool) {
+          const parsed = JSON.parse(cachedCarpool);
+          if (parsed && parsed.data) {
+            carpoolBaseline = parsed.data;
+            if (parsed.meta) carpoolBaseline.meta = parsed.meta;
+          }
+        }
+
+        const savedDraftJson = localStorage.getItem(draftStorageKey);
+        if (savedDraftJson && carpoolBaseline) {
+          try {
+            localDraft = JSON.parse(savedDraftJson);
+            document.getElementById('draftBanner').style.display = 'flex';
+            loadUndoHistory();
+            renderPage();
+            renderedFromCache = true;
+          } catch {}
+        } else if (carpoolBaseline) {
+          localDraft = buildBaselineDraft();
+          loadUndoHistory();
+          renderPage();
+          renderedFromCache = true;
+        }
+      } catch (e) {
+        console.warn('LocalStorage init error:', e);
+      }
+
+      // 2. Fetch fresh baseline from server in background (or foreground if no cache)
       try {
         const res = await fetch(`/api/events/${eventId}/carpool`);
         if (!res.ok) throw new Error('Failed to load event carpool data');
-        carpoolBaseline = await res.json();
+        const freshData = await res.json();
+        carpoolBaseline = freshData;
 
         if (!carpoolBaseline.meta || !carpoolBaseline.meta.title) {
           try {
@@ -1158,15 +1194,29 @@
           } catch {}
         }
 
+        // Cache fresh baseline in localStorage
+        try {
+          localStorage.setItem(carpoolStorageKey, JSON.stringify({
+            savedAt: Date.now(),
+            data: carpoolBaseline,
+            meta: carpoolBaseline.meta || null,
+          }));
+        } catch {}
+
         // Store initial TWH signature for disparity checks
-        lastSignature = (carpoolBaseline.drivers || [])
+        const freshSignature = (carpoolBaseline.drivers || [])
           .map(d => `${d.name}:${d.seats}:${d.drivingToFrom}:${d.comment}`)
           .join('|');
+
+        if (lastSignature && freshSignature && freshSignature !== lastSignature) {
+          const banner = document.getElementById('disparityBanner');
+          if (banner) banner.style.display = 'flex';
+        }
+        lastSignature = freshSignature;
         lastFocusCheckTime = Date.now();
 
-        // Check localStorage for saved draft
-        const storageKey = `troop402_coord_v1_${eventId}`;
-        const savedDraftJson = localStorage.getItem(storageKey);
+        // Check if draft exists
+        const savedDraftJson = localStorage.getItem(draftStorageKey);
 
         if (savedDraftJson) {
           try {
@@ -1185,18 +1235,20 @@
           } catch {
             localDraft = buildBaselineDraft();
           }
-        } else {
+        } else if (!renderedFromCache) {
           localDraft = buildBaselineDraft();
         }
 
         loadUndoHistory();
         renderPage();
       } catch (err) {
-        document.getElementById('loading').innerHTML = `
-          <h3 style="color:#ef4444;">Error Loading Event #${escapeHtml(eventId)}</h3>
-          <p>${escapeHtml(err.message)}</p>
-          <a href="/manager.html" class="btn" style="margin-top:1rem;">Go to Event Manager</a>
-        `;
+        if (!renderedFromCache) {
+          document.getElementById('loading').innerHTML = `
+            <h3 style="color:#ef4444;">Error Loading Event #${escapeHtml(eventId)}</h3>
+            <p>${escapeHtml(err.message)}</p>
+            <a href="/manager.html" class="btn" style="margin-top:1rem;">Go to Event Manager</a>
+          `;
+        }
       }
     }
 
@@ -1322,15 +1374,16 @@
 
     function resetToBaseline() {
       if (confirm('Reset coordinator worksheet to TroopWebHost baseline? All local changes will be cleared.')) {
-        const storageKey = `troop402_coord_v1_${eventId}`;
-        localStorage.removeItem(storageKey);
-        localDraft = buildBaselineDraft();
+        const draftKey = `troop402_coord_v1_${eventId}`;
+        const carpoolKey = `twh_event_carpool_${eventId}`;
+        localStorage.removeItem(draftKey);
+        localStorage.removeItem(carpoolKey);
         undoStack = [];
         redoStack = [];
         saveUndoHistory();
         document.getElementById('draftBanner').style.display = 'none';
-        renderPage();
-        updateSyncBadge('idle', 'Reset to baseline');
+        updateSyncBadge('idle', 'Resetting to fresh baseline...');
+        initCoordinator();
       }
     }
 
@@ -2502,8 +2555,10 @@
     function refreshFromTWH() {
       if (confirm('Refresh worksheet with latest data from TroopWebHost? Any local changes will be replaced with live TWH data.')) {
         dismissDisparityBanner();
-        const storageKey = `troop402_coord_v1_${eventId}`;
-        localStorage.removeItem(storageKey);
+        const draftKey = `troop402_coord_v1_${eventId}`;
+        const carpoolKey = `twh_event_carpool_${eventId}`;
+        localStorage.removeItem(draftKey);
+        localStorage.removeItem(carpoolKey);
         undoStack = [];
         redoStack = [];
         saveUndoHistory();

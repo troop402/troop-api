@@ -357,12 +357,26 @@ async function getRosterData(forceRefresh = false) {
   }
 }
 
+function evaluateStateTrainingStatus(trainingInfo) {
+  if (!trainingInfo) return 'Missing';
+  if (trainingInfo.hasAb506 && trainingInfo.hasLiveScan) {
+    return 'Current';
+  }
+  if (trainingInfo.hasAb506 && !trainingInfo.hasLiveScan) {
+    return 'Missing Live Scan';
+  }
+  if (!trainingInfo.hasAb506 && trainingInfo.hasLiveScan) {
+    return 'Missing AB-506';
+  }
+  return 'Missing';
+}
+
 async function getAdultTrainingData(forceRefresh = false) {
-  if (
-    !forceRefresh &&
-    cache.adultTrainingMap &&
-    Date.now() - cache.adultTrainingTimestamp < cache.adultTrainingTtlMs
-  ) {
+  const isTrainingFresh =
+    Boolean(cache.adultTrainingMap) &&
+    Date.now() - cache.adultTrainingTimestamp < cache.adultTrainingTtlMs;
+
+  if (!forceRefresh && isTrainingFresh) {
     return cache.adultTrainingMap;
   }
 
@@ -376,49 +390,69 @@ async function getAdultTrainingData(forceRefresh = false) {
       const session = await authenticateTroopWebHost(config);
       const { client, rootUrl, loginUrl } = session;
 
+      // Fetch Required Training By Person (Menu_Item_ID=46029) which tracks both AB-506 and Live Scan for all adults
       const reportUrl = new URL(
-        '/FormReport.aspx?Menu_Item_ID=45888&Form_ID=403&Stack=1&SectionID=1243&ReportFormat=CSV',
+        '/FormReport.aspx?Menu_Item_ID=46029&Stack=1&ReportFormat=CSV',
         loginUrl,
       ).toString();
 
-      const res = await client.get(reportUrl, {
+      let res = await client.get(reportUrl, {
         headers: { Referer: `${rootUrl}/Index.htm` },
         timeout: { request: 25000 },
       });
 
-      const text = typeof res.body === 'string' ? res.body : String(res.body ?? '');
-      const rows = parseCsv(text);
+      let text = typeof res.body === 'string' ? res.body : String(res.body ?? '');
+      let rows = parseCsv(text);
+
+      // If Menu_Item_ID=46029 returns empty or non-CSV, fallback to Section 1243
+      if (rows.length === 0) {
+        const fallbackUrl = new URL(
+          '/FormReport.aspx?Menu_Item_ID=45888&Form_ID=403&Stack=1&SectionID=1243&ReportFormat=CSV',
+          loginUrl,
+        ).toString();
+        res = await client.get(fallbackUrl, {
+          headers: { Referer: `${rootUrl}/Index.htm` },
+          timeout: { request: 25000 },
+        });
+        text = typeof res.body === 'string' ? res.body : String(res.body ?? '');
+        rows = parseCsv(text);
+      }
+
       const trainingMap = new Map();
 
       for (const row of rows) {
-        const adultName = String(row.Adult || '').trim().toLowerCase();
+        const adultName = String(row.Name || row.Adult || '').trim().toLowerCase();
         if (!adultName) continue;
 
-        const trainingName = String(row.Training || '').toLowerCase();
-        const isAb506 =
-          trainingName.includes('ab-506') ||
-          trainingName.includes('ab506') ||
-          trainingName.includes('mandated reporter');
+        const trainingName = String(row['Training Course'] || row.Training || '').toLowerCase();
+        const completed = String(row['Last Completed'] || row.Completed || '').trim();
 
         if (!trainingMap.has(adultName)) {
           trainingMap.set(adultName, {
-            name: row.Adult,
+            name: row.Name || row.Adult,
             hasAb506: false,
+            hasLiveScan: false,
             ab506Completed: '',
+            liveScanCompleted: '',
             courses: [],
           });
         }
 
         const entry = trainingMap.get(adultName);
         entry.courses.push({
-          training: row.Training,
-          completed: row.Completed,
+          training: row['Training Course'] || row.Training,
+          completed,
           expires: row.Expires,
         });
 
-        if (isAb506 && row.Completed) {
+        if ((trainingName.includes('ab-506') || trainingName.includes('mandated reporter')) && completed) {
           entry.hasAb506 = true;
-          entry.ab506Completed = row.Completed;
+          entry.ab506Completed = completed;
+        }
+
+        if ((trainingName.includes('live scan') || trainingName.includes('finger print')) && completed) {
+          entry.hasLiveScan = true;
+          entry.liveScanCompleted = completed;
         }
       }
 
@@ -1183,7 +1217,7 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
         name,
         leadership: row.Leadership || '',
         sytStatus: row['SYT Status'] || '',
-        stateTraining: trainingInfo && trainingInfo.hasAb506 ? 'Current' : 'Missing',
+        stateTraining: evaluateStateTrainingStatus(trainingInfo),
         registered: row['BSA Registered?'] || '',
       };
     });
@@ -1213,7 +1247,7 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
       const trainingInfo = adultTrainingMap.get(name.toLowerCase()) || null;
 
       const sytStatus = row['SYT Status'] || matchingAdult?.sytStatus || 'N/A';
-      const stateTraining = trainingInfo && trainingInfo.hasAb506 ? 'Current' : 'Missing';
+      const stateTraining = evaluateStateTrainingStatus(trainingInfo);
       const bsaRegistered = matchingAdult?.registered || 'N/A';
       const isCompliant = sytStatus.toLowerCase() === 'current' && stateTraining.toLowerCase() === 'current';
 
