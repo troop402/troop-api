@@ -291,7 +291,10 @@ export async function buildCarpoolWorkbook(carpoolData, rosterSummary = null, cu
 
   toDrivers.forEach(d => {
     const r = currentRow;
-    const availableSeats = d.seats > 0 ? (customState ? d.seats : Math.max(0, d.seats - 1)) : 0;
+    const defaultSeats = d.seats > 0 ? Math.max(0, d.seats - 1) : 0;
+    const availableSeats = customState
+      ? (d.seats || 0)
+      : (d.toSeats !== undefined && d.toSeats !== null ? d.toSeats : defaultSeats);
 
     carpoolSheet.getCell(`A${r}`).value = formatLastFirst(d.name);
     carpoolSheet.getCell(`A${r}`).fill = fillIceBlue;
@@ -319,11 +322,13 @@ export async function buildCarpoolWorkbook(carpoolData, rosterSummary = null, cu
     if (d.riders && Array.isArray(d.riders)) {
       riders = d.riders.map(r => formatLastFirst(typeof r === 'string' ? r : r.name));
     } else {
-      (d.claimedScouts || []).forEach(sc => {
+      const scoutsTo = d.claimedScoutsTo || d.claimedScouts || [];
+      const adultsTo = d.claimedAdultsTo || d.claimedAdults || [];
+      scoutsTo.forEach(sc => {
         const scName = typeof sc === 'string' ? sc : sc.name;
         riders.push(formatLastFirst(scName));
       });
-      (d.claimedAdults || []).forEach(ad => {
+      adultsTo.forEach(ad => {
         const adName = typeof ad === 'string' ? ad : ad.name;
         riders.push(`Adult: ${formatLastFirst(adName)}`);
       });
@@ -459,7 +464,10 @@ export async function buildCarpoolWorkbook(carpoolData, rosterSummary = null, cu
 
   fromDrivers.forEach(d => {
     const r = currentRow;
-    const availableSeats = d.seats > 0 ? (customState ? d.seats : Math.max(0, d.seats - 1)) : 0;
+    const defaultSeats = d.seats > 0 ? Math.max(0, d.seats - 1) : 0;
+    const availableSeats = customState
+      ? (d.seats || 0)
+      : (d.fromSeats !== undefined && d.fromSeats !== null ? d.fromSeats : defaultSeats);
 
     carpoolSheet.getCell(`A${r}`).value = formatLastFirst(d.name);
     carpoolSheet.getCell(`A${r}`).fill = fillIceBlue;
@@ -486,11 +494,13 @@ export async function buildCarpoolWorkbook(carpoolData, rosterSummary = null, cu
     if (d.riders && Array.isArray(d.riders)) {
       riders = d.riders.map(r => formatLastFirst(typeof r === 'string' ? r : r.name));
     } else {
-      (d.claimedScouts || []).forEach(sc => {
+      const scoutsFrom = d.claimedScoutsFrom || d.claimedScouts || [];
+      const adultsFrom = d.claimedAdultsFrom || d.claimedAdults || [];
+      scoutsFrom.forEach(sc => {
         const scName = typeof sc === 'string' ? sc : sc.name;
         riders.push(formatLastFirst(scName));
       });
-      (d.claimedAdults || []).forEach(ad => {
+      adultsFrom.forEach(ad => {
         const adName = typeof ad === 'string' ? ad : ad.name;
         riders.push(`Adult: ${formatLastFirst(adName)}`);
       });

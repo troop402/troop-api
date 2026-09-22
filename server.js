@@ -24,9 +24,14 @@ const cache = {
 
   carpoolByEventId: new Map(), // eventId -> { data, timestamp }
   carpoolTtlMs: 15 * 60 * 1000, // 15 minutes
+
+  adultTrainingMap: null,
+  adultTrainingTimestamp: 0,
+  adultTrainingTtlMs: 2 * 60 * 60 * 1000, // 2 hours
 };
 
 let activeRosterPromise = null;
+let activeAdultTrainingPromise = null;
 let activeEventsPromise = null;
 const activeCarpoolPromises = new Map();
 
@@ -352,6 +357,85 @@ async function getRosterData(forceRefresh = false) {
   }
 }
 
+async function getAdultTrainingData(forceRefresh = false) {
+  if (
+    !forceRefresh &&
+    cache.adultTrainingMap &&
+    Date.now() - cache.adultTrainingTimestamp < cache.adultTrainingTtlMs
+  ) {
+    return cache.adultTrainingMap;
+  }
+
+  if (activeAdultTrainingPromise) {
+    return activeAdultTrainingPromise;
+  }
+
+  activeAdultTrainingPromise = (async () => {
+    try {
+      const config = getTroopWebHostConfig();
+      const session = await authenticateTroopWebHost(config);
+      const { client, rootUrl, loginUrl } = session;
+
+      const reportUrl = new URL(
+        '/FormReport.aspx?Menu_Item_ID=45888&Form_ID=403&Stack=1&SectionID=1243&ReportFormat=CSV',
+        loginUrl,
+      ).toString();
+
+      const res = await client.get(reportUrl, {
+        headers: { Referer: `${rootUrl}/Index.htm` },
+        timeout: { request: 25000 },
+      });
+
+      const text = typeof res.body === 'string' ? res.body : String(res.body ?? '');
+      const rows = parseCsv(text);
+      const trainingMap = new Map();
+
+      for (const row of rows) {
+        const adultName = String(row.Adult || '').trim().toLowerCase();
+        if (!adultName) continue;
+
+        const trainingName = String(row.Training || '').toLowerCase();
+        const isAb506 =
+          trainingName.includes('ab-506') ||
+          trainingName.includes('ab506') ||
+          trainingName.includes('mandated reporter');
+
+        if (!trainingMap.has(adultName)) {
+          trainingMap.set(adultName, {
+            name: row.Adult,
+            hasAb506: false,
+            ab506Completed: '',
+            courses: [],
+          });
+        }
+
+        const entry = trainingMap.get(adultName);
+        entry.courses.push({
+          training: row.Training,
+          completed: row.Completed,
+          expires: row.Expires,
+        });
+
+        if (isAb506 && row.Completed) {
+          entry.hasAb506 = true;
+          entry.ab506Completed = row.Completed;
+        }
+      }
+
+      cache.adultTrainingMap = trainingMap;
+      cache.adultTrainingTimestamp = Date.now();
+      return trainingMap;
+    } catch (err) {
+      console.error('Failed to fetch adult training data from TWH:', err.message);
+      return cache.adultTrainingMap || new Map();
+    } finally {
+      activeAdultTrainingPromise = null;
+    }
+  })();
+
+  return activeAdultTrainingPromise;
+}
+
 function parseEventDate(dateStr) {
   if (!dateStr) return null;
   const match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?:\s*([AP]M))?)?/i);
@@ -573,6 +657,144 @@ function firstMatches(token, candidateFirst) {
   return false;
 }
 
+
+function matchAttendeesInText(text, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency) {
+  if (!text || typeof text !== 'string') {
+    return { matchedScouts: [], matchedAdults: [], ambiguousNotes: [] };
+  }
+
+  const matchedScouts = [];
+  const matchedAdults = [];
+  const ambiguousNotes = [];
+  const checkedFirstNames = new Set();
+  const consumedTokens = new Set();
+
+  ['myself', 'me', 'i', driverFirst, ...(NICKNAMES[driverFirst] || [])].forEach((tok) => {
+    consumedTokens.add(tok.toLowerCase());
+  });
+
+  // Match attending scouts with ambiguity & family detection
+  for (const sc of scoutEntries) {
+    if (sc.first === driverFirst && sc.last === driverLast) continue;
+
+    const hasFullName = sc.last && text.toLowerCase().includes(sc.last) && (
+      text.toLowerCase().includes(sc.first) ||
+      (NICKNAMES[sc.first] || []).some((n) => new RegExp(`\\b${n}\\b`, 'i').test(text))
+    );
+
+    if (hasFullName) {
+      checkedFirstNames.add(sc.first);
+      consumedTokens.add(sc.first);
+      (NICKNAMES[sc.first] || []).forEach((n) => consumedTokens.add(n));
+      if (!matchedScouts.some((m) => m.name === sc.displayName)) {
+        matchedScouts.push({
+          name: sc.displayName,
+          originalName: sc.originalName,
+          status: 'confirmed',
+          note: 'Full name matched',
+        });
+      }
+    } else if (sc.first.length > 2 && !checkedFirstNames.has(sc.first)) {
+      // Check exact first name or recognized nicknames
+      const testTokens = [sc.first, ...(NICKNAMES[sc.first] || [])];
+      const matchedToken = testTokens.find((tok) => new RegExp(`\\b${tok}\\b`, 'i').test(text));
+
+      if (matchedToken) {
+        checkedFirstNames.add(sc.first);
+        consumedTokens.add(matchedToken);
+        consumedTokens.add(sc.first);
+        const candidates = firstNameFrequency.get(sc.first) || [];
+
+        if (candidates.length === 1) {
+          const singleScout = candidates[0];
+          if (!matchedScouts.some((m) => m.name === singleScout.displayName)) {
+            matchedScouts.push({
+              name: singleScout.displayName,
+              originalName: singleScout.originalName,
+              status: 'unique_first',
+              note: 'Unique first name',
+            });
+          }
+        } else {
+          // Collision: multiple candidates share first name
+          const familyCandidate = candidates.find((c) => c.last === driverLast);
+          if (familyCandidate) {
+            if (!matchedScouts.some((m) => m.name === familyCandidate.displayName)) {
+              matchedScouts.push({
+                name: familyCandidate.displayName,
+                originalName: familyCandidate.originalName,
+                status: 'family_match',
+                note: `Family match with driver`,
+              });
+            }
+          } else {
+            // Ambiguous collision
+            const candidateNames = candidates.map((c) => c.displayName);
+            const warningMsg = `Ambiguous "${matchedToken}": matches ${candidateNames.length} attending scouts (${candidateNames.join(', ')}). Driver clarification needed.`;
+            ambiguousNotes.push({
+              token: matchedToken,
+              candidates: candidateNames,
+              candidateScouts: candidates,
+              note: warningMsg,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Match attending adults (e.g. husband/wife or leader riding as passenger)
+  for (const ad of adultEntries) {
+    if (ad.first === driverFirst && ad.last === driverLast) continue;
+    if (matchedScouts.some((m) => m.name === ad.displayName)) continue;
+
+    const adFirst = ad.first;
+    const adLast = ad.last;
+    const isFamily = adLast && adLast === driverLast;
+
+    // Check full name match first
+    const hasFullName = adLast && text.toLowerCase().includes(adLast) && (
+      text.toLowerCase().includes(adFirst) ||
+      (NICKNAMES[adFirst] || []).some((n) => new RegExp(`\\b${n}\\b`, 'i').test(text))
+    );
+
+    if (hasFullName) {
+      if (!matchedAdults.includes(ad.displayName)) {
+        matchedAdults.push(ad.displayName);
+        consumedTokens.add(adFirst);
+        (NICKNAMES[adFirst] || []).forEach((n) => consumedTokens.add(n));
+      }
+      continue;
+    }
+
+    // Check first name or nicknames (ensuring token wasn't already consumed by scout)
+    const possibleNames = [adFirst, ...(NICKNAMES[adFirst] || [])];
+    for (const pName of possibleNames) {
+      if (pName.length < 2) continue;
+      if (consumedTokens.has(pName)) continue;
+
+      const regex = new RegExp(`\\b${pName}\\b`, 'i');
+      if (regex.test(text)) {
+        const adultCandidates = adultEntries.filter(
+          (other) => (other.first === adFirst || (NICKNAMES[other.first] || []).includes(pName)) &&
+                     !(other.first === driverFirst && other.last === driverLast)
+        );
+
+        if (adultCandidates.length === 1 || isFamily) {
+          if (!matchedAdults.includes(ad.displayName)) {
+            matchedAdults.push(ad.displayName);
+            consumedTokens.add(pName);
+            consumedTokens.add(adFirst);
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  return { matchedScouts, matchedAdults, ambiguousNotes };
+}
+
 function parseDriverComments(drivers, scouts, adults) {
   const scoutEntries = scouts.map((s) => {
     const parts = s.name.split(',').map((p) => p.trim());
@@ -619,13 +841,25 @@ function parseDriverComments(drivers, scouts, adults) {
     const passengerCapacity = d.seats > 0 ? Math.max(0, d.seats - 1) : 0;
 
     if (!comment) {
+      const isAttending = d.attending === 'Y';
+      const toSeats = (d.drivingToFrom === 'Both' || d.drivingToFrom === 'To' || !d.drivingToFrom) ? passengerCapacity : 0;
+      const fromSeats = (d.drivingToFrom === 'Both' || d.drivingToFrom === 'From') ? passengerCapacity : 0;
       return {
         ...d,
         claimedScouts: [],
         claimedAdults: [],
+        claimedScoutsTo: [],
+        claimedScoutsFrom: [],
+        claimedAdultsTo: [],
+        claimedAdultsFrom: [],
+        toSeats,
+        fromSeats,
+        openSeatsTo: isAttending ? toSeats : 0,
+        openSeatsFrom: isAttending ? fromSeats : 0,
         ambiguousNotes: [],
-        openSeats: d.attending === 'Y' ? passengerCapacity : 0,
+        openSeats: isAttending ? passengerCapacity : 0,
         explicitOpenNote: '',
+        cleanNote: '',
       };
     }
 
@@ -633,7 +867,164 @@ function parseDriverComments(drivers, scouts, adults) {
     const driverFirst = (dParts.length > 1 ? dParts[1].split(' ')[0] : dParts[0].split(' ')[0]).toLowerCase();
     const driverLast = (dParts.length > 1 ? dParts[0] : '').toLowerCase();
 
-    // Look for explicit open seats / spots mention in comment
+    // Check if the comment follows structured discrete TO/FROM notation
+    const hasDiscrete = /(?:TO\s*(?:\([^)]*\)|only)|FROM\s*(?:\([^)]*\)|only))/i.test(comment);
+
+    let matchedScouts = [];
+    let matchedAdults = [];
+    let claimedScoutsTo = [];
+    let claimedScoutsFrom = [];
+    let claimedAdultsTo = [];
+    let claimedAdultsFrom = [];
+    let toSeats = passengerCapacity;
+    let fromSeats = passengerCapacity;
+    let ambiguousNotes = [];
+    let cleanNote = '';
+
+    if (hasDiscrete) {
+      // Discrete parser: TO (...): ... FROM (...): ...
+      let toText = '';
+      let fromText = '';
+
+      const fromBlockMatch = comment.match(/FROM(?:\s*only)?(?:\s*\((?:(\d+)\s*seats?)?\))?\s*:\s*([^]*?)$/i);
+      if (fromBlockMatch) {
+        if (fromBlockMatch[1]) fromSeats = parseInt(fromBlockMatch[1], 10);
+        const rawFrom = (fromBlockMatch[2] || '').trim();
+        const dotSplit = rawFrom.match(/^(.*?\.)\s+([^.]*.*)$/);
+        if (dotSplit) {
+          fromText = dotSplit[1].trim();
+          cleanNote = dotSplit[2].trim();
+        } else {
+          fromText = rawFrom;
+        }
+      }
+
+      const toBlockMatch = comment.match(/TO(?:\s*only)?(?:\s*\((?:(\d+)\s*seats?)?\))?\s*:\s*([^]*?)(?=(?:FROM(?:\s*only)?(?:\s*\([^)]*\))?\s*:|$))/i);
+      if (toBlockMatch) {
+        if (toBlockMatch[1]) toSeats = parseInt(toBlockMatch[1], 10);
+        const rawTo = (toBlockMatch[2] || '').trim();
+        if (!fromBlockMatch) {
+          const dotSplit = rawTo.match(/^(.*?\.)\s+([^.]*.*)$/);
+          if (dotSplit) {
+            toText = dotSplit[1].trim();
+            cleanNote = dotSplit[2].trim();
+          } else {
+            toText = rawTo;
+          }
+        } else {
+          toText = rawTo;
+        }
+      }
+
+      const toMatch = matchAttendeesInText(toText, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency);
+      const fromMatch = matchAttendeesInText(fromText, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency);
+
+      claimedScoutsTo = toMatch.matchedScouts;
+      claimedAdultsTo = toMatch.matchedAdults;
+      claimedScoutsFrom = fromMatch.matchedScouts;
+      claimedAdultsFrom = fromMatch.matchedAdults;
+
+      // Register TO scouts in scoutRideMap
+      claimedScoutsTo.forEach((sc) => {
+        const cur = scoutRideMap.get(sc.originalName) || { driverNameTo: null, driverNameFrom: null, statusTo: null, statusFrom: null };
+        cur.driverNameTo = d.name;
+        cur.statusTo = sc.status;
+        scoutRideMap.set(sc.originalName, cur);
+      });
+
+      // Register FROM scouts in scoutRideMap
+      claimedScoutsFrom.forEach((sc) => {
+        const cur = scoutRideMap.get(sc.originalName) || { driverNameTo: null, driverNameFrom: null, statusTo: null, statusFrom: null };
+        cur.driverNameFrom = d.name;
+        cur.statusFrom = sc.status;
+        scoutRideMap.set(sc.originalName, cur);
+      });
+
+      // Combine matched scouts & adults for backwards-compatible arrays
+      const scoutNameSet = new Set();
+      [...claimedScoutsTo, ...claimedScoutsFrom].forEach((sc) => {
+        if (!scoutNameSet.has(sc.name)) {
+          scoutNameSet.add(sc.name);
+          matchedScouts.push(sc);
+        }
+      });
+
+      const adultNameSet = new Set();
+      [...claimedAdultsTo, ...claimedAdultsFrom].forEach((ad) => {
+        if (!adultNameSet.has(ad)) {
+          adultNameSet.add(ad);
+          matchedAdults.push(ad);
+          claimedAdultsSet.add(ad);
+        }
+      });
+
+      ambiguousNotes = [...toMatch.ambiguousNotes, ...fromMatch.ambiguousNotes];
+      ambiguousNotes.forEach((amb) => {
+        allClarifications.push({
+          driverName: d.name,
+          token: amb.token,
+          candidates: amb.candidates,
+          note: amb.note,
+        });
+        (amb.candidateScouts || []).forEach((c) => {
+          const mentions = scoutAmbiguousMentions.get(c.originalName) || [];
+          mentions.push(d.name);
+          scoutAmbiguousMentions.set(c.originalName, mentions);
+        });
+      });
+    } else {
+      // Standard / unified parser
+      const match = matchAttendeesInText(comment, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency);
+      matchedScouts = match.matchedScouts;
+      matchedAdults = match.matchedAdults;
+      ambiguousNotes = match.ambiguousNotes;
+
+      // Extract clean note if comment starts with "Taking: ... ."
+      const takingMatch = comment.match(/^Taking:\s*([^.]+)\.?(.*)$/i);
+      cleanNote = takingMatch ? (takingMatch[2] || '').trim() : comment;
+
+      const drivesTo = d.drivingToFrom === 'Both' || d.drivingToFrom === 'To' || !d.drivingToFrom;
+      const drivesFrom = d.drivingToFrom === 'Both' || d.drivingToFrom === 'From' || !d.drivingToFrom;
+
+      toSeats = drivesTo ? passengerCapacity : 0;
+      fromSeats = drivesFrom ? passengerCapacity : 0;
+
+      claimedScoutsTo = drivesTo ? matchedScouts : [];
+      claimedScoutsFrom = drivesFrom ? matchedScouts : [];
+      claimedAdultsTo = drivesTo ? matchedAdults : [];
+      claimedAdultsFrom = drivesFrom ? matchedAdults : [];
+
+      matchedScouts.forEach((sc) => {
+        const cur = scoutRideMap.get(sc.originalName) || { driverNameTo: null, driverNameFrom: null, statusTo: null, statusFrom: null };
+        if (drivesTo) {
+          cur.driverNameTo = d.name;
+          cur.statusTo = sc.status;
+        }
+        if (drivesFrom) {
+          cur.driverNameFrom = d.name;
+          cur.statusFrom = sc.status;
+        }
+        scoutRideMap.set(sc.originalName, cur);
+      });
+
+      matchedAdults.forEach((ad) => claimedAdultsSet.add(ad));
+
+      ambiguousNotes.forEach((amb) => {
+        allClarifications.push({
+          driverName: d.name,
+          token: amb.token,
+          candidates: amb.candidates,
+          note: amb.note,
+        });
+        (amb.candidateScouts || []).forEach((c) => {
+          const mentions = scoutAmbiguousMentions.get(c.originalName) || [];
+          mentions.push(d.name);
+          scoutAmbiguousMentions.set(c.originalName, mentions);
+        });
+      });
+    }
+
+    // Explicit open seats note check
     let explicitOpen = null;
     let explicitOpenNote = '';
     const openMatch = comment.match(/(?:and\s+)?(\d+)\s+(?:more|open|spots|extra|seats)/i)
@@ -643,165 +1034,27 @@ function parseDriverComments(drivers, scouts, adults) {
       explicitOpenNote = openMatch[0];
     }
 
-    const matchedScouts = [];
-    const matchedAdults = [];
-    const ambiguousNotes = [];
-    const checkedFirstNames = new Set();
-    const consumedTokens = new Set();
-
-    // Reserve driver self-references so they do not consume passenger seats or match other attendees
-    ['myself', 'me', 'i', driverFirst, ...(NICKNAMES[driverFirst] || [])].forEach((tok) => {
-      consumedTokens.add(tok.toLowerCase());
-    });
-
-    // Match attending scouts with ambiguity & family detection
-    for (const sc of scoutEntries) {
-      if (sc.first === driverFirst && sc.last === driverLast) continue;
-
-      const hasFullName = sc.last && comment.toLowerCase().includes(sc.last) && (
-        comment.toLowerCase().includes(sc.first) ||
-        (NICKNAMES[sc.first] || []).some((n) => new RegExp(`\\b${n}\\b`, 'i').test(comment))
-      );
-
-      if (hasFullName) {
-        checkedFirstNames.add(sc.first);
-        consumedTokens.add(sc.first);
-        (NICKNAMES[sc.first] || []).forEach((n) => consumedTokens.add(n));
-        if (!matchedScouts.some((m) => m.name === sc.displayName)) {
-          matchedScouts.push({
-            name: sc.displayName,
-            status: 'confirmed',
-            note: 'Full name matched',
-          });
-          scoutRideMap.set(sc.originalName, { driverName: d.name, status: 'confirmed' });
-        }
-      } else if (sc.first.length > 2 && !checkedFirstNames.has(sc.first)) {
-        // Check exact first name or recognized nicknames
-        const testTokens = [sc.first, ...(NICKNAMES[sc.first] || [])];
-        const matchedToken = testTokens.find((tok) => new RegExp(`\\b${tok}\\b`, 'i').test(comment));
-
-        if (matchedToken) {
-          checkedFirstNames.add(sc.first);
-          consumedTokens.add(matchedToken);
-          consumedTokens.add(sc.first);
-          const candidates = firstNameFrequency.get(sc.first) || [];
-
-          if (candidates.length === 1) {
-            const singleScout = candidates[0];
-            if (!matchedScouts.some((m) => m.name === singleScout.displayName)) {
-              matchedScouts.push({
-                name: singleScout.displayName,
-                status: 'unique_first',
-                note: 'Unique first name',
-              });
-              scoutRideMap.set(singleScout.originalName, { driverName: d.name, status: 'unique_first' });
-            }
-          } else {
-            // Collision: multiple candidates share first name
-            const familyCandidate = candidates.find((c) => c.last === driverLast);
-            if (familyCandidate) {
-              if (!matchedScouts.some((m) => m.name === familyCandidate.displayName)) {
-                matchedScouts.push({
-                  name: familyCandidate.displayName,
-                  status: 'family_match',
-                  note: `Family match with driver (${d.name})`,
-                });
-                scoutRideMap.set(familyCandidate.originalName, { driverName: d.name, status: 'family_match' });
-              }
-            } else {
-              // Ambiguous collision
-              const candidateNames = candidates.map((c) => c.displayName);
-              const warningMsg = `Ambiguous "${matchedToken}": matches ${candidateNames.length} attending scouts (${candidateNames.join(', ')}). Driver clarification needed.`;
-              ambiguousNotes.push({
-                token: matchedToken,
-                candidates: candidateNames,
-                note: warningMsg,
-              });
-              allClarifications.push({
-                driverName: d.name,
-                token: matchedToken,
-                candidates: candidateNames,
-                note: warningMsg,
-              });
-
-              candidates.forEach((c) => {
-                const mentions = scoutAmbiguousMentions.get(c.originalName) || [];
-                mentions.push(d.name);
-                scoutAmbiguousMentions.set(c.originalName, mentions);
-              });
-            }
-          }
-        }
-      }
-    }
-
-    // Match attending adults (e.g. husband/wife or leader riding as passenger)
-    for (const ad of adultEntries) {
-      if (ad.first === driverFirst && ad.last === driverLast) continue;
-      if (matchedScouts.some((m) => m.name === ad.displayName)) continue;
-
-      const adFirst = ad.first;
-      const adLast = ad.last;
-      const isFamily = adLast && adLast === driverLast;
-
-      // Check full name match first
-      const hasFullName = adLast && comment.toLowerCase().includes(adLast) && (
-        comment.toLowerCase().includes(adFirst) ||
-        (NICKNAMES[adFirst] || []).some((n) => new RegExp(`\\b${n}\\b`, 'i').test(comment))
-      );
-
-      if (hasFullName) {
-        if (!matchedAdults.includes(ad.displayName)) {
-          matchedAdults.push(ad.displayName);
-          claimedAdultsSet.add(ad.originalName);
-          consumedTokens.add(adFirst);
-          (NICKNAMES[adFirst] || []).forEach((n) => consumedTokens.add(n));
-        }
-        continue;
-      }
-
-      // Check first name or nicknames (ensuring token wasn't already consumed by scout)
-      const possibleNames = [adFirst, ...(NICKNAMES[adFirst] || [])];
-      for (const pName of possibleNames) {
-        if (pName.length < 2) continue;
-        if (consumedTokens.has(pName)) continue;
-
-        const regex = new RegExp(`\\b${pName}\\b`, 'i');
-        if (regex.test(comment)) {
-          const adultCandidates = adultEntries.filter(
-            (other) => (other.first === adFirst || (NICKNAMES[other.first] || []).includes(pName)) &&
-                       !(other.first === driverFirst && other.last === driverLast)
-          );
-
-          if (adultCandidates.length === 1 || isFamily) {
-            if (!matchedAdults.includes(ad.displayName)) {
-              matchedAdults.push(ad.displayName);
-              claimedAdultsSet.add(ad.originalName);
-              consumedTokens.add(pName);
-              consumedTokens.add(adFirst);
-            }
-            break;
-          }
-        }
-      }
-    }
-
-    let openSeats;
-    if (explicitOpen !== null) {
-      openSeats = explicitOpen;
-    } else {
-      // Ambiguous passenger notes occupy seats provisionally so they are not treated as open
-      const passengerCount = matchedScouts.length + matchedAdults.length + ambiguousNotes.length;
-      openSeats = Math.max(0, passengerCapacity - passengerCount);
-    }
+    const openSeatsTo = Math.max(0, toSeats - (claimedScoutsTo.length + claimedAdultsTo.length));
+    const openSeatsFrom = Math.max(0, fromSeats - (claimedScoutsFrom.length + claimedAdultsFrom.length));
+    const totalFilled = matchedScouts.length + matchedAdults.length + ambiguousNotes.length;
+    const openSeats = explicitOpen !== null ? explicitOpen : Math.max(0, passengerCapacity - totalFilled);
 
     return {
       ...d,
       claimedScouts: matchedScouts,
       claimedAdults: matchedAdults,
+      claimedScoutsTo,
+      claimedScoutsFrom,
+      claimedAdultsTo,
+      claimedAdultsFrom,
+      toSeats,
+      fromSeats,
+      openSeatsTo: d.attending === 'Y' ? openSeatsTo : 0,
+      openSeatsFrom: d.attending === 'Y' ? openSeatsFrom : 0,
       ambiguousNotes,
       openSeats: d.attending === 'Y' ? openSeats : 0,
       explicitOpenNote,
+      cleanNote,
     };
   });
 
@@ -811,11 +1064,30 @@ function parseDriverComments(drivers, scouts, adults) {
 
     let rideStatus = 'unassigned';
     let assignedDriver = null;
+    let assignedDriverTo = null;
+    let assignedDriverFrom = null;
+    let rideDirection = 'None';
     let rideNote = '';
 
     if (rideInfo) {
-      rideStatus = rideInfo.status;
-      assignedDriver = rideInfo.driverName;
+      assignedDriverTo = rideInfo.driverNameTo;
+      assignedDriverFrom = rideInfo.driverNameFrom;
+
+      if (assignedDriverTo && assignedDriverFrom) {
+        rideDirection = 'Both';
+        rideStatus = rideInfo.statusTo || rideInfo.statusFrom || 'confirmed';
+        assignedDriver = assignedDriverTo === assignedDriverFrom
+          ? assignedDriverTo
+          : `${assignedDriverTo} / ${assignedDriverFrom}`;
+      } else if (assignedDriverTo) {
+        rideDirection = 'To';
+        rideStatus = rideInfo.statusTo || 'confirmed';
+        assignedDriver = assignedDriverTo;
+      } else if (assignedDriverFrom) {
+        rideDirection = 'From';
+        rideStatus = rideInfo.statusFrom || 'confirmed';
+        assignedDriver = assignedDriverFrom;
+      }
     } else if (ambiguousDrivers && ambiguousDrivers.length > 0) {
       rideStatus = 'ambiguous';
       rideNote = `Mentioned without last name by ${ambiguousDrivers.join(', ')}`;
@@ -824,6 +1096,9 @@ function parseDriverComments(drivers, scouts, adults) {
     return {
       ...s,
       assignedDriver,
+      assignedDriverTo,
+      assignedDriverFrom,
+      rideDirection,
       rideStatus,
       rideNote,
     };
@@ -880,11 +1155,12 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
     const session = await authenticateTroopWebHost(config);
     const { client, loginUrl, rootUrl } = session;
 
-    // Fetch drivers (38199), adults (730), scouts (967) in parallel
-    const [driversCsv, adultsCsv, scoutsCsv] = await Promise.all([
+    // Fetch drivers (38199), adults (730), scouts (967), and adult training (1243) in parallel
+    const [driversCsv, adultsCsv, scoutsCsv, adultTrainingMap] = await Promise.all([
       fetchEventSectionCsv({ client, loginUrl, rootUrl, eventId, sectionId: 38199 }),
       fetchEventSectionCsv({ client, loginUrl, rootUrl, eventId, sectionId: 730 }),
       fetchEventSectionCsv({ client, loginUrl, rootUrl, eventId, sectionId: 967 }),
+      getAdultTrainingData(forceRefresh),
     ]);
 
     const rawDrivers = parseCsv(driversCsv);
@@ -900,13 +1176,17 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
       // Enrichment is best-effort
     }
 
-    const adults = rawAdults.map((row) => ({
-      name: row.Participant || '',
-      leadership: row.Leadership || '',
-      sytStatus: row['SYT Status'] || '',
-      stateTraining: row['State Training'] || '',
-      registered: row['BSA Registered?'] || '',
-    }));
+    const adults = rawAdults.map((row) => {
+      const name = row.Participant || '';
+      const trainingInfo = adultTrainingMap.get(name.toLowerCase()) || null;
+      return {
+        name,
+        leadership: row.Leadership || '',
+        sytStatus: row['SYT Status'] || '',
+        stateTraining: trainingInfo && trainingInfo.hasAb506 ? 'Current' : 'Missing',
+        registered: row['BSA Registered?'] || '',
+      };
+    });
 
     const baseScouts = rawScouts.map((row) => ({
       name: row.Participant || '',
@@ -930,9 +1210,10 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
 
       const rosterInfo = membersMap.get(name.toLowerCase()) || {};
       const matchingAdult = adults.find((a) => a.name.toLowerCase() === name.toLowerCase());
+      const trainingInfo = adultTrainingMap.get(name.toLowerCase()) || null;
 
-      const sytStatus = matchingAdult?.sytStatus || 'N/A';
-      const stateTraining = matchingAdult?.stateTraining || 'N/A';
+      const sytStatus = row['SYT Status'] || matchingAdult?.sytStatus || 'N/A';
+      const stateTraining = trainingInfo && trainingInfo.hasAb506 ? 'Current' : 'Missing';
       const bsaRegistered = matchingAdult?.registered || 'N/A';
       const isCompliant = sytStatus.toLowerCase() === 'current' && stateTraining.toLowerCase() === 'current';
 
@@ -1003,6 +1284,15 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
       }
     } catch {
       // Best-effort metadata enrichment
+    }
+
+    try {
+      const config = getTroopWebHostConfig();
+      const origin = new URL(config.troopUrl).origin;
+      meta.twhEventUrl = `${origin}/FormDetail.aspx?Menu_Item_ID=45922&Form_ID=5429&Stack=0&Application_ID=2858&ID=${eventId}`;
+      meta.twhSignupUrl = `${origin}/FormDetail.aspx?Menu_Item_ID=45926&Form_ID=3707&FK=0&ID=${eventId}&Stack=2`;
+    } catch {
+      // Best-effort TWH URL generation
     }
 
     const result = {
@@ -1194,6 +1484,246 @@ app.post('/api/events/:id/carpool.xlsx', async (req, res) => {
   }
 });
 
+async function updateEventDriverInTWH({
+  eventId,
+  driverName,
+  updatedComment,
+  passengerSeats,
+  drivingToFrom,
+  isDriver,
+  baselineComment,
+  force = false,
+}) {
+  const config = getTroopWebHostConfig();
+  const session = await authenticateTroopWebHost(config);
+  const { client, rootUrl, loginUrl } = session;
+
+  const signupDetailUrl = new URL(
+    `/FormDetail.aspx?Menu_Item_ID=45926&Form_ID=3707&FK=0&ID=${eventId}&Stack=2`,
+    loginUrl,
+  ).toString();
+
+  const getRes = await client.get(signupDetailUrl, {
+    headers: { Referer: `${rootUrl}/Index.htm` },
+    timeout: { request: 25000 },
+  });
+
+  const $ = cheerio.load(getRes.body);
+  const form = $('form#easyform');
+  const actionUrl = new URL(form.attr('action') || '/FormDetail.aspx', signupDetailUrl).toString();
+
+  function normName(n) {
+    return (n || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  let targetPrefix = null;
+  let currentLiveComment = '';
+  let foundMemberName = '';
+
+  $('tr').each((_, tr) => {
+    const $tr = $(tr);
+    let rowName = '';
+    $tr.find('span').each((_, span) => {
+      if ($(span).text().trim().toLowerCase() === 'name') {
+        const nextDiv = $(span).nextAll('div').first();
+        if (nextDiv.length > 0) {
+          rowName = nextDiv.text().trim();
+        }
+      }
+    });
+
+    if (rowName && (normName(rowName) === normName(driverName) || rowName.includes(driverName))) {
+      foundMemberName = rowName;
+      $tr.find('input').each((_, inp) => {
+        const name = $(inp).attr('name') || '';
+        const match = name.match(/^(CB\d+ROW\d+)DATA/);
+        if (match) {
+          targetPrefix = match[1];
+        }
+      });
+      if (targetPrefix) {
+        currentLiveComment = $tr.find(`input[name="${targetPrefix}DATA73079"]`).val() || '';
+      }
+    }
+  });
+
+  if (!targetPrefix) {
+    throw new Error(`Driver "${driverName}" was not found in the TroopWebHost event sign-up table.`);
+  }
+
+  // Dirty / Conflict check
+  if (!force && baselineComment !== undefined) {
+    if (currentLiveComment.trim() !== baselineComment.trim()) {
+      return {
+        conflict: true,
+        driverName: foundMemberName,
+        liveComment: currentLiveComment,
+        proposedComment: updatedComment,
+        message: `Conflict detected: ${foundMemberName}'s comment in TWH is "${currentLiveComment}", which differs from your baseline "${baselineComment}".`,
+      };
+    }
+  }
+
+  const commentInputName = `${targetPrefix}DATA73079`;
+  const seatsInputName = `${targetPrefix}DATA159284`;
+  const directionInputName = `${targetPrefix}DATA159283`;
+  const driverCheckboxName = `${targetPrefix}DATA73081`;
+
+  const payload = {};
+
+  form.find('input, select, textarea').each((_, el) => {
+    const $el = $(el);
+    const name = $el.attr('name');
+    if (!name || $el.is(':disabled')) return;
+
+    const type = ($el.attr('type') || el.tagName).toLowerCase();
+
+    // Overrides for target driver
+    if (name === commentInputName) {
+      if (updatedComment !== undefined) {
+        payload[name] = updatedComment;
+        return;
+      }
+    }
+    if (name === seatsInputName) {
+      if (passengerSeats !== undefined) {
+        const pSeats = parseInt(passengerSeats, 10) || 0;
+        payload[name] = pSeats > 0 ? String(pSeats + 1) : '0';
+        return;
+      }
+    }
+    if (name === directionInputName) {
+      if (drivingToFrom !== undefined) {
+        payload[name] = drivingToFrom;
+        return;
+      }
+    }
+    if (name === driverCheckboxName) {
+      if (isDriver !== undefined || passengerSeats !== undefined) {
+        const pSeats = passengerSeats !== undefined ? (parseInt(passengerSeats, 10) || 0) : 1;
+        const wantDriver = isDriver !== undefined ? Boolean(isDriver) : true;
+        payload[name] = (wantDriver && pSeats > 0) ? 'Y' : '';
+        return;
+      }
+    }
+
+    if (type === 'radio') {
+      if ($el.attr('checked') !== undefined) {
+        payload[name] = $el.val() || '';
+      }
+    } else if (type === 'checkbox') {
+      if ($el.attr('checked') !== undefined) {
+        payload[name] = $el.val() || 'Y';
+      }
+    } else if (type === 'submit' || type === 'button') {
+      // omit
+    } else {
+      payload[name] = $el.val() || '';
+    }
+  });
+
+  payload.Selected_Action = 'save exit';
+  payload.Selected_Button_ID = 'BUTTON36';
+
+  const postRes = await client.post(actionUrl, {
+    form: payload,
+    followRedirect: false,
+    headers: { Referer: signupDetailUrl },
+    timeout: { request: 25000 },
+  });
+
+  cache.carpoolByEventId.delete(String(eventId));
+
+  return {
+    success: true,
+    conflict: false,
+    driverName: foundMemberName,
+    updatedComment,
+    passengerSeats,
+    drivingToFrom,
+    statusCode: postRes.statusCode,
+  };
+}
+
+app.post('/api/events/:id/driver-update', async (req, res) => {
+  const eventId = req.params.id;
+  if (!eventId || !/^\d+$/.test(eventId)) {
+    return res.status(400).json({ error: 'Valid numeric event ID is required.' });
+  }
+
+  const {
+    driverName,
+    updatedComment,
+    passengerSeats,
+    drivingToFrom,
+    isDriver,
+    baselineComment,
+    force,
+  } = req.body || {};
+
+  if (!driverName) {
+    return res.status(400).json({ error: 'driverName is required.' });
+  }
+
+  try {
+    getTroopWebHostConfig();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  try {
+    const result = await updateEventDriverInTWH({
+      eventId,
+      driverName,
+      updatedComment,
+      passengerSeats,
+      drivingToFrom,
+      isDriver,
+      baselineComment,
+      force: Boolean(force),
+    });
+
+    if (result.conflict) {
+      return res.status(409).json(result);
+    }
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to update driver in TroopWebHost.' });
+  }
+});
+
+app.get('/api/events/:id/twh-status', async (req, res) => {
+  const eventId = req.params.id;
+  if (!eventId || !/^\d+$/.test(eventId)) {
+    return res.status(400).json({ error: 'Valid numeric event ID is required.' });
+  }
+
+  try {
+    getTroopWebHostConfig();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  try {
+    const carpool = await fetchEventCarpoolDetails({ eventId, forceRefresh: true });
+    const signature = (carpool.drivers || [])
+      .map((d) => `${d.name}:${d.seats}:${d.drivingToFrom}:${d.comment}`)
+      .join('|');
+
+    return res.json({
+      eventId,
+      driverCount: carpool.drivers?.length || 0,
+      scoutCount: carpool.scouts?.length || 0,
+      totalSeatsOffered: carpool.stats?.totalSeatsOffered || 0,
+      signature,
+      timestamp: Date.now(),
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to fetch event status.' });
+  }
+});
+
 // Friendly redirect routes
 app.get('/carpool/:id', (req, res) => {
   const eventId = req.params.id;
@@ -1222,8 +1752,10 @@ export {
   parseCsv,
   parseDriverComments,
   getRosterData,
+  getAdultTrainingData,
   fetchUpcomingEvents,
   fetchEventCarpoolDetails,
+  updateEventDriverInTWH,
   firstMatches,
   NICKNAMES,
 };

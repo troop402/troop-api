@@ -252,12 +252,108 @@
       width: 220px;
     }
 
+    /* Sortable Headers & Filter Pills */
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s ease;
+    }
+    th.sortable:hover {
+      background: #e2e8f0;
+    }
+    .sort-indicator {
+      display: inline-block;
+      margin-left: 0.35rem;
+      font-size: 0.75rem;
+      opacity: 0.5;
+    }
+    th.sortable.active-sort .sort-indicator {
+      opacity: 1;
+      color: var(--primary);
+      font-weight: bold;
+    }
+    th.sortable.active-sort {
+      color: var(--primary);
+    }
+    .filter-btn-group {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #f8fafc;
+    }
+    .filter-btn {
+      border: none;
+      background: transparent;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .filter-btn:hover {
+      background: #e2e8f0;
+      color: var(--text);
+    }
+    .filter-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+
     .muted { color: var(--text-muted); }
     .loading-spinner {
       text-align: center;
       padding: 3rem 1rem;
       color: var(--text-muted);
     }
+
+    .btn-note {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 0.2rem 0.45rem;
+      font-size: 0.95rem;
+      line-height: 1;
+      transition: all 0.15s ease;
+    }
+    .btn-note:hover {
+      background: #e2e8f0;
+      transform: scale(1.05);
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(2px);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-dialog {
+      background: white;
+      border-radius: 10px;
+      max-width: 500px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+    .modal-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h3 { font-size: 1.1rem; font-weight: 800; color: #0f172a; }
+    .modal-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #64748b; line-height: 1; }
+    .modal-close:hover { color: #0f172a; }
+    .modal-body { padding: 1.25rem; overflow-y: auto; max-height: 70vh; }
 
     /* Print Formatting */
     @media print {
@@ -356,7 +452,9 @@
           </div>
         </div>
         <div class="actions no-print">
-          <a id="coordGridLink" href="#" class="btn btn-success">🗂️ Coordinator Grid</a>
+          <a id="coordGridLink" href="#" class="btn btn-primary">🗂️ Coordinator Worksheet</a>
+          <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View or edit sign-ups directly in TroopWebHost">🌐 TWH Sign-Ups</a>
+          <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View event details directly in TroopWebHost">📅 TWH Event</a>
           <button id="downloadExcelBtn" class="btn" onclick="downloadExcel()">📥 Download Excel (.xlsx)</button>
           <button id="copyLinkBtn" class="btn" onclick="copyShareableLink()">📋 Copy Shareable Link</button>
           <button class="btn btn-primary" onclick="window.print()">🖨️ Print Departure Sheet</button>
@@ -407,12 +505,12 @@
         </ul>
       </div>
 
-      <!-- Drivers & Carpool Roster -->
+      <!-- TABLE 1: Registered Drivers & Vehicle Fleet Overview -->
       <div class="card">
         <div class="section-header">
           <div class="section-title">
-            <span>🚙 Registered Drivers &amp; Vehicle Roster</span>
-            <span class="badge badge-neutral" id="driversCountBadge">0 Drivers</span>
+            <span>🚙 Registered Drivers &amp; Vehicle Fleet</span>
+            <span class="badge badge-neutral" id="fleetCountBadge">0 Drivers</span>
             <span id="nonCompliantDriversBadge" style="display:none;" class="badge badge-danger">⚠️ Incomplete Safety Compliance</span>
           </div>
         </div>
@@ -422,48 +520,110 @@
               <tr>
                 <th>Driver Name</th>
                 <th>Trip Leg</th>
-                <th>Safety &amp; Compliance</th>
+                <th>Vehicle Info</th>
                 <th style="text-align:center;">Seats</th>
-                <th>Claimed Riders &amp; Open Spots</th>
-                <th>Vehicle</th>
                 <th>Contact Info</th>
-                <th>Driver Notes</th>
+                <th>Safety &amp; Compliance</th>
               </tr>
             </thead>
-            <tbody id="driversTbody">
-              <tr><td colspan="8" class="muted" style="text-align:center;">Loading drivers...</td></tr>
+            <tbody id="fleetTbody">
+              <tr><td colspan="6" class="muted" style="text-align:center;">Loading vehicle fleet...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- Attending Scouts Table -->
+      <!-- TABLE 2: "TO" the Event (Outbound Trip Leg) -->
       <div class="card">
         <div class="section-header">
           <div class="section-title">
-            <span>⛺ Attending Scouts</span>
-            <span class="badge badge-neutral" id="scoutsCountBadge">0 Scouts</span>
+            <span id="toSectionTitle">🚗 "TO" the Event (Outbound)</span>
+            <span class="badge badge-neutral" id="toDriversBadge">0 Drivers</span>
           </div>
         </div>
         <div class="table-container">
           <table>
             <thead>
               <tr>
-                <th>Scout Name</th>
-                <th>Patrol</th>
-                <th>Carpool Ride Status</th>
-                <th>Permission Slip</th>
-                <th>Swim Test</th>
+                <th>Driver Name</th>
+                <th>Driver Cell</th>
+                <th style="text-align:center;">Seats</th>
+                <th style="text-align:center;">Note</th>
+                <th>Assigned Scouts &amp; Open Seats</th>
               </tr>
             </thead>
-            <tbody id="scoutsTbody">
-              <tr><td colspan="5" class="muted" style="text-align:center;">Loading scouts...</td></tr>
+            <tbody id="toDriversTbody">
+              <tr><td colspan="5" class="muted" style="text-align:center;">Loading outbound carpools...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- Attending Adults Table -->
+      <!-- TABLE 3: "FROM" the Event (Return Trip Leg – Cabin Reading Roster) -->
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">
+            <span id="fromSectionTitle">🚙 "FROM" the Event (Return Leg – Cabin Reading Roster)</span>
+            <span class="badge badge-neutral" id="fromDriversBadge">0 Drivers</span>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Driver Name</th>
+                <th>Driver Cell</th>
+                <th style="text-align:center;">Seats</th>
+                <th style="text-align:center;">Note</th>
+                <th>Assigned Scouts &amp; Open Seats</th>
+              </tr>
+            </thead>
+            <tbody id="fromDriversTbody">
+              <tr><td colspan="5" class="muted" style="text-align:center;">Loading return carpools...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TABLE 4: Attending Scouts Table -->
+      <div class="card">
+        <div class="section-header" style="flex-wrap: wrap; gap: 0.75rem;">
+          <div class="section-title">
+            <span>⛺ Attending Scouts</span>
+            <span class="badge badge-neutral" id="scoutsCountBadge">0 Scouts</span>
+          </div>
+          <div class="no-print" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <div class="filter-btn-group" role="group" aria-label="Scout ride filter">
+              <button type="button" class="filter-btn active" id="filterScoutsAll" onclick="setScoutFilter('all')">All (<span id="countFilterAll">0</span>)</button>
+              <button type="button" class="filter-btn" id="filterScoutsNeedsRide" onclick="setScoutFilter('needs-ride')">⚠️ Needs Ride (<span id="countFilterNeedsRide">0</span>)</button>
+              <button type="button" class="filter-btn" id="filterScoutsAssigned" onclick="setScoutFilter('assigned')">🚗 Has Ride (<span id="countFilterAssigned">0</span>)</button>
+            </div>
+            <button type="button" class="btn btn-secondary" id="btnSortWaitlist" onclick="setScoutSort('needsRide')" style="font-size: 0.8rem; padding: 0.35rem 0.65rem;" title="Sort scouts waiting for rides to the top (Waitlist mode)">
+              ⚡ Waitlist at Top
+            </button>
+            <input type="text" id="scoutSearch" class="search-input" placeholder="Search scouts, patrol, or ride..." oninput="filterScouts()" style="min-width: 200px;">
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th class="sortable" id="th-name" onclick="toggleScoutSort('name')" title="Click to sort by Scout Name">Scout Name <span id="sort-name" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-patrol" onclick="toggleScoutSort('patrol')" title="Click to sort by Patrol">Patrol <span id="sort-patrol" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-rideTo" onclick="toggleScoutSort('rideTo')" title="Click to sort by Outbound Ride">Ride TO (Outbound) <span id="sort-rideTo" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-rideFrom" onclick="toggleScoutSort('rideFrom')" title="Click to sort by Return Ride">Ride FROM (Return) <span id="sort-rideFrom" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-permission" onclick="toggleScoutSort('permission')" title="Click to sort by Permission Slip">Permission Slip <span id="sort-permission" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-swimTest" onclick="toggleScoutSort('swimTest')" title="Click to sort by Swim Test">Swim Test <span id="sort-swimTest" class="sort-indicator">↕</span></th>
+              </tr>
+            </thead>
+            <tbody id="scoutsTbody">
+              <tr><td colspan="6" class="muted" style="text-align:center;">Loading scouts...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TABLE 5: Attending Adults Table -->
       <div class="card">
         <div class="section-header">
           <div class="section-title">
@@ -485,6 +645,19 @@
               <tr><td colspan="4" class="muted" style="text-align:center;">Loading adults...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Driver Note View Modal -->
+      <div id="noteModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'noteModal')">
+        <div class="modal-dialog">
+          <div class="modal-header">
+            <h3 id="noteModalTitle">Driver Note</h3>
+            <button class="modal-close" onclick="closeNoteModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p id="noteModalContent" style="font-size:0.95rem; white-space:pre-wrap; color:#1e293b; line-height:1.5;"></p>
+          </div>
         </div>
       </div>
 
@@ -549,27 +722,65 @@
       }
     }
 
+    function toDisplayName(fullName) {
+      if (!fullName) return '';
+      if (fullName.includes(',')) {
+        const [last, first] = fullName.split(',').map(s => s.trim());
+        return `${first} ${last}`;
+      }
+      return fullName;
+    }
+
     function renderPage(data, meta) {
       const { stats, drivers = [], adults = [], scouts = [], cachedAt } = data;
+      const combinedMeta = { ...(data.meta || {}), ...(meta || {}) };
 
       // Event Meta
-      const title = meta?.title || `Event #${eventId}`;
+      const title = combinedMeta?.title || `Event #${eventId}`;
       document.title = `${title} Carpool | Troop 402`;
       document.getElementById('eventTitle').textContent = title;
-      document.getElementById('eventTypeBadge').textContent = meta?.eventType || 'Troop Event';
-      const dateRange = (meta?.start && meta?.end && meta.start.split(' ')[0] !== meta.end.split(' ')[0])
-        ? `${meta.start} – ${meta.end}`
-        : (meta?.start || 'See TroopWebHost');
+      document.getElementById('eventTypeBadge').textContent = combinedMeta?.eventType || 'Troop Event';
+      const dateRange = (combinedMeta?.start && combinedMeta?.end && combinedMeta.start.split(' ')[0] !== combinedMeta.end.split(' ')[0])
+        ? `${combinedMeta.start} – ${combinedMeta.end}`
+        : (combinedMeta?.start || 'See TroopWebHost');
       document.getElementById('eventDate').textContent = `📅 ${dateRange}`;
 
-      const locText = meta?.location ? `📍 ${meta.location}` : '📍 TBA';
+      const locText = combinedMeta?.location ? `📍 ${combinedMeta.location}` : '📍 TBA';
       let locHtml = escapeHtml(locText);
-      if (meta?.mapLink) {
-        locHtml += ` <a href="${escapeHtml(meta.mapLink)}" target="_blank" rel="noopener" style="margin-left:0.5rem; text-decoration:none; font-weight:600; color:var(--primary); font-size:0.85rem;" title="Open in Google Maps">🗺️ View Map</a>`;
+      if (combinedMeta?.mapLink) {
+        locHtml += ` <a href="${escapeHtml(combinedMeta.mapLink)}" target="_blank" rel="noopener" style="margin-left:0.5rem; text-decoration:none; font-weight:600; color:var(--primary); font-size:0.85rem;" title="Open in Google Maps">🗺️ View Map</a>`;
       }
       document.getElementById('eventLocation').innerHTML = locHtml;
       document.getElementById('cachedAtTime').textContent = cachedAt ? new Date(cachedAt).toLocaleTimeString() : 'Just now';
       document.getElementById('coordGridLink').href = `/coordinator.html?id=${encodeURIComponent(eventId)}`;
+
+      // Direct TWH Links
+      const twhSignup = document.getElementById('twhSignupLink');
+      if (twhSignup) {
+        if (combinedMeta?.twhSignupUrl) {
+          twhSignup.href = combinedMeta.twhSignupUrl;
+          twhSignup.style.display = 'inline-flex';
+        } else {
+          twhSignup.style.display = 'none';
+        }
+      }
+      const twhEvent = document.getElementById('twhEventLink');
+      if (twhEvent) {
+        if (combinedMeta?.twhEventUrl) {
+          twhEvent.href = combinedMeta.twhEventUrl;
+          twhEvent.style.display = 'inline-flex';
+        } else {
+          twhEvent.style.display = 'none';
+        }
+      }
+
+      // Date headers for legs
+      const toDate = combinedMeta?.start ? combinedMeta.start.split(' ')[0] : '';
+      const fromDate = combinedMeta?.end ? combinedMeta.end.split(' ')[0] : '';
+      const toTitle = document.getElementById('toSectionTitle');
+      if (toTitle) toTitle.textContent = `🚗 "TO" the Event (Outbound${toDate ? ` – ${toDate}` : ''})`;
+      const fromTitle = document.getElementById('fromSectionTitle');
+      if (fromTitle) fromTitle.textContent = `🚙 "FROM" the Event (Return Leg${fromDate ? ` – ${fromDate}` : ''})`;
 
       // Capacity Banner (Scout-Centric)
       const banner = document.getElementById('capacityBanner');
@@ -627,97 +838,479 @@
         nonCompBadge.style.display = 'none';
       }
 
-      // Drivers Table
-      document.getElementById('driversCountBadge').textContent = `${drivers.length} Drivers`;
-      const driversTbody = document.getElementById('driversTbody');
-      driversTbody.innerHTML = '';
+      // Table 1: Fleet Table
+      renderFleetTable(drivers);
 
-      if (drivers.length === 0) {
-        driversTbody.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center; padding: 1.5rem;">No drivers registered on TroopWebHost yet.</td></tr>';
-      } else {
-        drivers.forEach(d => {
-          const tr = document.createElement('tr');
-          const isAttending = d.attending === 'Y';
-          if (!d.isCompliant && isAttending) {
-            tr.style.backgroundColor = '#fffbeb';
-          }
+      // Table 2: TO Leg Table
+      renderLegTable('TO', drivers, 'toDriversTbody', 'toDriversBadge');
 
-          const tripBadge = `<span class="badge ${d.drivingToFrom ? 'badge-neutral' : 'badge-warning'}">${escapeHtml(d.drivingToFrom || 'None')}</span>`;
-          
-          // Compliance Badges
-          const sytIsCurrent = (d.sytStatus || '').toLowerCase() === 'current';
-          const stateIsCurrent = (d.stateTraining || '').toLowerCase() === 'current';
-          
-          const sytBadge = sytIsCurrent
-            ? '<span class="badge badge-success" title="Safe Youth Training / YPT Current">YPT: Current</span>'
-            : `<span class="badge badge-danger" title="SYT Expired or Missing">⚠️ YPT: ${escapeHtml(d.sytStatus || 'N/A')}</span>`;
+      // Table 3: FROM Leg Table
+      renderLegTable('FROM', drivers, 'fromDriversTbody', 'fromDriversBadge');
 
-          const stateBadge = stateIsCurrent
-            ? '<span class="badge badge-success" title="State AB506 Training Current">State: Current</span>'
-            : `<span class="badge badge-danger" title="State Training Incomplete">⚠️ State: ${escapeHtml(d.stateTraining || 'Incomplete')}</span>`;
-
-          const attendBadge = isAttending
-            ? '<span class="badge badge-neutral">Attending: Y</span>'
-            : '<span class="badge badge-warning">Attending: ' + escapeHtml(d.attending || 'N') + '</span>';
-
-          const safetyHtml = `
-            <div style="display:flex; flex-direction:column; gap:0.25rem;">
-              <div>${attendBadge}</div>
-              <div>${sytBadge}</div>
-              <div>${stateBadge}</div>
-            </div>
-          `;
-
-          // Contact
-          const contactParts = [];
-          if (d.phone) contactParts.push(escapeHtml(d.phone));
-          if (d.email) contactParts.push(`<a href="mailto:${escapeHtml(d.email)}" style="color:var(--primary); font-size:0.8rem;">${escapeHtml(d.email)}</a>`);
-          const contactHtml = contactParts.length > 0 ? contactParts.join('<br>') : '<span class="muted">-</span>';
-
-          // Vehicle
-          const vehicleHtml = d.registeredVehicle ? escapeHtml(d.registeredVehicle) : '<span class="muted">-</span>';
-
-          // Claimed passengers & open seats badges
-          const tags = [];
-          (d.claimedScouts || []).forEach(s => {
-            const scName = typeof s === 'string' ? s : s.name;
-            const scStatus = typeof s === 'string' ? 'confirmed' : s.status;
-            const isFam = scStatus === 'family_match';
-            tags.push(`<span class="badge badge-scout">Scout: ${escapeHtml(scName)}${isFam ? ' (Family)' : ''}</span>`);
-          });
-          (d.claimedAdults || []).forEach(a => {
-            const adName = typeof a === 'string' ? a : a.name;
-            tags.push(`<span class="badge badge-adult">Adult: ${escapeHtml(adName)}</span>`);
-          });
-          (d.ambiguousNotes || []).forEach(an => {
-            tags.push(`<span class="badge badge-warning" title="${escapeHtml(an.note)}">⚠️ Ambiguous "${escapeHtml(an.token)}"</span>`);
-          });
-          if (isAttending && d.seats > 0) {
-            tags.push(`<span class="badge badge-open">${d.openSeats} Open Seat${d.openSeats === 1 ? '' : 's'}</span>`);
-          }
-          const tagsHtml = tags.length > 0 ? `<div class="tag-list">${tags.join('')}</div>` : '<span class="muted">No riders itemized</span>';
-
-          tr.innerHTML = `
-            <td>
-              <strong>${escapeHtml(d.name)}</strong>
-              ${!d.isCompliant && isAttending ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span>' : ''}
-            </td>
-            <td>${tripBadge}</td>
-            <td style="font-size:0.8rem;">${safetyHtml}</td>
-            <td style="text-align:center; font-weight:700; font-size:1.05rem;">${d.seats}</td>
-            <td>${tagsHtml}</td>
-            <td style="font-size:0.85rem;">${vehicleHtml}</td>
-            <td style="font-size:0.85rem;">${contactHtml}</td>
-            <td style="font-size:0.85rem; color:#475569;">${escapeHtml(d.comment || '-')}</td>
-          `;
-          driversTbody.appendChild(tr);
-        });
-      }
-
-      // Scouts Table
+      // Table 4: Scouts Table
       renderScoutsTable(scouts);
 
-      // Adults Table
+      // Table 5: Adults Table
+      renderAdultsTable(adults, drivers);
+    }
+
+    function renderFleetTable(drivers) {
+      document.getElementById('fleetCountBadge').textContent = `${drivers.length} Drivers`;
+      const tbody = document.getElementById('fleetTbody');
+      tbody.innerHTML = '';
+
+      if (drivers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center; padding: 1.5rem;">No drivers registered on TroopWebHost yet.</td></tr>';
+        return;
+      }
+
+      drivers.forEach(d => {
+        const tr = document.createElement('tr');
+        const isAttending = d.attending === 'Y';
+        const isOneWay = (d.drivingToFrom || '').toLowerCase() !== 'both';
+
+        if (!d.isCompliant && isAttending) {
+          tr.style.backgroundColor = '#fffbeb';
+        } else if (isOneWay) {
+          tr.style.backgroundColor = '#faf5ff';
+          tr.style.borderLeft = '4px solid #8b5cf6';
+        }
+
+        const tripBadge = isOneWay
+          ? `<span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-weight:700;">🔄 ${escapeHtml(d.drivingToFrom || 'One-Way')} Only</span>`
+          : `<span class="badge badge-neutral">Round-Trip (Both)</span>`;
+
+        // Passenger Seats display
+        const avail = d.seats > 0 ? Math.max(0, d.seats - 1) : 0;
+        let seatsDisplay = `${avail} seat${avail === 1 ? '' : 's'}`;
+        if (d.toSeats !== undefined && d.fromSeats !== undefined && d.toSeats !== d.fromSeats) {
+          seatsDisplay = `TO: ${d.toSeats} · FROM: ${d.fromSeats}`;
+        }
+
+        // Compliance badges
+        const sytIsCurrent = (d.sytStatus || '').toLowerCase() === 'current';
+        const stateIsCurrent = (d.stateTraining || '').toLowerCase() === 'current';
+        const sytBadge = sytIsCurrent
+          ? '<span class="badge badge-success" title="Safe Youth Training / SYT Current">SYT: Current</span>'
+          : `<span class="badge badge-danger" title="SYT Expired or Missing">⚠️ SYT: ${escapeHtml(d.sytStatus || 'N/A')}</span>`;
+        const stateBadge = stateIsCurrent
+          ? '<span class="badge badge-success" title="State AB506 Training Current">State AB506: Current</span>'
+          : `<span class="badge badge-danger" title="State Training Incomplete">⚠️ State AB506: ${escapeHtml(d.stateTraining || 'Incomplete')}</span>`;
+        const attendBadge = isAttending
+          ? '<span class="badge badge-neutral">Attending: Y</span>'
+          : '<span class="badge badge-warning">Attending: ' + escapeHtml(d.attending || 'N') + '</span>';
+
+        const safetyHtml = `
+          <div style="display:flex; flex-wrap:wrap; gap:0.25rem;">
+            ${attendBadge}
+            ${sytBadge}
+            ${stateBadge}
+          </div>
+        `;
+
+        // Contact Info
+        const contactParts = [];
+        if (d.phone) contactParts.push(`<a href="tel:${escapeHtml(d.phone)}" style="color:var(--text); text-decoration:none;">${escapeHtml(d.phone)}</a>`);
+        if (d.email) contactParts.push(`<a href="mailto:${escapeHtml(d.email)}" style="color:var(--primary); font-size:0.8rem;">${escapeHtml(d.email)}</a>`);
+        const contactHtml = contactParts.length > 0 ? contactParts.join('<br>') : '<span class="muted">-</span>';
+
+        // Vehicle
+        const vehicleHtml = d.registeredVehicle ? escapeHtml(d.registeredVehicle) : '<span class="muted">-</span>';
+
+        tr.innerHTML = `
+          <td>
+            <strong>${escapeHtml(d.name)}</strong>
+            ${isOneWay ? `<br><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.7rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span>` : ''}
+            ${!d.isCompliant && isAttending ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span>' : ''}
+          </td>
+          <td>${tripBadge}</td>
+          <td style="font-size:0.85rem;">${vehicleHtml}</td>
+          <td style="text-align:center; font-weight:700; font-size:0.95rem;">${seatsDisplay}</td>
+          <td style="font-size:0.85rem;">${contactHtml}</td>
+          <td style="font-size:0.8rem;">${safetyHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderLegTable(dir, drivers, tbodyId, badgeId) {
+      const tbody = document.getElementById(tbodyId);
+      tbody.innerHTML = '';
+
+      const legDrivers = drivers.filter(d => {
+        if (d.attending !== 'Y' && (!d.claimedScouts || d.claimedScouts.length === 0)) return false;
+        if (dir === 'TO') {
+          return d.drivingToFrom === 'Both' || d.drivingToFrom === 'To' || !d.drivingToFrom;
+        } else {
+          return d.drivingToFrom === 'Both' || d.drivingToFrom === 'From';
+        }
+      });
+
+      const oneWayDrivers = legDrivers.filter(d => (d.drivingToFrom || '').toLowerCase() !== 'both');
+      let badgeText = `${legDrivers.length} Driver${legDrivers.length === 1 ? '' : 's'}`;
+      if (oneWayDrivers.length > 0) {
+        badgeText += ` · ${oneWayDrivers.length} One-Way (${oneWayDrivers.map(d => toDisplayName(d.name) + ' – ' + (d.drivingToFrom || 'One-Way') + ' Only').join(', ')})`;
+      } else {
+        badgeText += ' · All Round-Trip';
+      }
+      document.getElementById(badgeId).textContent = badgeText;
+
+      if (legDrivers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center; padding: 1.5rem;">No drivers registered for ${dir} trip leg.</td></tr>`;
+        return;
+      }
+
+      legDrivers.forEach(d => {
+        const tr = document.createElement('tr');
+        const isAttending = d.attending === 'Y';
+        const isOneWay = (d.drivingToFrom || '').toLowerCase() !== 'both';
+
+        if (!d.isCompliant && isAttending) {
+          tr.style.backgroundColor = '#fffbeb';
+        } else if (isOneWay) {
+          tr.style.backgroundColor = '#faf5ff';
+          tr.style.borderLeft = '4px solid #8b5cf6';
+        }
+
+        const legSeats = dir === 'TO'
+          ? (d.toSeats !== undefined && d.toSeats !== null ? d.toSeats : (d.seats > 0 ? Math.max(0, d.seats - 1) : 0))
+          : (d.fromSeats !== undefined && d.fromSeats !== null ? d.fromSeats : (d.seats > 0 ? Math.max(0, d.seats - 1) : 0));
+
+        // Riders
+        const rawScouts = dir === 'TO' ? (d.claimedScoutsTo || d.claimedScouts || []) : (d.claimedScoutsFrom || d.claimedScouts || []);
+        const rawAdults = dir === 'TO' ? (d.claimedAdultsTo || d.claimedAdults || []) : (d.claimedAdultsFrom || d.claimedAdults || []);
+        const ambiguous = d.ambiguousNotes || [];
+
+        const tags = [];
+        rawScouts.forEach(s => {
+          const scName = typeof s === 'string' ? s : s.name;
+          const scStatus = typeof s === 'string' ? 'confirmed' : s.status;
+          const isFam = scStatus === 'family_match';
+          tags.push(`<span class="badge badge-scout">Scout: ${escapeHtml(scName)}${isFam ? ' (Family)' : ''}</span>`);
+        });
+        rawAdults.forEach(a => {
+          const adName = typeof a === 'string' ? a : a.name;
+          tags.push(`<span class="badge badge-adult">Adult: ${escapeHtml(adName)}</span>`);
+        });
+        ambiguous.forEach(an => {
+          tags.push(`<span class="badge badge-warning" title="${escapeHtml(an.note)}">⚠️ Ambiguous "${escapeHtml(an.token)}"</span>`);
+        });
+
+        const totalClaimed = rawScouts.length + rawAdults.length + ambiguous.length;
+        const openSeats = Math.max(0, legSeats - totalClaimed);
+
+        if (isAttending && openSeats > 0) {
+          tags.push(`<span class="badge badge-open">${openSeats} Open Seat${openSeats === 1 ? '' : 's'}</span>`);
+        }
+
+        const tagsHtml = tags.length > 0 ? `<div class="tag-list">${tags.join('')}</div>` : '<span class="muted">No riders itemized</span>';
+
+        // Note
+        const noteText = (d.cleanNote !== undefined && d.cleanNote) ? d.cleanNote : (d.comment || '');
+        const hasNote = Boolean(noteText && noteText.trim());
+        const noteBtnHtml = hasNote
+          ? `<button type="button" class="btn-note" title="${escapeHtml(noteText)}" onclick="openNoteModal('${escapeHtml(d.name)}', '${escapeHtml(noteText)}')">💬</button>`
+          : '<span class="muted">-</span>';
+
+        const phoneHtml = d.phone
+          ? `<a href="tel:${escapeHtml(d.phone)}" style="color:var(--text); text-decoration:none;">${escapeHtml(d.phone)}</a>`
+          : '<span class="muted">-</span>';
+
+        const oneWayBadge = isOneWay
+          ? `<br><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.7rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom || 'One-Way')} Only</span>`
+          : '';
+
+        tr.innerHTML = `
+          <td>
+            <strong>${escapeHtml(d.name)}</strong>
+            ${oneWayBadge}
+            ${!d.isCompliant && isAttending ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span>' : ''}
+          </td>
+          <td style="font-size:0.85rem;">${phoneHtml}</td>
+          <td style="text-align:center; font-weight:700; font-size:1.05rem;">${legSeats}</td>
+          <td style="text-align:center;">${noteBtnHtml}</td>
+          <td>${tagsHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    let currentScoutsList = [];
+    let scoutSortColumn = 'name';
+    let scoutSortAsc = true;
+    let scoutFilterMode = 'all';
+
+    function getScoutRideMeta(s) {
+      let hasTo = false;
+      let hasFrom = false;
+      let rideToText = '';
+      let rideFromText = '';
+      let isToAmbiguous = false;
+      let isFromAmbiguous = false;
+
+      // TO Ride
+      if (s.assignedDriverTo) {
+        hasTo = true;
+        rideToText = `With ${s.assignedDriverTo}`;
+      } else if (s.assignedDriver && (!s.rideDirection || s.rideDirection === 'Both' || s.rideDirection === 'To')) {
+        hasTo = true;
+        rideToText = `With ${s.assignedDriver}`;
+      } else if (s.rideStatus === 'ambiguous') {
+        rideToText = 'Ambiguous Note';
+        isToAmbiguous = true;
+      } else {
+        rideToText = 'Needs Ride';
+      }
+
+      // FROM Ride
+      if (s.assignedDriverFrom) {
+        hasFrom = true;
+        rideFromText = `With ${s.assignedDriverFrom}`;
+      } else if (s.assignedDriver && (!s.rideDirection || s.rideDirection === 'Both' || s.rideDirection === 'From')) {
+        hasFrom = true;
+        rideFromText = `With ${s.assignedDriver}`;
+      } else if (s.rideStatus === 'ambiguous') {
+        rideFromText = 'Ambiguous Note';
+        isFromAmbiguous = true;
+      } else {
+        rideFromText = 'Needs Ride';
+      }
+
+      const needsRide = !hasTo || !hasFrom;
+      return { hasTo, hasFrom, rideToText, rideFromText, isToAmbiguous, isFromAmbiguous, needsRide };
+    }
+
+    function getScoutWaitlistScore(s) {
+      const meta = getScoutRideMeta(s);
+      if (!meta.hasTo && !meta.hasFrom) return 0; // Needs both rides (highest priority)
+      if (!meta.hasTo) return 1;                  // Needs outbound ride
+      if (!meta.hasFrom) return 2;                // Needs return ride
+      if (meta.isToAmbiguous || meta.isFromAmbiguous) return 3; // Ambiguous note
+      return 4;                                   // Confirmed both ways
+    }
+
+    function setScoutFilter(mode) {
+      scoutFilterMode = mode;
+      document.getElementById('filterScoutsAll')?.classList.toggle('active', mode === 'all');
+      document.getElementById('filterScoutsNeedsRide')?.classList.toggle('active', mode === 'needs-ride');
+      document.getElementById('filterScoutsAssigned')?.classList.toggle('active', mode === 'assigned');
+      filterScouts();
+    }
+
+    function setScoutSort(col) {
+      scoutSortColumn = col;
+      scoutSortAsc = true;
+      filterScouts();
+    }
+
+    function toggleScoutSort(col) {
+      if (scoutSortColumn === col) {
+        scoutSortAsc = !scoutSortAsc;
+      } else {
+        scoutSortColumn = col;
+        scoutSortAsc = true;
+      }
+      filterScouts();
+    }
+
+    function renderScoutsTable(scouts) {
+      currentScoutsList = scouts || [];
+      filterScouts();
+    }
+
+    function filterScouts() {
+      const scoutsTbody = document.getElementById('scoutsTbody');
+      if (!scoutsTbody) return;
+
+      const total = currentScoutsList.length;
+      if (total === 0) {
+        document.getElementById('scoutsCountBadge').textContent = '0 Scouts';
+        scoutsTbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center; padding: 1.5rem;">No scouts registered yet.</td></tr>';
+        return;
+      }
+
+      // Calculate filter counts
+      let needsRideTotal = 0;
+      let assignedTotal = 0;
+      currentScoutsList.forEach(s => {
+        const meta = getScoutRideMeta(s);
+        if (meta.needsRide) needsRideTotal++;
+        else assignedTotal++;
+      });
+
+      const countAllEl = document.getElementById('countFilterAll');
+      if (countAllEl) countAllEl.textContent = total;
+      const countNeedsEl = document.getElementById('countFilterNeedsRide');
+      if (countNeedsEl) countNeedsEl.textContent = needsRideTotal;
+      const countAssignedEl = document.getElementById('countFilterAssigned');
+      if (countAssignedEl) countAssignedEl.textContent = assignedTotal;
+
+      // Filter by query and mode
+      const q = (document.getElementById('scoutSearch')?.value || '').trim().toLowerCase();
+
+      let filtered = currentScoutsList.filter(s => {
+        const meta = getScoutRideMeta(s);
+
+        if (scoutFilterMode === 'needs-ride' && !meta.needsRide) return false;
+        if (scoutFilterMode === 'assigned' && meta.needsRide) return false;
+
+        if (q) {
+          const matchName = (s.name || '').toLowerCase().includes(q);
+          const matchPatrol = (s.patrol || '').toLowerCase().includes(q);
+          const matchTo = meta.rideToText.toLowerCase().includes(q);
+          const matchFrom = meta.rideFromText.toLowerCase().includes(q);
+          if (!matchName && !matchPatrol && !matchTo && !matchFrom) return false;
+        }
+        return true;
+      });
+
+      // Sort filtered list
+      filtered.sort((a, b) => {
+        const metaA = getScoutRideMeta(a);
+        const metaB = getScoutRideMeta(b);
+        let cmp = 0;
+
+        switch (scoutSortColumn) {
+          case 'needsRide': {
+            const scoreA = getScoutWaitlistScore(a);
+            const scoreB = getScoutWaitlistScore(b);
+            cmp = scoreA !== scoreB ? scoreA - scoreB : (a.name || '').localeCompare(b.name || '');
+            break;
+          }
+          case 'name': {
+            cmp = (a.name || '').localeCompare(b.name || '');
+            break;
+          }
+          case 'patrol': {
+            const patA = a.patrol || 'zzz';
+            const patB = b.patrol || 'zzz';
+            cmp = patA.localeCompare(patB) || (a.name || '').localeCompare(b.name || '');
+            break;
+          }
+          case 'rideTo': {
+            const rankA = !metaA.hasTo ? (metaA.isToAmbiguous ? 1 : 0) : 2;
+            const rankB = !metaB.hasTo ? (metaB.isToAmbiguous ? 1 : 0) : 2;
+            if (rankA !== rankB) {
+              cmp = rankA - rankB;
+            } else {
+              cmp = metaA.rideToText.localeCompare(metaB.rideToText) || (a.name || '').localeCompare(b.name || '');
+            }
+            break;
+          }
+          case 'rideFrom': {
+            const rankA = !metaA.hasFrom ? (metaA.isFromAmbiguous ? 1 : 0) : 2;
+            const rankB = !metaB.hasFrom ? (metaB.isFromAmbiguous ? 1 : 0) : 2;
+            if (rankA !== rankB) {
+              cmp = rankA - rankB;
+            } else {
+              cmp = metaA.rideFromText.localeCompare(metaB.rideFromText) || (a.name || '').localeCompare(b.name || '');
+            }
+            break;
+          }
+          case 'permission': {
+            const permA = (a.permissionGiven || 'No').toLowerCase() === 'yes' ? 1 : 0;
+            const permB = (b.permissionGiven || 'No').toLowerCase() === 'yes' ? 1 : 0;
+            cmp = permA !== permB ? permA - permB : (a.name || '').localeCompare(b.name || '');
+            break;
+          }
+          case 'swimTest': {
+            cmp = (a.swimTest || '').localeCompare(b.swimTest || '') || (a.name || '').localeCompare(b.name || '');
+            break;
+          }
+          default:
+            cmp = (a.name || '').localeCompare(b.name || '');
+        }
+
+        return scoutSortAsc ? cmp : -cmp;
+      });
+
+      // Update header indicators
+      const allCols = ['name', 'patrol', 'rideTo', 'rideFrom', 'permission', 'swimTest'];
+      allCols.forEach(col => {
+        const th = document.getElementById(`th-${col}`);
+        const indicator = document.getElementById(`sort-${col}`);
+        if (th && indicator) {
+          if (scoutSortColumn === col) {
+            th.classList.add('active-sort');
+            indicator.textContent = scoutSortAsc ? '▲' : '▼';
+          } else {
+            th.classList.remove('active-sort');
+            indicator.textContent = '↕';
+          }
+        }
+      });
+
+      const waitlistBtn = document.getElementById('btnSortWaitlist');
+      if (waitlistBtn) {
+        if (scoutSortColumn === 'needsRide') {
+          waitlistBtn.classList.remove('btn-secondary');
+          waitlistBtn.classList.add('btn-primary');
+        } else {
+          waitlistBtn.classList.remove('btn-primary');
+          waitlistBtn.classList.add('btn-secondary');
+        }
+      }
+
+      // Update count badge
+      document.getElementById('scoutsCountBadge').textContent = filtered.length === total
+        ? `${total} Scouts`
+        : `${filtered.length} of ${total} Scouts`;
+
+      scoutsTbody.innerHTML = '';
+      if (filtered.length === 0) {
+        scoutsTbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center; padding: 1.5rem;">No scouts matching current filter or search.</td></tr>';
+        return;
+      }
+
+      filtered.forEach(s => {
+        const tr = document.createElement('tr');
+        const meta = getScoutRideMeta(s);
+
+        if (meta.needsRide) {
+          tr.style.backgroundColor = '#fffbeb';
+        }
+
+        // TO Ride badge
+        let rideToBadge;
+        if (s.assignedDriverTo) {
+          rideToBadge = `<span class="badge badge-success">🚗 With ${escapeHtml(s.assignedDriverTo)}</span>`;
+        } else if (s.assignedDriver && (!s.rideDirection || s.rideDirection === 'Both' || s.rideDirection === 'To')) {
+          rideToBadge = `<span class="badge badge-success">🚗 With ${escapeHtml(s.assignedDriver)}</span>`;
+        } else if (s.rideStatus === 'ambiguous') {
+          rideToBadge = `<span class="badge badge-warning" title="${escapeHtml(s.rideNote || '')}">⚠️ Ambiguous Note</span>`;
+        } else {
+          rideToBadge = '<span class="badge badge-warning">⚠️ Needs Ride</span>';
+        }
+
+        // FROM Ride badge
+        let rideFromBadge;
+        if (s.assignedDriverFrom) {
+          rideFromBadge = `<span class="badge badge-success">🚙 With ${escapeHtml(s.assignedDriverFrom)}</span>`;
+        } else if (s.assignedDriver && (!s.rideDirection || s.rideDirection === 'Both' || s.rideDirection === 'From')) {
+          rideFromBadge = `<span class="badge badge-success">🚙 With ${escapeHtml(s.assignedDriver)}</span>`;
+        } else if (s.rideStatus === 'ambiguous') {
+          rideFromBadge = `<span class="badge badge-warning" title="${escapeHtml(s.rideNote || '')}">⚠️ Ambiguous Note</span>`;
+        } else {
+          rideFromBadge = '<span class="badge badge-warning">⚠️ Needs Ride</span>';
+        }
+
+        const permBadge = s.permissionGiven?.toLowerCase() === 'yes'
+          ? '<span class="badge badge-success">Yes</span>'
+          : `<span class="badge badge-warning">${escapeHtml(s.permissionGiven || 'No')}</span>`;
+
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(s.name)}</strong></td>
+          <td>${escapeHtml(s.patrol || 'Unassigned')}</td>
+          <td>${rideToBadge}</td>
+          <td>${rideFromBadge}</td>
+          <td>${permBadge}</td>
+          <td>${escapeHtml(s.swimTest || '-')}</td>
+        `;
+        scoutsTbody.appendChild(tr);
+      });
+    }
+
+    function renderAdultsTable(adults, drivers) {
       document.getElementById('adultsCountBadge').textContent = `${adults.length} Adults`;
       const adultsTbody = document.getElementById('adultsTbody');
       adultsTbody.innerHTML = '';
@@ -730,7 +1323,7 @@
             const cName = typeof ca === 'string' ? ca : ca.name;
             return cName.toLowerCase().includes(a.name.split(',')[0].toLowerCase());
           }));
-          
+
           let driveBadge = '<span class="badge badge-neutral">Self-Drive / Passenger</span>';
           if (isDriver) driveBadge = '<span class="badge badge-success">🚙 Registered Driver</span>';
           else if (isRider) driveBadge = '<span class="badge badge-adult">🚗 Riding with Driver</span>';
@@ -751,58 +1344,19 @@
       }
     }
 
-    function renderScoutsTable(scouts) {
-      document.getElementById('scoutsCountBadge').textContent = `${scouts.length} Scouts`;
-      const scoutsTbody = document.getElementById('scoutsTbody');
-      scoutsTbody.innerHTML = '';
-
-      if (scouts.length === 0) {
-        scoutsTbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center; padding: 1.5rem;">No scouts registered yet.</td></tr>';
-        return;
-      }
-
-      const q = (document.getElementById('scoutSearch')?.value || '').trim().toLowerCase();
-      const filtered = scouts.filter(s => {
-        if (!q) return true;
-        return s.name.toLowerCase().includes(q) || (s.patrol || '').toLowerCase().includes(q);
-      });
-
-      if (filtered.length === 0) {
-        scoutsTbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center; padding: 1rem;">No scouts matching search.</td></tr>';
-        return;
-      }
-
-      filtered.forEach(s => {
-        const tr = document.createElement('tr');
-        
-        let rideBadge;
-        if (s.assignedDriver) {
-          const isFam = s.rideStatus === 'family_match';
-          rideBadge = `<span class="badge badge-success" title="Claimed in driver note">🚗 Riding with ${escapeHtml(s.assignedDriver)}${isFam ? ' (Family)' : ''}</span>`;
-        } else if (s.rideStatus === 'ambiguous') {
-          rideBadge = `<span class="badge badge-warning" title="${escapeHtml(s.rideNote || '')}">⚠️ Mentioned in Note (Clarification Needed)</span>`;
-        } else {
-          rideBadge = '<span class="badge badge-warning">⚠️ Needs Ride / Unassigned</span>';
-        }
-
-        const permBadge = s.permissionGiven?.toLowerCase() === 'yes'
-          ? '<span class="badge badge-success">Yes</span>'
-          : `<span class="badge badge-warning">${escapeHtml(s.permissionGiven || 'No')}</span>`;
-
-        tr.innerHTML = `
-          <td><strong>${escapeHtml(s.name)}</strong></td>
-          <td>${escapeHtml(s.patrol || 'Unassigned')}</td>
-          <td>${rideBadge}</td>
-          <td>${permBadge}</td>
-          <td>${escapeHtml(s.swimTest || '-')}</td>
-        `;
-        scoutsTbody.appendChild(tr);
-      });
+    function openNoteModal(driverName, note) {
+      document.getElementById('noteModalTitle').textContent = `Driver Note: ${driverName}`;
+      document.getElementById('noteModalContent').textContent = note || '(No note)';
+      document.getElementById('noteModal').style.display = 'flex';
     }
 
-    function filterScouts() {
-      if (currentData?.scouts) {
-        renderScoutsTable(currentData.scouts);
+    function closeNoteModal() {
+      document.getElementById('noteModal').style.display = 'none';
+    }
+
+    function handleModalOverlayClick(e, modalId) {
+      if (e.target.id === modalId) {
+        closeNoteModal();
       }
     }
 
