@@ -799,13 +799,69 @@
       .section-card { box-shadow: none; border: 1px solid #ccc; margin-bottom: 1rem; page-break-inside: avoid; }
       .table-wrapper { overflow: visible !important; border: none; width: 100% !important; }
       table.coord-grid { font-size: 7.5pt; width: 100%; }
-      table.coord-grid th, table.coord-grid td { padding: 0.25rem 0.35rem; }
       .slot { min-width: auto; max-width: none; padding: 0.15rem 0.25rem; font-size: 7pt; }
       @page { size: landscape; margin: 0.35in; }
+    }
+
+    /* Refresh Toast */
+    .refresh-toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.25), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+      display: none;
+      align-items: center;
+      gap: 0.6rem;
+      z-index: 10000;
+      transition: all 0.3s ease;
+    }
+    .toast-spin {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
+  <!-- Full-Page Coordinator Lockout Overlay -->
+  <div id="coordinatorLockOverlay" style="display:none; position:fixed; inset:0; background:rgba(15, 23, 42, 0.95); backdrop-filter:blur(10px); z-index:999999; align-items:center; justify-content:center; padding:1.5rem;">
+    <div style="background:white; border-radius:12px; max-width:440px; width:100%; padding:2.25rem; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align:center;">
+      <div style="font-size:3rem; margin-bottom:0.75rem; line-height:1;">🔒</div>
+      <h2 style="font-size:1.35rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Coordinator Access Required</h2>
+      <p style="font-size:0.875rem; color:#64748b; line-height:1.5; margin-bottom:1.5rem;">
+        This page allows editing carpool rosters and updating TroopWebHost directly. Please enter the coordinator password to unlock.
+      </p>
+      <form id="coordinatorLoginForm" onsubmit="handleCoordinatorLogin(event)">
+        <div style="margin-bottom:1rem; text-align:left;">
+          <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.35rem;">COORDINATOR PASSWORD</label>
+          <input type="password" id="coordPasswordInput" style="width:100%; padding:0.7rem 0.85rem; font-size:1rem; border:1px solid #cbd5e1; border-radius:6px; outline:none;" placeholder="Enter password" autofocus required />
+        </div>
+        <div id="coordLoginError" style="display:none; background:#fee2e2; color:#991b1b; padding:0.6rem 0.8rem; border-radius:6px; font-size:0.82rem; font-weight:600; margin-bottom:1rem; text-align:left;"></div>
+        <button type="submit" id="btnUnlockWorksheet" class="btn btn-primary" style="width:100%; padding:0.75rem; font-size:1rem; justify-content:center; font-weight:700; background:#0284c7; border-color:#0284c7;">
+          🔓 Unlock Coordinator Worksheet
+        </button>
+      </form>
+      <div style="margin-top:1.5rem; border-top:1px solid #e2e8f0; padding-top:1rem;">
+        <a id="lockCarpoolReturnLink" href="#" style="font-size:0.85rem; color:#64748b; text-decoration:none; font-weight:600;">&larr; Return to View-Only Carpool</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Background Refresh Toast -->
+  <div id="refreshToast" class="refresh-toast">
+    <span id="refreshToastIcon" class="toast-spin">🔄</span>
+    <span id="refreshToastMsg">Checking TroopWebHost for latest updates...</span>
+  </div>
+
   <div class="container">
     <div id="loading" style="padding: 3rem; text-align: center;">
       <h2 style="font-size: 1.3rem; margin-bottom: 0.5rem;">🚗 Loading Coordinator Worksheet...</h2>
@@ -838,6 +894,10 @@
             <span id="draftBanner" class="draft-badge" title="Edits are automatically saved in your browser and synced to Website">
               💾 Edits automatically synced to Website.
             </span>
+            <div id="coordSessionStatus" style="display:none; align-items:center; gap:0.4rem; font-size:0.78rem; font-weight:700; color:#065f46; background:#d1fae5; border:1px solid #a7f3d0; padding:0.25rem 0.6rem; border-radius:999px;">
+              <span>🔒 Unlocked (<span id="coordSessionTimer">5:00</span>)</span>
+              <button type="button" onclick="lockCoordinatorSession()" style="background:none; border:none; color:#065f46; cursor:pointer; text-decoration:underline; font-size:0.75rem; font-weight:700; margin-left:0.2rem;">Lock</button>
+            </div>
           </div>
         </div>
         <div class="actions no-print" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;">
@@ -1273,6 +1333,167 @@
     let activeNoteDriverName = null;
     let syncFadeTimeout = null;
 
+    // Authentication & Session Management
+    const DEFAULT_TROOP_APP_KEY = 'troop402-app-access';
+    function getTroopAppKey() {
+      return localStorage.getItem('twh_troop_app_key') || DEFAULT_TROOP_APP_KEY;
+    }
+
+    function getCoordinatorToken() {
+      return sessionStorage.getItem('twh_coordinator_token') || '';
+    }
+
+    function getAuthHeaders(extraHeaders = {}) {
+      const headers = {
+        'x-troop-key': getTroopAppKey(),
+        ...extraHeaders,
+      };
+      const token = getCoordinatorToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      return headers;
+    }
+
+    let sessionTimerInterval = null;
+    function startCoordinatorSessionTimer(expiresAt) {
+      if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+      const timerEl = document.getElementById('coordSessionTimer');
+      const statusEl = document.getElementById('coordSessionStatus');
+      if (statusEl) statusEl.style.display = 'inline-flex';
+
+      function updateTimer() {
+        const remainingMs = expiresAt - Date.now();
+        if (remainingMs <= 0) {
+          clearInterval(sessionTimerInterval);
+          lockCoordinatorSession('Session expired (5m). Please enter coordinator password again to continue.');
+          return;
+        }
+        const totalSec = Math.floor(remainingMs / 1000);
+        const mins = Math.floor(totalSec / 60);
+        const secs = totalSec % 60;
+        if (timerEl) timerEl.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      }
+
+      updateTimer();
+      sessionTimerInterval = setInterval(updateTimer, 1000);
+    }
+
+    function lockCoordinatorSession(reasonMsg = '') {
+      if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+      sessionStorage.removeItem('twh_coordinator_token');
+      sessionStorage.removeItem('twh_coordinator_expires_at');
+      const statusEl = document.getElementById('coordSessionStatus');
+      if (statusEl) statusEl.style.display = 'none';
+
+      const overlay = document.getElementById('coordinatorLockOverlay');
+      const errEl = document.getElementById('coordLoginError');
+      if (overlay) overlay.style.display = 'flex';
+      if (errEl) {
+        if (reasonMsg) {
+          errEl.textContent = reasonMsg;
+          errEl.style.display = 'block';
+        } else {
+          errEl.style.display = 'none';
+        }
+      }
+      const passInput = document.getElementById('coordPasswordInput');
+      if (passInput) {
+        passInput.value = '';
+        passInput.focus();
+      }
+    }
+
+    async function handleCoordinatorLogin(e) {
+      e.preventDefault();
+      const passInput = document.getElementById('coordPasswordInput');
+      const btn = document.getElementById('btnUnlockWorksheet');
+      const errEl = document.getElementById('coordLoginError');
+      const password = passInput ? passInput.value : '';
+
+      if (!password) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Verifying...';
+      if (errEl) errEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth/coordinator-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Incorrect password.');
+        }
+
+        sessionStorage.setItem('twh_coordinator_token', data.token);
+        sessionStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
+
+        const overlay = document.getElementById('coordinatorLockOverlay');
+        if (overlay) overlay.style.display = 'none';
+        startCoordinatorSessionTimer(data.expiresAt);
+
+        // Resume loading coordinator
+        initCoordinator();
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message;
+          errEl.style.display = 'block';
+        }
+        if (passInput) passInput.select();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔓 Unlock Coordinator Worksheet';
+      }
+    }
+
+    function checkCoordinatorSession() {
+      const token = sessionStorage.getItem('twh_coordinator_token');
+      const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      if (!token || Date.now() >= expiresAt) {
+        lockCoordinatorSession();
+        return false;
+      }
+      const overlay = document.getElementById('coordinatorLockOverlay');
+      if (overlay) overlay.style.display = 'none';
+      startCoordinatorSessionTimer(expiresAt);
+      return true;
+    }
+
+    // Floating Refresh Toast Helpers
+    let toastTimeout = null;
+    function showRefreshToast(msg, icon = '🔄', isSpinning = true, autoDismissMs = 0) {
+      const toast = document.getElementById('refreshToast');
+      const iconEl = document.getElementById('refreshToastIcon');
+      const msgEl = document.getElementById('refreshToastMsg');
+      if (!toast) return;
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+
+      iconEl.textContent = icon;
+      if (isSpinning) {
+        iconEl.classList.add('toast-spin');
+      } else {
+        iconEl.classList.remove('toast-spin');
+      }
+      msgEl.textContent = msg;
+      toast.style.display = 'inline-flex';
+
+      if (autoDismissMs > 0) {
+        toastTimeout = setTimeout(() => {
+          toast.style.display = 'none';
+        }, autoDismissMs);
+      }
+    }
+
+    function hideRefreshToast() {
+      const toast = document.getElementById('refreshToast');
+      if (toast) toast.style.display = 'none';
+    }
+
     // Helper: Normalize name for matching across "Last, First" and "First Last"
     function normalizeName(name) {
       if (!name || typeof name !== 'string') return '';
@@ -1361,12 +1582,21 @@
         <a href="/manager.html" class="btn" style="margin-top:1rem;">Go to Event Manager</a>
       `;
     } else {
-      initCoordinator();
+      const returnLink = document.getElementById('lockCarpoolReturnLink');
+      if (returnLink) returnLink.href = `/carpool.html?id=${encodeURIComponent(eventId)}`;
+      if (checkCoordinatorSession()) {
+        initCoordinator();
+      }
     }
 
     async function initCoordinator(forceRefresh = false) {
+      if (!checkCoordinatorSession()) {
+        return;
+      }
+
       const carpoolStorageKey = `twh_event_carpool_${eventId}`;
       const draftStorageKey = `troop402_coord_v1_${eventId}`;
+      const sigStorageKey = `troop402_coord_sig_${eventId}`;
       let renderedFromCache = false;
 
       // 1. Instant Render from LocalStorage if available
@@ -1405,19 +1635,28 @@
       const hasExistingRender = renderedFromCache || Boolean(localDraft && (localDraft.toDrivers || localDraft.fromDrivers));
 
       if (hasExistingRender) {
+        showRefreshToast('Checking TroopWebHost for latest updates...', '🔄', true);
         updateSyncBadge('saving', forceRefresh ? 'Refreshing from Website...' : 'Checking Website...');
       }
 
       // 2. Fetch fresh baseline from server in background (or foreground if no cache)
       try {
-        const res = await fetch(`/api/events/${eventId}/carpool${forceRefresh ? '?forceRefresh=true' : ''}`);
+        const res = await fetch(`/api/events/${eventId}/carpool${forceRefresh ? '?forceRefresh=true' : ''}`, {
+          headers: getAuthHeaders(),
+        });
+
+        if (res.status === 401) {
+          lockCoordinatorSession('Coordinator session expired. Please enter password again.');
+          return;
+        }
+
         if (!res.ok) throw new Error('Failed to load event carpool data');
         const freshData = await res.json();
         carpoolBaseline = freshData;
 
         if (!carpoolBaseline.meta || !carpoolBaseline.meta.title) {
           try {
-            const evRes = await fetch('/api/events');
+            const evRes = await fetch('/api/events', { headers: getAuthHeaders() });
             if (evRes.ok) {
               const evJson = await evRes.json();
               const found = (evJson.events || []).find(e => String(e.id) === String(eventId));
@@ -1440,15 +1679,9 @@
           .map(d => `${d.name}:${d.seats}:${d.drivingToFrom}:${d.comment}`)
           .join('|');
 
-        if (lastSignature && freshSignature && freshSignature !== lastSignature) {
-          const banner = document.getElementById('disparityBanner');
-          if (banner) banner.style.display = 'flex';
-        }
-        lastSignature = freshSignature;
-        lastFocusCheckTime = Date.now();
-
         // Check if draft exists
         const savedDraftJson = localStorage.getItem(draftStorageKey);
+        const savedSig = localStorage.getItem(sigStorageKey);
 
         if (savedDraftJson && !forceRefresh) {
           try {
@@ -1465,12 +1698,31 @@
                 d.customNote = extractDriverNote(d.comment || '', d.riders || []);
               }
             });
+
+            // Disparity check between draft's baseline and fresh TWH
+            if (savedSig && freshSignature !== savedSig) {
+              const banner = document.getElementById('disparityBanner');
+              if (banner) banner.style.display = 'flex';
+              showRefreshToast('TroopWebHost has updates differing from your working draft', '⚠️', false, 5000);
+            } else {
+              showRefreshToast('Up to date with TroopWebHost', '✅', false, 3000);
+            }
           } catch {
             localDraft = buildBaselineDraft();
+            localStorage.setItem(sigStorageKey, freshSignature);
           }
         } else if (!hasExistingRender || forceRefresh) {
           localDraft = buildBaselineDraft();
+          localStorage.setItem(sigStorageKey, freshSignature);
+          if (renderedFromCache) {
+            showRefreshToast('Loaded latest sign-ups from TroopWebHost', '✨', false, 4000);
+          } else {
+            hideRefreshToast();
+          }
         }
+
+        lastSignature = freshSignature;
+        lastFocusCheckTime = Date.now();
 
         loadUndoHistory();
         renderPage();
@@ -1483,9 +1735,11 @@
             <p>${escapeHtml(err.message)}</p>
             <a href="/manager.html" class="btn" style="margin-top:1rem;">Go to Event Manager</a>
           `;
+          hideRefreshToast();
         } else {
           console.warn('Background coordinator refresh failed:', err);
           updateSyncBadge('error', 'Offline (Cached)');
+          showRefreshToast('Could not reach TroopWebHost (showing cached data)', '⚠️', false, 4000);
         }
       }
     }
@@ -2543,7 +2797,7 @@
       try {
         const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/driver-update`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             driverName,
             updatedComment,
@@ -2554,6 +2808,11 @@
             force: Boolean(force),
           }),
         });
+
+        if (res.status === 401) {
+          lockCoordinatorSession('Coordinator session expired. Please enter password again.');
+          return;
+        }
 
         if (res.status === 409) {
           const data = await res.json();
@@ -2876,7 +3135,9 @@
 
     async function checkTwhDisparity() {
       try {
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/twh-status`);
+        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/twh-status`, {
+          headers: getAuthHeaders(),
+        });
         if (!res.ok) return;
         const data = await res.json();
         if (lastSignature && data.signature && data.signature !== lastSignature) {
@@ -2954,7 +3215,7 @@
 
         const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(payload),
         });
 
@@ -3198,7 +3459,7 @@
 
         const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(payload),
         });
 

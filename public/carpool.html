@@ -459,6 +459,33 @@
       accent-color: #0f766e;
     }
 
+    /* Refresh Toast */
+    .refresh-toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.25), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+      display: none;
+      align-items: center;
+      gap: 0.6rem;
+      z-index: 10000;
+      transition: all 0.3s ease;
+    }
+    .toast-spin {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
     /* Print Formatting */
     @media print {
       @page {
@@ -854,10 +881,63 @@
     </div>
   </div>
 
+  <!-- Floating Background Refresh Toast -->
+  <div id="refreshToast" class="refresh-toast">
+    <span id="refreshToastIcon" class="toast-spin">🔄</span>
+    <span id="refreshToastMsg">Checking TroopWebHost for latest updates...</span>
+  </div>
+
   <script>
     let currentData = null;
     let eventId = new URLSearchParams(window.location.search).get('id')
       || new URLSearchParams(window.location.search).get('eventId');
+
+    const DEFAULT_TROOP_APP_KEY = 'troop402-app-access';
+    function getTroopAppKey() {
+      return localStorage.getItem('twh_troop_app_key') || DEFAULT_TROOP_APP_KEY;
+    }
+
+    function getAuthHeaders(extraHeaders = {}) {
+      const headers = {
+        'x-troop-key': getTroopAppKey(),
+        ...extraHeaders,
+      };
+      const coordToken = sessionStorage.getItem('twh_coordinator_token');
+      if (coordToken) {
+        headers['Authorization'] = `Bearer ${coordToken}`;
+      }
+      return headers;
+    }
+
+    let toastTimeout = null;
+    function showRefreshToast(msg, icon = '🔄', isSpinning = true, autoDismissMs = 0) {
+      const toast = document.getElementById('refreshToast');
+      const iconEl = document.getElementById('refreshToastIcon');
+      const msgEl = document.getElementById('refreshToastMsg');
+      if (!toast) return;
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+
+      iconEl.textContent = icon;
+      if (isSpinning) {
+        iconEl.classList.add('toast-spin');
+      } else {
+        iconEl.classList.remove('toast-spin');
+      }
+      msgEl.textContent = msg;
+      toast.style.display = 'inline-flex';
+
+      if (autoDismissMs > 0) {
+        toastTimeout = setTimeout(() => {
+          toast.style.display = 'none';
+        }, autoDismissMs);
+      }
+    }
+
+    function hideRefreshToast() {
+      const toast = document.getElementById('refreshToast');
+      if (toast) toast.style.display = 'none';
+    }
 
     function escapeHtml(str) {
       if (!str) return '';
@@ -879,6 +959,7 @@
 
       const storageKey = `twh_event_carpool_${eventId}`;
       let renderedFromCache = false;
+      let cachedDriversSignature = '';
 
       // 1. Instant Render from LocalStorage if available
       try {
@@ -887,6 +968,9 @@
           const cached = JSON.parse(cachedJson);
           if (cached && cached.data) {
             currentData = cached.data;
+            cachedDriversSignature = (currentData.drivers || [])
+              .map(d => `${d.name}:${d.seats}:${d.drivingToFrom}:${d.comment}`)
+              .join('|');
             renderPage(currentData, cached.meta || currentData.meta || null, cached.savedAt);
             document.getElementById('loadingView').style.display = 'none';
             document.getElementById('errorView').style.display = 'none';
@@ -905,6 +989,8 @@
         document.getElementById('loadingView').style.display = 'block';
         document.getElementById('errorView').style.display = 'none';
         document.getElementById('carpoolContent').style.display = 'none';
+      } else {
+        showRefreshToast('Checking TroopWebHost for latest updates...', '🔄', true);
       }
 
       const refreshBtn = document.getElementById('refreshBtn');
@@ -914,7 +1000,19 @@
       }
 
       try {
-        const res = await fetch(`/api/events/${eventId}/carpool${forceRefresh ? '?forceRefresh=true' : ''}`);
+        const res = await fetch(`/api/events/${eventId}/carpool${forceRefresh ? '?forceRefresh=true' : ''}`, {
+          headers: getAuthHeaders(),
+        });
+
+        if (res.status === 401) {
+          const userKey = prompt('Troop Application Key required to access carpool data. Please enter key:');
+          if (userKey) {
+            localStorage.setItem('twh_troop_app_key', userKey.trim());
+            return loadCarpool(forceRefresh);
+          }
+          throw new Error('Unauthorized: Valid Troop Application Key required.');
+        }
+
         if (!res.ok) {
           throw new Error(`Server returned HTTP ${res.status}`);
         }
@@ -922,6 +1020,19 @@
         const eventMeta = currentData.meta || null;
         const now = Date.now();
         renderPage(currentData, eventMeta, now);
+
+        // Check if data updated compared to what was cached
+        const freshSignature = (currentData.drivers || [])
+          .map(d => `${d.name}:${d.seats}:${d.drivingToFrom}:${d.comment}`)
+          .join('|');
+
+        if (renderedFromCache && cachedDriversSignature && freshSignature !== cachedDriversSignature) {
+          showRefreshToast('Updated with latest sign-ups from TroopWebHost', '✨', false, 4000);
+        } else if (renderedFromCache) {
+          showRefreshToast('Up to date with TroopWebHost', '✅', false, 3000);
+        } else {
+          hideRefreshToast();
+        }
 
         // Save to localStorage for instant subsequent loads
         try {
@@ -942,8 +1053,10 @@
           document.getElementById('loadingView').style.display = 'none';
           document.getElementById('errorView').style.display = 'block';
           document.getElementById('errorMsg').textContent = err.message || 'Failed to fetch carpool details.';
+          hideRefreshToast();
         } else {
           console.warn('Background carpool refresh failed:', err);
+          showRefreshToast('Could not reach TroopWebHost (showing cached data)', '⚠️', false, 4000);
         }
       } finally {
         if (refreshBtn) {
@@ -1703,7 +1816,7 @@
 
     function downloadExcel() {
       if (!eventId) return;
-      window.location.href = `/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`;
+      window.location.href = `/api/events/${encodeURIComponent(eventId)}/carpool.xlsx?key=${encodeURIComponent(getTroopAppKey())}`;
     }
 
     // ==========================================
@@ -1909,7 +2022,7 @@
 
         const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(payload),
         });
 

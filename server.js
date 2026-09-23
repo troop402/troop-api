@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'node:crypto';
 import * as cheerio from 'cheerio';
 import { gotScraping } from 'got-scraping';
 import { CookieJar } from 'tough-cookie';
@@ -12,6 +13,89 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Security & Authentication Configuration
+const TROOP_APP_KEY = process.env.TROOP_APP_KEY || 'troop402-app-access';
+const COORDINATOR_PASSWORD = process.env.COORDINATOR_PASSWORD || 'scouts-lead-the-way';
+const SESSION_SECRET = process.env.SESSION_SECRET || COORDINATOR_PASSWORD || 'troop402-session-secret-salt';
+
+function createSignedToken(payload) {
+  const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('base64url');
+  return `${payloadStr}.${signature}`;
+}
+
+function verifySignedToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [payloadStr, signature] = parts;
+
+  const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('base64url');
+  const sigBuf = Buffer.from(signature);
+  const expSigBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expSigBuf.length || !crypto.timingSafeEqual(sigBuf, expSigBuf)) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(Buffer.from(payloadStr, 'base64url').toString('utf8'));
+    if (payload.exp && Date.now() > payload.exp) {
+      return null; // Expired
+    }
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function extractBearerToken(req) {
+  const authHeader = req.headers.authorization || '';
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  return null;
+}
+
+// Tier 1 Middleware: General Troop Application Key (read operations)
+function requireAppAuth(req, res, next) {
+  const expectedKey = process.env.TROOP_APP_KEY || TROOP_APP_KEY;
+  const providedKey = req.headers['x-troop-key'] || req.query.key;
+  const bearerToken = extractBearerToken(req);
+
+  // If coordinator is authenticated with a valid token, allow Tier 1 access as well
+  if (bearerToken && verifySignedToken(bearerToken)) {
+    return next();
+  }
+
+  if (providedKey && providedKey === expectedKey) {
+    return next();
+  }
+
+  return res.status(401).json({
+    error: 'Unauthorized: Valid troop application key (x-troop-key header or ?key= query parameter) required.',
+  });
+}
+
+// Tier 2 Middleware: Coordinator Password Token (write & coordinator operations)
+function requireCoordinatorAuth(req, res, next) {
+  const token = extractBearerToken(req);
+  if (!token) {
+    return res.status(401).json({
+      error: 'Unauthorized: Coordinator authentication required.',
+    });
+  }
+
+  const payload = verifySignedToken(token);
+  if (!payload || payload.role !== 'coordinator') {
+    return res.status(401).json({
+      error: 'Unauthorized: Invalid or expired coordinator session. Please unlock the coordinator worksheet again.',
+    });
+  }
+
+  req.coordinator = payload;
+  next();
+}
+
 const cache = {
   rosterBuffer: null,
   rosterSummary: null,
@@ -22,8 +106,8 @@ const cache = {
   eventsTimestamp: 0,
   eventsTtlMs: 2 * 60 * 60 * 1000, // 2 hours
 
-  carpoolByEventId: new Map(), // eventId -> { data, timestamp }
-  carpoolTtlMs: 15 * 60 * 1000, // 15 minutes
+  carpoolByEventId: new Map(), // Shelved in-memory carpool cache
+  carpoolTtlMs: 0, // 0 = Shelved: live queries to TWH prioritized over container memory
 
   adultTrainingMap: null,
   adultTrainingTimestamp: 0,
@@ -1202,10 +1286,8 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
     throw new Error('Event ID is required.');
   }
 
-  const cached = cache.carpoolByEventId.get(eventId);
-  if (!forceRefresh && cached && Date.now() - cached.timestamp < cache.carpoolTtlMs) {
-    return cached.data;
-  }
+  // Note: Server-side carpool memory caching is shelved due to container lifecycle / spin-up characteristics on Render.
+  // Every request fetches live from TroopWebHost, retaining activeCarpoolPromises to deduplicate concurrent in-flight requests.
 
   if (activeCarpoolPromises.has(eventId)) {
     return activeCarpoolPromises.get(eventId);
@@ -1439,7 +1521,39 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
 }
 
 // Routes
-app.post('/api/export-roster', async (req, res) => {
+app.post('/api/auth/coordinator-login', (req, res) => {
+  const { password } = req.body || {};
+  const expectedPassword = process.env.COORDINATOR_PASSWORD || 'scouts-lead-the-way';
+
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Password is required.' });
+  }
+
+  const passBuf = Buffer.from(password);
+  const expBuf = Buffer.from(expectedPassword);
+  const isValid = passBuf.length === expBuf.length && crypto.timingSafeEqual(passBuf, expBuf);
+
+  if (!isValid) {
+    return res.status(401).json({ error: 'Incorrect coordinator password.' });
+  }
+
+  const expiresInMs = 5 * 60 * 1000; // 5 minutes session
+  const payload = {
+    role: 'coordinator',
+    exp: Date.now() + expiresInMs,
+  };
+  const token = createSignedToken(payload);
+
+  return res.status(200).json({
+    ok: true,
+    token,
+    expiresIn: Math.floor(expiresInMs / 1000),
+    expiresInMs,
+    expiresAt: payload.exp,
+  });
+});
+
+app.post('/api/export-roster', requireAppAuth, async (req, res) => {
   const { forceRefresh } = req.body || {};
 
   try {
@@ -1456,7 +1570,7 @@ app.post('/api/export-roster', async (req, res) => {
   }
 });
 
-app.get('/api/roster/summary', async (req, res) => {
+app.get('/api/roster/summary', requireAppAuth, async (req, res) => {
   const { forceRefresh } = req.query;
 
   try {
@@ -1479,7 +1593,7 @@ app.get('/api/roster/summary', async (req, res) => {
   }
 });
 
-app.get('/api/events', async (req, res) => {
+app.get('/api/events', requireAppAuth, async (req, res) => {
   const days = req.query.days ? parseInt(req.query.days, 10) : 90;
   const forceRefresh = req.query.forceRefresh === 'true';
 
@@ -1497,7 +1611,7 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-app.get('/api/events/:id/carpool', async (req, res) => {
+app.get('/api/events/:id/carpool', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   const forceRefresh = req.query.forceRefresh === 'true';
 
@@ -1519,7 +1633,7 @@ app.get('/api/events/:id/carpool', async (req, res) => {
   }
 });
 
-app.get('/api/events/:id/carpool.xlsx', async (req, res) => {
+app.get('/api/events/:id/carpool.xlsx', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   const forceRefresh = req.query.forceRefresh === 'true';
 
@@ -1556,7 +1670,7 @@ app.get('/api/events/:id/carpool.xlsx', async (req, res) => {
   }
 });
 
-app.post('/api/events/:id/carpool.xlsx', async (req, res) => {
+app.post('/api/events/:id/carpool.xlsx', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   if (!eventId || !/^\d+$/.test(eventId)) {
     return res.status(400).json({ error: 'Valid numeric event ID is required.' });
@@ -1592,7 +1706,7 @@ app.post('/api/events/:id/carpool.xlsx', async (req, res) => {
   }
 });
 
-app.get('/api/events/:id/tabular.xlsx', async (req, res) => {
+app.get('/api/events/:id/tabular.xlsx', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   const forceRefresh = req.query.forceRefresh === 'true';
 
@@ -1639,7 +1753,7 @@ app.get('/api/events/:id/tabular.xlsx', async (req, res) => {
   }
 });
 
-app.post('/api/events/:id/tabular.xlsx', async (req, res) => {
+app.post('/api/events/:id/tabular.xlsx', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   if (!eventId || !/^\d+$/.test(eventId)) {
     return res.status(400).json({ error: 'Valid numeric event ID is required.' });
@@ -1842,7 +1956,7 @@ async function updateEventDriverInTWH({
   };
 }
 
-app.post('/api/events/:id/driver-update', async (req, res) => {
+app.post('/api/events/:id/driver-update', requireCoordinatorAuth, async (req, res) => {
   const eventId = req.params.id;
   if (!eventId || !/^\d+$/.test(eventId)) {
     return res.status(400).json({ error: 'Valid numeric event ID is required.' });
@@ -1890,7 +2004,7 @@ app.post('/api/events/:id/driver-update', async (req, res) => {
   }
 });
 
-app.get('/api/events/:id/twh-status', async (req, res) => {
+app.get('/api/events/:id/twh-status', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   if (!eventId || !/^\d+$/.test(eventId)) {
     return res.status(400).json({ error: 'Valid numeric event ID is required.' });
@@ -1957,6 +2071,8 @@ export {
   firstMatches,
   NICKNAMES,
   buildTabularWorkbook,
+  createSignedToken,
+  verifySignedToken,
 };
 
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;

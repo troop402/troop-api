@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { app } from '../server.js';
+import { app, createSignedToken } from '../server.js';
 
 let server;
 let baseUrl;
+const TROOP_KEY_HEADER = { 'x-troop-key': 'troop402-app-access' };
+const coordinatorToken = createSignedToken({ role: 'coordinator' });
+const COORD_AUTH_HEADER = {
+  ...TROOP_KEY_HEADER,
+  'Authorization': `Bearer ${coordinatorToken}`,
+  'Content-Type': 'application/json',
+};
 
 before(() => {
   server = app.listen(0);
@@ -38,7 +45,7 @@ describe('API smoke tests', () => {
     try {
       response = await fetch(`${baseUrl}/api/export-roster`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { ...TROOP_KEY_HEADER, 'content-type': 'application/json' },
         body: JSON.stringify({}),
       });
     } finally {
@@ -64,7 +71,9 @@ describe('API smoke tests', () => {
 
     let response;
     try {
-      response = await fetch(`${baseUrl}/api/roster/summary`);
+      response = await fetch(`${baseUrl}/api/roster/summary`, {
+        headers: TROOP_KEY_HEADER,
+      });
     } finally {
       Object.assign(process.env, environment);
     }
@@ -88,7 +97,9 @@ describe('API smoke tests', () => {
 
     let response;
     try {
-      response = await fetch(`${baseUrl}/api/events?days=30`);
+      response = await fetch(`${baseUrl}/api/events?days=30`, {
+        headers: TROOP_KEY_HEADER,
+      });
     } finally {
       Object.assign(process.env, environment);
     }
@@ -100,7 +111,9 @@ describe('API smoke tests', () => {
   });
 
   it('rejects invalid event ID for carpool endpoint with 400', async () => {
-    const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool`);
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool`, {
+      headers: TROOP_KEY_HEADER,
+    });
 
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), {
@@ -109,7 +122,9 @@ describe('API smoke tests', () => {
   });
 
   it('rejects invalid event ID for carpool.xlsx endpoint with 400', async () => {
-    const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool.xlsx`);
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool.xlsx`, {
+      headers: TROOP_KEY_HEADER,
+    });
 
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), {
@@ -120,7 +135,7 @@ describe('API smoke tests', () => {
   it('rejects invalid event ID for POST carpool.xlsx endpoint with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool.xlsx`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...TROOP_KEY_HEADER, 'Content-Type': 'application/json' },
       body: JSON.stringify({ toDrivers: [] }),
     });
 
@@ -131,7 +146,9 @@ describe('API smoke tests', () => {
   });
 
   it('rejects invalid event ID for tabular.xlsx endpoint with 400', async () => {
-    const response = await fetch(`${baseUrl}/api/events/not-an-id/tabular.xlsx`);
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/tabular.xlsx`, {
+      headers: TROOP_KEY_HEADER,
+    });
 
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), {
@@ -142,7 +159,7 @@ describe('API smoke tests', () => {
   it('rejects invalid event ID for POST tabular.xlsx endpoint with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/not-an-id/tabular.xlsx`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...TROOP_KEY_HEADER, 'Content-Type': 'application/json' },
       body: JSON.stringify({ columns: ['trip_leg'] }),
     });
 
@@ -155,7 +172,7 @@ describe('API smoke tests', () => {
   it('rejects invalid event ID for driver-update with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/not-an-id/driver-update`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: COORD_AUTH_HEADER,
       body: JSON.stringify({ driverName: 'Test, Driver' }),
     });
 
@@ -168,7 +185,7 @@ describe('API smoke tests', () => {
   it('rejects missing driverName for driver-update with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/1957/driver-update`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: COORD_AUTH_HEADER,
       body: JSON.stringify({}),
     });
 
@@ -179,7 +196,9 @@ describe('API smoke tests', () => {
   });
 
   it('rejects invalid event ID for twh-status with 400', async () => {
-    const response = await fetch(`${baseUrl}/api/events/not-an-id/twh-status`);
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/twh-status`, {
+      headers: TROOP_KEY_HEADER,
+    });
 
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), {
@@ -203,6 +222,109 @@ describe('API smoke tests', () => {
     const response = await fetch(`${baseUrl}/manager`, { redirect: 'manual' });
     assert.equal(response.status, 302);
     assert.equal(response.headers.get('location'), '/manager.html');
+  });
+});
+
+describe('Authentication and authorization', () => {
+  it('rejects read endpoints without x-troop-key or ?key= with 401', async () => {
+    const resNoKey = await fetch(`${baseUrl}/api/events`);
+    assert.equal(resNoKey.status, 401);
+    assert.deepEqual(await resNoKey.json(), {
+      error: 'Unauthorized: Valid troop application key (x-troop-key header or ?key= query parameter) required.',
+    });
+
+    const resWrongKey = await fetch(`${baseUrl}/api/events`, {
+      headers: { 'x-troop-key': 'incorrect-key' },
+    });
+    assert.equal(resWrongKey.status, 401);
+
+    const resWrongQueryKey = await fetch(`${baseUrl}/api/events?key=incorrect-key`);
+    assert.equal(resWrongQueryKey.status, 401);
+  });
+
+  it('accepts valid key via header and query parameter', async () => {
+    // Valid header reaches event handler (which returns 500 when credentials are unconfigured or 400 on bad ID)
+    const resHeader = await fetch(`${baseUrl}/api/events/not-an-id/carpool`, {
+      headers: { 'x-troop-key': 'troop402-app-access' },
+    });
+    assert.equal(resHeader.status, 400);
+
+    const resQuery = await fetch(`${baseUrl}/api/events/not-an-id/carpool?key=troop402-app-access`);
+    assert.equal(resQuery.status, 400);
+  });
+
+  it('handles coordinator authentication flow via POST /api/auth/coordinator-login', async () => {
+    // Missing password
+    const resMissing = await fetch(`${baseUrl}/api/auth/coordinator-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    assert.equal(resMissing.status, 400);
+    assert.deepEqual(await resMissing.json(), { error: 'Password is required.' });
+
+    // Invalid password
+    const resWrong = await fetch(`${baseUrl}/api/auth/coordinator-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'wrong-password' }),
+    });
+    assert.equal(resWrong.status, 401);
+    assert.deepEqual(await resWrong.json(), { error: 'Incorrect coordinator password.' });
+
+    // Correct password
+    const resOk = await fetch(`${baseUrl}/api/auth/coordinator-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'scouts-lead-the-way' }),
+    });
+    assert.equal(resOk.status, 200);
+    const data = await resOk.json();
+    assert.equal(data.ok, true);
+    assert.equal(typeof data.token, 'string');
+    assert.equal(data.expiresIn, 300);
+  });
+
+  it('protects driver-update with coordinator bearer token', async () => {
+    // Missing token
+    const resNoToken = await fetch(`${baseUrl}/api/events/1957/driver-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ driverName: 'Doe, John' }),
+    });
+    assert.equal(resNoToken.status, 401);
+    assert.deepEqual(await resNoToken.json(), {
+      error: 'Unauthorized: Coordinator authentication required.',
+    });
+
+    // Invalid token
+    const resBadToken = await fetch(`${baseUrl}/api/events/1957/driver-update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer invalid.fake.token',
+      },
+      body: JSON.stringify({ driverName: 'Doe, John' }),
+    });
+    assert.equal(resBadToken.status, 401);
+    assert.deepEqual(await resBadToken.json(), {
+      error: 'Unauthorized: Invalid or expired coordinator session. Please unlock the coordinator worksheet again.',
+    });
+
+    // Valid token passes auth and proceeds to handler (invalid event ID -> 400)
+    const validToken = createSignedToken({ role: 'coordinator' });
+    const resValidToken = await fetch(`${baseUrl}/api/events/not-an-id/driver-update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${validToken}`,
+      },
+      body: JSON.stringify({ driverName: 'Doe, John' }),
+    });
+    assert.equal(resValidToken.status, 400);
+    assert.deepEqual(await resValidToken.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
   });
 });
 
