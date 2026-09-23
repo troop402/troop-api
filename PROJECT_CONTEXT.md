@@ -240,9 +240,10 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
 * **Unconditional Safety Flagging**: Drivers who are registered in the event driver table but lack required compliance (e.g. Vanessa Stewart with `attending: '?'` and David Kersten with `attending: 'Y'`) are highlighted in amber (`#fffbeb`) and tagged with `Safety Non-Compliant` / `⚠️ Safety Gaps` across all driver and leg tables regardless of their attending answer. Troop safety compliance is an absolute prerequisite for any driver listed on the event roster.
 
 
-### 9.5 Ambiguity Deduplication Across Trip Legs
+### 9.5 Ambiguity Deduplication & Streamlined Button Format Across Trip Legs
 * When an ambiguous note (e.g. "Taking Anya") applies to a driver driving both legs, `coordinator.html` previously displayed duplicate amber alert buttons.
 * Deduplicated into a single unified action button and resolution modal that resolves both legs simultaneously.
+* **Streamlined Alert Button Format**: The top-of-page alert banner button text is kept clean and concise (`⚠️ Driver Name: "token" →`, e.g. `⚠️ Alison Clayshulte: "anya" →`), omitting cluttered candidate lists and trip leg tags from the button label while preserving full candidate names and leg context within the resolution modal dialog.
 
 ### 9.6 One-Way Driver Differentiation
 * Visual differentiation for drivers driving only outbound or return:
@@ -280,6 +281,44 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
   - **Attendance Note Popover Modal**: Scouts with notes have a speech bubble button (`💬 Note`) that opens a clean modal with the full text, with previews in the table cell.
   - **Interactive Sorting & Live Filtering**: Multi-column sorting (`toggleScoutSort`) and live search (`scoutSearch`) search across all scout attributes including notes, medical status, and swim tests.
   - **`coordinator.html` Waitlist & Seat Modal**: Waitlist cards and the seat assignment selection modal display scout attendance comments inline (e.g. `💬 need to leave sunday morning...`), preventing coordinators from assigning riders with early departure constraints to the wrong drivers.
+
+### 9.10 Customizable Cartesian Tabular Excel Export (`tabular.xlsx`)
+* **Design Rationale**:
+  - While the 4-sheet Lake Berryessa coordinator workbook (`carpool.xlsx`) serves printable roster check-in and complex cell-formula coordination, troop leadership often needs flat, plain-text relational data exports for pivot tables, ad-hoc filtering, external rosters, and custom analysis.
+  - Rather than fixed columns, leadership requested full control to pick and order exported attributes from a rich catalog.
+* **Cartesian Row Architecture**:
+  - Each adult-driver-rider assignment is split into its own discrete row.
+  - **Open Seats**: Drivers with remaining passenger capacity emit individual rows labeled `[Open Seat]` (with vehicle and driver info filled, rider info blank), making unfilled capacity instantly auditable. Toggleable via `includeOpenSeats` (default: on).
+  - **Unassigned Attendees**: Scouts without rides emit individual rows with Driver labeled `(Unassigned)`, ensuring no attendee is missed during early export stages. Toggleable via `includeUnassigned` (default: on).
+* **Trip Leg Splitting & Coalescing**:
+  - Controlled by the `splitTripLegs` toggle (default: true).
+  - When true: Outbound (`TO`) and return (`FROM`) trips produce distinct individual rows labeled with their specific leg, allowing users to filter by leg using Excel's built-in column auto-filter.
+  - When false: Identical driver-rider trips across both directions coalesce into a single row marked `Trip Leg: Both`. One-way or asymmetric rides emit separate `TO only` or `FROM only` rows.
+* **Column Catalog & Standard Preset**:
+  - Supports 40+ selectable columns covering trip/event details, driver info (vehicle, license plate, driver status, SYT, AB506), and passenger info (rank, age, grade, parent emergency contacts 1 & 2, phone, permission, medical clearance dates, swim level, allergies, and dietary restrictions).
+  - **Standard Preset**: Focused on core carpool logistics (`trip_leg`, `adult_name`, `adult_cell`, `adult_vehicle`, `adult_passenger_seats`, `seat_number`, `rider_name`, `rider_patrol`, `rider_parent_names`, `rider_parent_phone`, `rider_permission`, `rider_medical_forms`).
+  - **Comments Excluded by Default**: In response to user feedback, driver comments and rider attendance comments are unchecked by default in the standard preset to keep exports clean and tabular, but remain selectable.
+* **Client-Side Persistence & Workflow**:
+  - Both `coordinator.html` and `carpool.html` feature a dedicated `📑 Tabular Export (.xlsx)` button opening an interactive modal with live column count badges, category groups, quick preset actions, and row toggles.
+  - User selections persist across sessions in `localStorage` under `twh_tabular_export_settings`.
+  - When triggered from `coordinator.html`, `POST /api/events/:id/tabular.xlsx` transmits the live in-browser `localDraft` state so exports reflect uncommitted assignments.
+
+### 9.11 Tabular Export Scout Attribute Resolution & Unassigned Deduplication
+* **Bug Squashed**:
+  - In initial testing of the tabular export, scouts assigned to drivers had blank values for all scout-related columns (`rider_patrol`, `rider_parent_names`, `rider_parent_phone`, `rider_age`, `rider_grade`, `rider_rank`), and were simultaneously duplicated as unassigned rows (`(Unassigned)`) at the bottom of the spreadsheet.
+* **Root Cause**:
+  - In `carpoolData.scouts`, attendee names are stored as `"Last, First"` (e.g. `"Annis, Allison"`), whereas in driver comments parsed by `parseDriverComments`, riders are represented as `"First Last"` (e.g. `"Allison Annis"`).
+  - The previous `normalizeNameKey(name)` merely stripped commas without transposing word order, producing `"annis allison"` vs. `"allison annis"`.
+  - Consequently, `resolveScout()` failed to locate the scout in `scoutsByName` and returned a bare `{ name }` stub without attributes.
+  - In parallel, `assignedToKeys.has("annis allison")` evaluated to `false`, wrongly classifying the assigned scout as unassigned and re-emitting them at the bottom.
+* **Solution**:
+  - Transposed `"Last, First"` &rarr; `"first last"` in `normalizeNameKey()`, ensuring identical normalized keys across all sources.
+  - Enriched `scoutsByName` with multi-key indexing (including middle name/initial omission and original raw names) and merged attributes from `rosterSummary` when available.
+  - Upgraded `resolveScout()` to accept both objects and strings, inspect `originalName`, and match first + last parts.
+  - Updated `assignedToKeys` and `assignedFromKeys` to register both `r.name` and `r.originalName` while ignoring `r.type === 'adult'`.
+  - Direct end-to-end testing on Event 1957 confirmed 100% attribute population on driver rows and 0 duplicate unassigned rows.
+
+
 
 
 

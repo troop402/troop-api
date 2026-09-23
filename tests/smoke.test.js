@@ -130,6 +130,28 @@ describe('API smoke tests', () => {
     });
   });
 
+  it('rejects invalid event ID for tabular.xlsx endpoint with 400', async () => {
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/tabular.xlsx`);
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
+  });
+
+  it('rejects invalid event ID for POST tabular.xlsx endpoint with 400', async () => {
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/tabular.xlsx`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ columns: ['trip_leg'] }),
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
+  });
+
   it('rejects invalid event ID for driver-update with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/not-an-id/driver-update`, {
       method: 'POST',
@@ -643,5 +665,335 @@ describe('Scout and roster enrichment unit test', () => {
     assert.equal(enriched.swimTest, 'Swimmer');
     assert.equal(enriched.swimDate, '6/26/2026');
     assert.equal(enriched.assignedDriver, 'Ayers, Elena');
+  });
+});
+
+describe('Tabular Cartesian Excel export unit test', () => {
+  const sampleCarpoolData = {
+    eventId: '1957',
+    meta: {
+      id: '1957',
+      title: 'Lassen Volcanic Campout',
+      location: 'Manzanita Lake Campground',
+      start: '10/02/2026 7:00 AM',
+      end: '10/04/2026 3:00 PM',
+    },
+    drivers: [
+      {
+        name: 'Clayshulte, Alison',
+        phone: '925-555-0199',
+        seats: 4, // 3 passenger seats
+        attending: 'Y',
+        drivingToFrom: 'Both',
+        comment: 'Taking Anya and Evelyn',
+        registeredVehicle: 'Subaru Outback 2022',
+        claimedScoutsTo: ['Lavrinets, Anya', 'Adams, Evelyn'],
+        claimedScoutsFrom: ['Lavrinets, Anya', 'Adams, Evelyn'],
+        isCompliant: true,
+      },
+      {
+        name: 'Kersten, David',
+        phone: '925-555-0188',
+        seats: 3, // 2 passenger seats
+        attending: 'Y',
+        drivingToFrom: 'To',
+        comment: 'Driving TO only',
+        registeredVehicle: 'Ford F-150',
+        claimedScoutsTo: ['Kersten, Luke'],
+        claimedScoutsFrom: [],
+        isCompliant: false,
+      },
+    ],
+    scouts: [
+      {
+        name: 'Lavrinets, Anya',
+        patrol: 'Sun Bear',
+        permissionGiven: 'Yes',
+        medicalNeeded: 'None',
+        parentNames: 'Olga Lavrinets',
+        parentPhone: '925-555-1111',
+        age: '13',
+        grade: '8',
+      },
+      {
+        name: 'Adams, Evelyn',
+        patrol: 'Sun Bear',
+        permissionGiven: 'Yes',
+        medicalNeeded: 'A B',
+        parentNames: 'Melanie Adams',
+        parentPhone: '925-555-2222',
+        age: '12',
+        grade: '7',
+      },
+      {
+        name: 'Kersten, Luke',
+        patrol: 'Gator',
+        permissionGiven: 'Yes',
+        medicalNeeded: 'None',
+        parentNames: 'David Kersten',
+        parentPhone: '925-555-0188',
+        age: '14',
+        grade: '9',
+      },
+      {
+        name: 'Unassigned, Sam',
+        patrol: 'Gator',
+        permissionGiven: 'No',
+        medicalNeeded: 'B',
+        parentNames: 'Alex Unassigned',
+        parentPhone: '925-555-3333',
+        age: '11',
+        grade: '6',
+      },
+    ],
+    adults: [],
+  };
+
+  it('generates a tabular Excel workbook with standard default columns (excluding comments)', async () => {
+    const { buildTabularWorkbook, STANDARD_TABULAR_COLUMNS } = await import('../excel-export.js');
+    const workbook = await buildTabularWorkbook(sampleCarpoolData, null, null, {
+      columns: STANDARD_TABULAR_COLUMNS,
+      splitTripLegs: true,
+      includeOpenSeats: true,
+      includeUnassigned: true,
+    });
+
+    const sheet = workbook.getWorksheet('Carpool Tabular');
+    assert.ok(sheet, 'Should create Carpool Tabular worksheet');
+
+    // Headers in row 1
+    const row1 = sheet.getRow(1);
+    assert.equal(row1.getCell(1).value, 'Trip Leg');
+    assert.equal(row1.getCell(2).value, 'Driver Name');
+    assert.equal(row1.getCell(STANDARD_TABULAR_COLUMNS.length).value, 'Medical Forms Needed');
+
+    // Verify comments are not in standard columns
+    const headerValues = [];
+    row1.eachCell(cell => headerValues.push(cell.value));
+    assert.ok(!headerValues.includes('Driver Comment'), 'Standard default must not include Driver Comment');
+    assert.ok(!headerValues.includes('Rider Attendance Comment'), 'Standard default must not include Rider Attendance Comment');
+  });
+
+  it('generates discrete TO and FROM rows when splitTripLegs is true', async () => {
+    const { buildTabularWorkbook } = await import('../excel-export.js');
+    const workbook = await buildTabularWorkbook(sampleCarpoolData, null, null, {
+      splitTripLegs: true,
+      includeOpenSeats: true,
+      includeUnassigned: true,
+    });
+
+    const sheet = workbook.getWorksheet('Carpool Tabular');
+    const tripLegColIdx = 1; // Trip Leg is first column in default
+
+    const tripLegs = [];
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        tripLegs.push(row.getCell(tripLegColIdx).value);
+      }
+    });
+
+    assert.ok(tripLegs.includes('TO'), 'Should have TO rows');
+    assert.ok(tripLegs.includes('FROM'), 'Should have FROM rows');
+    assert.ok(!tripLegs.includes('Both'), 'Should not have "Both" rows when splitTripLegs is true');
+  });
+
+  it('coalesces identical rides into "Both" when splitTripLegs is false', async () => {
+    const { buildTabularWorkbook } = await import('../excel-export.js');
+    const workbook = await buildTabularWorkbook(sampleCarpoolData, null, null, {
+      splitTripLegs: false,
+      includeOpenSeats: true,
+      includeUnassigned: true,
+    });
+
+    const sheet = workbook.getWorksheet('Carpool Tabular');
+    const tripLegs = [];
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        tripLegs.push(row.getCell(1).value);
+      }
+    });
+
+    assert.ok(tripLegs.includes('Both'), 'Should have "Both" rows when splitTripLegs is false');
+    assert.ok(tripLegs.includes('TO only'), 'Should have "TO only" for Kersten David who only drives TO');
+  });
+
+  it('generates open seat rows and unassigned scout rows', async () => {
+    const { buildTabularWorkbook } = await import('../excel-export.js');
+    const workbook = await buildTabularWorkbook(sampleCarpoolData, null, null, {
+      columns: ['trip_leg', 'adult_name', 'rider_name'],
+      splitTripLegs: true,
+      includeOpenSeats: true,
+      includeUnassigned: true,
+    });
+
+    const sheet = workbook.getWorksheet('Carpool Tabular');
+    const riderNames = [];
+    const driverNames = [];
+
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        driverNames.push(row.getCell(2).value);
+        riderNames.push(row.getCell(3).value);
+      }
+    });
+
+    assert.ok(riderNames.includes('[Open Seat]'), 'Should contain [Open Seat] rows for unused capacity');
+    assert.ok(driverNames.includes('(Unassigned)'), 'Should contain (Unassigned) rows for unassigned scouts');
+    assert.ok(riderNames.some(r => r && r.includes('Unassigned, Sam')), 'Sam Unassigned should appear in unassigned rows');
+  });
+
+  it('applies custom working state from coordinator page', async () => {
+    const { buildTabularWorkbook } = await import('../excel-export.js');
+
+    const customState = {
+      title: 'Custom Lassen 2026',
+      toDrivers: [
+        {
+          name: 'Clayshulte, Alison',
+          seats: 3,
+          riders: [{ name: 'Custom, ScoutA', type: 'scout' }],
+        },
+      ],
+      fromDrivers: [
+        {
+          name: 'Clayshulte, Alison',
+          seats: 3,
+          riders: [{ name: 'Custom, ScoutA', type: 'scout' }],
+        },
+      ],
+      unassignedScouts: [],
+    };
+
+    const workbook = await buildTabularWorkbook(sampleCarpoolData, null, customState, {
+      columns: ['trip_leg', 'adult_name', 'rider_name'],
+      splitTripLegs: false,
+      includeOpenSeats: false,
+      includeUnassigned: false,
+    });
+
+    const sheet = workbook.getWorksheet('Carpool Tabular');
+    const riderNames = [];
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        riderNames.push(row.getCell(3).value);
+      }
+    });
+
+    assert.ok(riderNames.includes('Custom, ScoutA'), 'Should export riders from customState');
+  });
+
+  it('resolves scout attributes on driver rows and prevents duplicate unassigned rows when names use "First Last"', async () => {
+    const { buildTabularWorkbook } = await import('../excel-export.js');
+
+    const testCarpool = {
+      meta: { title: 'Lassen Volcanic 2026' },
+      drivers: [
+        {
+          name: 'Clayshulte, Alison',
+          attending: 'Y',
+          seats: 4,
+          drivingToFrom: 'Both',
+          // Driver comment parsing yields First Last or objects with originalName
+          claimedScoutsTo: [
+            { name: 'Anya Lavrinets', originalName: 'Lavrinets, Anya', status: 'confirmed' },
+            { name: 'Evelyn Adams', originalName: 'Adams, Evelyn', status: 'confirmed' },
+          ],
+          claimedScoutsFrom: [
+            { name: 'Anya Lavrinets', originalName: 'Lavrinets, Anya', status: 'confirmed' },
+            { name: 'Evelyn Adams', originalName: 'Adams, Evelyn', status: 'confirmed' },
+          ],
+        },
+      ],
+      scouts: [
+        {
+          name: 'Lavrinets, Anya',
+          patrol: 'Sun Bear',
+          parentNames: 'Olga Lavrinets',
+          parentPhone: '925-555-1111',
+          age: '13',
+          grade: '8',
+          rank: 'First Class',
+        },
+        {
+          name: 'Adams, Evelyn',
+          patrol: 'Sun Bear',
+          parentNames: 'Melanie Adams',
+          parentPhone: '925-555-2222',
+          age: '12',
+          grade: '7',
+          rank: 'Second Class',
+        },
+        {
+          name: 'Unassigned, Sam',
+          patrol: 'Gator',
+          parentNames: 'Alex Unassigned',
+          parentPhone: '925-555-3333',
+          age: '11',
+          grade: '6',
+          rank: 'Scout',
+        },
+      ],
+      adults: [],
+    };
+
+    const workbook = await buildTabularWorkbook(testCarpool, null, null, {
+      columns: [
+        'trip_leg',
+        'adult_name',
+        'rider_name',
+        'rider_patrol',
+        'rider_parent_names',
+        'rider_parent_phone',
+        'rider_age',
+        'rider_grade',
+        'rider_rank',
+      ],
+      splitTripLegs: true,
+      includeOpenSeats: true,
+      includeUnassigned: true,
+    });
+
+    const sheet = workbook.getWorksheet('Carpool Tabular');
+    const rows = [];
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        rows.push({
+          leg: row.getCell(1).value,
+          driver: row.getCell(2).value,
+          rider: row.getCell(3).value,
+          patrol: row.getCell(4).value,
+          parentNames: row.getCell(5).value,
+          parentPhone: row.getCell(6).value,
+          age: row.getCell(7).value,
+          grade: row.getCell(8).value,
+          rank: row.getCell(9).value,
+        });
+      }
+    });
+
+    // 1. Check Anya on driver row
+    const anyaDriverRow = rows.find(r => r.driver && r.driver.includes('Clayshulte') && r.rider.includes('Lavrinets, Anya'));
+    assert.ok(anyaDriverRow, 'Anya Lavrinets must appear on a driver row');
+    assert.equal(anyaDriverRow.patrol, 'Sun Bear', 'Patrol must be populated on driver row');
+    assert.equal(anyaDriverRow.parentNames, 'Olga Lavrinets', 'Parent names must be populated on driver row');
+    assert.equal(anyaDriverRow.parentPhone, '925-555-1111', 'Parent phone must be populated on driver row');
+    assert.equal(anyaDriverRow.age, '13', 'Age must be populated on driver row');
+    assert.equal(anyaDriverRow.grade, '8', 'Grade must be populated on driver row');
+    assert.equal(anyaDriverRow.rank, 'First Class', 'Rank must be populated on driver row');
+
+    // 2. Check Evelyn on driver row
+    const evelynDriverRow = rows.find(r => r.driver && r.driver.includes('Clayshulte') && r.rider.includes('Adams, Evelyn'));
+    assert.ok(evelynDriverRow, 'Evelyn Adams must appear on a driver row');
+    assert.equal(evelynDriverRow.patrol, 'Sun Bear');
+    assert.equal(evelynDriverRow.parentNames, 'Melanie Adams');
+
+    // 3. Check unassigned rows
+    const unassignedRows = rows.filter(r => r.driver === '(Unassigned)');
+    assert.equal(unassignedRows.length, 2, 'Should have exactly 2 unassigned rows (1 for TO, 1 for FROM for Sam Unassigned)');
+    unassignedRows.forEach(ur => {
+      assert.ok(ur.rider.includes('Unassigned, Sam'), 'Only Sam Unassigned should appear in unassigned rows');
+      assert.ok(!ur.rider.includes('Lavrinets'), 'Assigned scout Anya Lavrinets must NOT appear in unassigned rows');
+      assert.ok(!ur.rider.includes('Adams'), 'Assigned scout Evelyn Adams must NOT appear in unassigned rows');
+    });
   });
 });

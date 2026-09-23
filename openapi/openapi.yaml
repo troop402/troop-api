@@ -295,6 +295,135 @@ paths:
                   error:
                     type: string
 
+  /api/events/{id}/tabular.xlsx:
+    get:
+      operationId: exportEventCarpoolTabularExcel
+      summary: Download event carpool flat cartesian tabular Excel spreadsheet
+      description: Generates a single-sheet flat cartesian tabular Excel (.xlsx) workbook where each driver-rider combination is split into its own row, with selectable columns and trip leg splitting.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The TroopWebHost event ID
+          schema:
+            type: string
+            example: '1957'
+        - name: columns
+          in: query
+          required: false
+          description: Comma-separated list of column IDs in desired display order
+          schema:
+            type: string
+            example: 'trip_leg,adult_name,adult_cell,rider_name,rider_patrol'
+        - name: splitTripLegs
+          in: query
+          required: false
+          description: When true (default), emits discrete TO and FROM rows. When false, coalesces identical rides into a single row marked "Both".
+          schema:
+            type: boolean
+            default: true
+        - name: includeOpenSeats
+          in: query
+          required: false
+          description: When true (default), emits a row for each open seat offered by drivers.
+          schema:
+            type: boolean
+            default: true
+        - name: includeUnassigned
+          in: query
+          required: false
+          description: When true (default), emits rows for attending scouts without assigned rides.
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Tabular Excel spreadsheet download
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid event ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Failed to generate tabular spreadsheet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+    post:
+      operationId: exportEventCarpoolTabularExcelWithCustomState
+      summary: Download event carpool tabular Excel spreadsheet with custom state and column selection
+      description: Generates a flat cartesian tabular Excel (.xlsx) workbook accepting live coordinator edits, customized column lists, and trip leg options.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The TroopWebHost event ID
+          schema:
+            type: string
+            example: '1957'
+      requestBody:
+        description: Tabular export configuration and optional live coordinator working state
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                columns:
+                  type: array
+                  items:
+                    type: string
+                splitTripLegs:
+                  type: boolean
+                  default: true
+                includeOpenSeats:
+                  type: boolean
+                  default: true
+                includeUnassigned:
+                  type: boolean
+                  default: true
+                customState:
+                  type: object
+      responses:
+        '200':
+          description: Tabular Excel spreadsheet download
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid event ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Failed to generate tabular spreadsheet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
   /api/events/{id}/carpool:
     get:
       operationId: getEventCarpool

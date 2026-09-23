@@ -355,6 +355,73 @@
     .modal-close:hover { color: #0f172a; }
     .modal-body { padding: 1.25rem; overflow-y: auto; max-height: 70vh; }
 
+    /* Tabular Export Modal Styles */
+    .tabular-opt-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .tabular-opt-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.55rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: #1e293b;
+    }
+    .tabular-opt-row input[type="checkbox"] {
+      margin-top: 0.15rem;
+      cursor: pointer;
+      accent-color: #0f766e;
+    }
+    .tabular-opt-desc {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      margin-top: 0.1rem;
+    }
+    .tabular-col-category {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      margin: 0.85rem 0 0.4rem 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tabular-col-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.35rem 0.75rem;
+    }
+    .tabular-col-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+      user-select: none;
+      padding: 0.25rem 0.4rem;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+    .tabular-col-item:hover {
+      background: #f1f5f9;
+    }
+    .tabular-col-item input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: #0f766e;
+    }
+
     /* Print Formatting */
     @media print {
       @page {
@@ -456,6 +523,7 @@
           <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View or edit sign-ups directly in TroopWebHost">🌐 TWH Sign-Ups</a>
           <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View event details directly in TroopWebHost">📅 TWH Event</a>
           <button id="downloadExcelBtn" class="btn" onclick="downloadExcel()">📥 Download Excel (.xlsx)</button>
+          <button id="tabularExportBtn" class="btn" style="background:#0f766e; color:#fff; border-color:#0f766e;" onclick="openTabularExportModal()" title="Export flat cartesian spreadsheet with customizable columns">📑 Tabular Export (.xlsx)</button>
           <button id="copyLinkBtn" class="btn" onclick="copyShareableLink()">📋 Copy Shareable Link</button>
           <button class="btn btn-primary" onclick="window.print()">🖨️ Print Departure Sheet</button>
           <button id="refreshBtn" class="btn" onclick="refreshData()">🔄 Refresh</button>
@@ -661,6 +729,76 @@
           </div>
           <div class="modal-body">
             <p id="noteModalContent" style="font-size:0.95rem; white-space:pre-wrap; color:#1e293b; line-height:1.5;"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Tabular Excel Export -->
+      <div id="tabularExportModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'tabularExportModal')">
+        <div class="modal-dialog" style="max-width: 680px;">
+          <div class="modal-header">
+            <div>
+              <h3 style="display:flex; align-items:center; gap:0.4rem;">📑 Tabular Cartesian Export (.xlsx)</h3>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">
+                Export individual driver-rider rows into a flat, filterable spreadsheet with customizable columns.
+              </div>
+            </div>
+            <button class="modal-close" onclick="closeModal('tabularExportModal')">&times;</button>
+          </div>
+          <div class="modal-body">
+            <!-- Quick Preset & Selection Actions -->
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+              <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="resetTabularToStandardDefault()">↺ Reset to Standard Default</button>
+                <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="selectTabularColumns(true)">Select All</button>
+                <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="selectTabularColumns(false)">Clear All</button>
+              </div>
+              <span id="tabularColCount" style="font-size:0.78rem; font-weight:700; color:#0f766e; background:#ccfbf1; padding:0.2rem 0.5rem; border-radius:4px;">
+                12 columns selected
+              </span>
+            </div>
+
+            <!-- Generation & Row Options -->
+            <div class="tabular-opt-box">
+              <label class="tabular-opt-row">
+                <input type="checkbox" id="tabOptSplitTripLegs" checked onchange="onTabularOptionChanged()">
+                <div>
+                  <strong>Split TO &amp; FROM into separate rows</strong>
+                  <div class="tabular-opt-desc">When checked, produces distinct rows for outbound (TO) and return (FROM) legs. When unchecked, combines identical rides into a single row marked "Both".</div>
+                </div>
+              </label>
+              <label class="tabular-opt-row">
+                <input type="checkbox" id="tabOptIncludeOpenSeats" checked onchange="onTabularOptionChanged()">
+                <div>
+                  <strong>Include Open Seats as separate rows</strong>
+                  <div class="tabular-opt-desc">Emits extra rows with <em>[Open Seat]</em> for unfilled vehicle capacity.</div>
+                </div>
+              </label>
+              <label class="tabular-opt-row">
+                <input type="checkbox" id="tabOptIncludeUnassigned" checked onchange="onTabularOptionChanged()">
+                <div>
+                  <strong>Include Unassigned Scouts</strong>
+                  <div class="tabular-opt-desc">Emits rows for attending scouts who do not currently have a ride assigned.</div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Selectable Columns List (Rendered dynamically) -->
+            <div style="font-weight:700; font-size:0.85rem; color:#1e293b; margin-bottom:0.25rem;">
+              Select Columns to Export:
+            </div>
+            <div id="tabularColumnsContainer"></div>
+          </div>
+          <div class="modal-footer" style="padding:0.85rem 1.25rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:#fafafa; border-radius:0 0 10px 10px;">
+            <span style="font-size:0.72rem; color:var(--text-muted);">
+              💾 Selections save automatically in browser
+            </span>
+            <div style="display:flex; gap:0.5rem;">
+              <button type="button" class="btn" onclick="closeModal('tabularExportModal')">Cancel</button>
+              <button type="button" id="btnExecuteTabularExport" class="btn btn-primary" style="background:#0f766e; border-color:#0f766e;" onclick="downloadTabularExcel()">
+                📥 Export Spreadsheet (.xlsx)
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1491,19 +1629,253 @@
       document.getElementById('noteModal').style.display = 'flex';
     }
 
+    function closeModal(modalId) {
+      const el = document.getElementById(modalId);
+      if (el) el.style.display = 'none';
+    }
+
     function closeNoteModal() {
-      document.getElementById('noteModal').style.display = 'none';
+      closeModal('noteModal');
     }
 
     function handleModalOverlayClick(e, modalId) {
       if (e.target.id === modalId) {
-        closeNoteModal();
+        closeModal(modalId);
       }
     }
 
     function downloadExcel() {
       if (!eventId) return;
       window.location.href = `/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`;
+    }
+
+    // ==========================================
+    // TABULAR CARTESIAN EXPORT MODAL LOGIC
+    // ==========================================
+    const TABULAR_STORAGE_KEY = 'twh_tabular_export_settings';
+
+    const STANDARD_TABULAR_COLUMNS = [
+      'trip_leg',
+      'adult_name',
+      'adult_cell',
+      'adult_vehicle',
+      'adult_passenger_seats',
+      'seat_number',
+      'rider_name',
+      'rider_patrol',
+      'rider_parent_names',
+      'rider_parent_phone',
+      'rider_permission',
+      'rider_medical_forms',
+    ];
+
+    const TABULAR_COLUMNS = [
+      // Trip & Event Details
+      { id: 'trip_leg', label: 'Trip Leg', category: 'Trip & Event' },
+      { id: 'seat_number', label: 'Seat #', category: 'Trip & Event' },
+      { id: 'event_title', label: 'Event Title', category: 'Trip & Event' },
+      { id: 'event_date', label: 'Event Date', category: 'Trip & Event' },
+      { id: 'event_location', label: 'Event Location', category: 'Trip & Event' },
+
+      // Adult / Driver Details
+      { id: 'adult_name', label: 'Driver Name', category: 'Adult / Driver' },
+      { id: 'adult_cell', label: 'Driver Cell', category: 'Adult / Driver' },
+      { id: 'adult_email', label: 'Driver Email', category: 'Adult / Driver' },
+      { id: 'adult_leader_role', label: 'Leader Role', category: 'Adult / Driver' },
+      { id: 'adult_syt', label: 'SYT Status', category: 'Adult / Driver' },
+      { id: 'adult_state_training', label: 'State Training (AB506)', category: 'Adult / Driver' },
+      { id: 'adult_safety_compliant', label: 'Safety Compliant', category: 'Adult / Driver' },
+      { id: 'adult_total_seats', label: 'Total Vehicle Seats', category: 'Adult / Driver' },
+      { id: 'adult_passenger_seats', label: 'Passenger Capacity', category: 'Adult / Driver' },
+      { id: 'adult_vehicle', label: 'Vehicle Info', category: 'Adult / Driver' },
+      { id: 'adult_license_plate', label: 'License Plate', category: 'Adult / Driver' },
+      { id: 'adult_driver_status', label: 'Driver Status', category: 'Adult / Driver' },
+      { id: 'adult_trip_legs', label: 'Driver Registered Legs', category: 'Adult / Driver' },
+      { id: 'adult_attending', label: 'Adult Attending?', category: 'Adult / Driver' },
+      { id: 'adult_comment', label: 'Driver Comment', category: 'Adult / Driver' },
+      { id: 'adult_custom_note', label: 'Coordinator Note', category: 'Adult / Driver' },
+
+      // Rider / Passenger Details
+      { id: 'rider_type', label: 'Rider Type', category: 'Rider / Passenger' },
+      { id: 'rider_name', label: 'Rider Name', category: 'Rider / Passenger' },
+      { id: 'rider_parent_names', label: 'Parent / Emergency Contact', category: 'Rider / Passenger' },
+      { id: 'rider_parent_phone', label: 'Parent Contact Phone', category: 'Rider / Passenger' },
+      { id: 'rider_patrol', label: 'Patrol', category: 'Rider / Passenger' },
+      { id: 'rider_rank', label: 'Rank', category: 'Rider / Passenger' },
+      { id: 'rider_age', label: 'Age', category: 'Rider / Passenger' },
+      { id: 'rider_grade', label: 'Grade', category: 'Rider / Passenger' },
+      { id: 'rider_trip_legs', label: 'Rider Trip Legs', category: 'Rider / Passenger' },
+      { id: 'rider_permission', label: 'Permission Slip', category: 'Rider / Passenger' },
+      { id: 'rider_medical_forms', label: 'Medical Forms Needed', category: 'Rider / Passenger' },
+      { id: 'rider_medical_part_a', label: 'Medical Part A', category: 'Rider / Passenger' },
+      { id: 'rider_medical_part_b', label: 'Medical Part B', category: 'Rider / Passenger' },
+      { id: 'rider_medical_part_c', label: 'Medical Part C', category: 'Rider / Passenger' },
+      { id: 'rider_bsa_registered', label: 'BSA Registered', category: 'Rider / Passenger' },
+      { id: 'rider_bsa_id', label: 'BSA ID', category: 'Rider / Passenger' },
+      { id: 'rider_swim_test', label: 'Swim Test', category: 'Rider / Passenger' },
+      { id: 'rider_swim_date', label: 'Swim Date', category: 'Rider / Passenger' },
+      { id: 'rider_attendance_comment', label: 'Rider Attendance Comment', category: 'Rider / Passenger' },
+      { id: 'rider_allergies', label: 'Allergies', category: 'Rider / Passenger' },
+      { id: 'rider_dietary', label: 'Dietary Restrictions', category: 'Rider / Passenger' },
+    ];
+
+    function getSavedTabularSettings() {
+      try {
+        const raw = localStorage.getItem(TABULAR_STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return {
+        columns: STANDARD_TABULAR_COLUMNS,
+        splitTripLegs: true,
+        includeOpenSeats: true,
+        includeUnassigned: true,
+      };
+    }
+
+    function saveTabularSettings(settings) {
+      try {
+        localStorage.setItem(TABULAR_STORAGE_KEY, JSON.stringify(settings));
+      } catch (e) {}
+    }
+
+    function openTabularExportModal() {
+      const settings = getSavedTabularSettings();
+      document.getElementById('tabOptSplitTripLegs').checked = settings.splitTripLegs !== false;
+      document.getElementById('tabOptIncludeOpenSeats').checked = settings.includeOpenSeats !== false;
+      document.getElementById('tabOptIncludeUnassigned').checked = settings.includeUnassigned !== false;
+
+      renderTabularColumnChecklist(settings.columns || STANDARD_TABULAR_COLUMNS);
+      const modal = document.getElementById('tabularExportModal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function renderTabularColumnChecklist(selectedColIds = []) {
+      const container = document.getElementById('tabularColumnsContainer');
+      const selectedSet = new Set(selectedColIds);
+
+      // Group by category
+      const categories = ['Trip & Event', 'Adult / Driver', 'Rider / Passenger'];
+      let html = '';
+
+      categories.forEach(cat => {
+        const catCols = TABULAR_COLUMNS.filter(c => c.category === cat);
+        html += `<div class="tabular-col-category"><span>${escapeHtml(cat)}</span></div>`;
+        html += `<div class="tabular-col-grid">`;
+        catCols.forEach(col => {
+          const checked = selectedSet.has(col.id) ? 'checked' : '';
+          html += `
+            <label class="tabular-col-item">
+              <input type="checkbox" name="tabularCol" value="${escapeHtml(col.id)}" ${checked} onchange="onTabularOptionChanged()">
+              <span>${escapeHtml(col.label)}</span>
+            </label>
+          `;
+        });
+        html += `</div>`;
+      });
+
+      container.innerHTML = html;
+      updateTabularColCountBadge();
+    }
+
+    function updateTabularColCountBadge() {
+      const checkedBoxes = document.querySelectorAll('input[name="tabularCol"]:checked');
+      const badge = document.getElementById('tabularColCount');
+      if (badge) {
+        badge.textContent = `${checkedBoxes.length} column${checkedBoxes.length === 1 ? '' : 's'} selected`;
+      }
+    }
+
+    function onTabularOptionChanged() {
+      updateTabularColCountBadge();
+      const checkedCols = Array.from(document.querySelectorAll('input[name="tabularCol"]:checked')).map(el => el.value);
+      saveTabularSettings({
+        columns: checkedCols,
+        splitTripLegs: document.getElementById('tabOptSplitTripLegs').checked,
+        includeOpenSeats: document.getElementById('tabOptIncludeOpenSeats').checked,
+        includeUnassigned: document.getElementById('tabOptIncludeUnassigned').checked,
+      });
+    }
+
+    function resetTabularToStandardDefault() {
+      document.getElementById('tabOptSplitTripLegs').checked = true;
+      document.getElementById('tabOptIncludeOpenSeats').checked = true;
+      document.getElementById('tabOptIncludeUnassigned').checked = true;
+      renderTabularColumnChecklist(STANDARD_TABULAR_COLUMNS);
+      saveTabularSettings({
+        columns: STANDARD_TABULAR_COLUMNS,
+        splitTripLegs: true,
+        includeOpenSeats: true,
+        includeUnassigned: true,
+      });
+    }
+
+    function selectTabularColumns(select) {
+      document.querySelectorAll('input[name="tabularCol"]').forEach(cb => {
+        cb.checked = Boolean(select);
+      });
+      onTabularOptionChanged();
+    }
+
+    async function downloadTabularExcel() {
+      const btn = document.getElementById('btnExecuteTabularExport');
+      const origText = btn.textContent;
+      try {
+        btn.textContent = '⏳ Generating...';
+        btn.disabled = true;
+
+        const checkedCols = Array.from(document.querySelectorAll('input[name="tabularCol"]:checked')).map(el => el.value);
+        if (checkedCols.length === 0) {
+          alert('Please select at least one column to export.');
+          btn.textContent = origText;
+          btn.disabled = false;
+          return;
+        }
+
+        const splitTripLegs = document.getElementById('tabOptSplitTripLegs').checked;
+        const includeOpenSeats = document.getElementById('tabOptIncludeOpenSeats').checked;
+        const includeUnassigned = document.getElementById('tabOptIncludeUnassigned').checked;
+
+        // Persist preferences
+        saveTabularSettings({
+          columns: checkedCols,
+          splitTripLegs,
+          includeOpenSeats,
+          includeUnassigned,
+        });
+
+        const payload = {
+          columns: checkedCols,
+          splitTripLegs,
+          includeOpenSeats,
+          includeUnassigned,
+        };
+
+        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error('Failed to generate tabular spreadsheet');
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeTitle = (currentData?.meta?.title || 'event').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+        a.download = `carpool_tabular_${eventId}_${safeTitle}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        closeModal('tabularExportModal');
+      } catch (err) {
+        alert('Error downloading tabular spreadsheet: ' + err.message);
+      } finally {
+        btn.textContent = origText;
+        btn.disabled = false;
+      }
     }
 
     function copyShareableLink() {
