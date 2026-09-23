@@ -937,9 +937,15 @@ const COLUMN_EXTRACTORS = {
   rider_dietary: row => (row.rider ? (row.rider.dietary || '') : ''),
 };
 
-function normalizeNameKey(name) {
+export function normalizeNameKey(name) {
   if (!name || typeof name !== 'string') return '';
-  return name.replace(/,/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  const trimmed = name.trim().toLowerCase();
+  let firstLast = trimmed;
+  if (trimmed.includes(',')) {
+    const [last, ...firstParts] = trimmed.split(',');
+    firstLast = `${firstParts.join(' ').trim()} ${last.trim()}`;
+  }
+  return firstLast.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -980,27 +986,82 @@ export async function buildTabularWorkbook(
 
   // Build lookup index for scouts
   const scoutsByName = new Map();
-  scouts.forEach(s => {
-    scoutsByName.set(normalizeNameKey(s.name), s);
-  });
+
+  function addScoutToIndex(scoutObj) {
+    if (!scoutObj || !scoutObj.name) return;
+    const name = scoutObj.name;
+    const norm = normalizeNameKey(name);
+    if (!scoutsByName.has(norm)) {
+      scoutsByName.set(norm, scoutObj);
+    } else {
+      const existing = scoutsByName.get(norm);
+      for (const [k, v] of Object.entries(scoutObj)) {
+        if ((existing[k] === undefined || existing[k] === null || existing[k] === '') && v !== undefined && v !== null && v !== '') {
+          existing[k] = v;
+        }
+      }
+    }
+
+    const parts = norm.split(' ').filter(Boolean);
+    if (parts.length > 2) {
+      const fl = `${parts[0]} ${parts[parts.length - 1]}`;
+      if (!scoutsByName.has(fl)) scoutsByName.set(fl, scoutObj);
+    }
+
+    const rawLower = name.trim().toLowerCase();
+    if (!scoutsByName.has(rawLower)) scoutsByName.set(rawLower, scoutObj);
+
+    if (scoutObj.originalName && scoutObj.originalName !== name) {
+      const origNorm = normalizeNameKey(scoutObj.originalName);
+      if (!scoutsByName.has(origNorm)) scoutsByName.set(origNorm, scoutObj);
+    }
+  }
+
+  scouts.forEach(s => addScoutToIndex(s));
+
   if (rosterSummary && rosterSummary.membersByName) {
-    for (const [key, m] of rosterSummary.membersByName.entries()) {
-      if (!m.isAdult && !scoutsByName.has(normalizeNameKey(m.name))) {
-        scoutsByName.set(normalizeNameKey(m.name), m);
+    for (const [, m] of rosterSummary.membersByName.entries()) {
+      if (!m.isAdult) {
+        addScoutToIndex(m);
       }
     }
   }
 
   // Helper to resolve enriched scout object
-  function resolveScout(name) {
-    if (!name) return null;
-    const norm = normalizeNameKey(name);
+  function resolveScout(riderInput) {
+    if (!riderInput) return null;
+
+    if (typeof riderInput === 'object' && riderInput.originalName) {
+      const origNorm = normalizeNameKey(riderInput.originalName);
+      if (scoutsByName.has(origNorm)) return scoutsByName.get(origNorm);
+    }
+
+    const rawName = typeof riderInput === 'string' ? riderInput : (riderInput.name || '');
+    if (!rawName) return typeof riderInput === 'object' ? riderInput : null;
+
+    const norm = normalizeNameKey(rawName);
     if (scoutsByName.has(norm)) return scoutsByName.get(norm);
-    // Partial search fallback
+
+    const parts = norm.split(' ').filter(Boolean);
+    if (parts.length > 2) {
+      const fl = `${parts[0]} ${parts[parts.length - 1]}`;
+      if (scoutsByName.has(fl)) return scoutsByName.get(fl);
+    }
+
+    if (parts.length >= 2) {
+      for (const [k, sc] of scoutsByName.entries()) {
+        const kParts = k.split(' ').filter(Boolean);
+        if (kParts.length >= 2 && kParts[0] === parts[0] && kParts[kParts.length - 1] === parts[parts.length - 1]) {
+          return sc;
+        }
+      }
+    }
+
     for (const [k, sc] of scoutsByName.entries()) {
       if (k.includes(norm) || norm.includes(k)) return sc;
     }
-    return { name };
+
+    return typeof riderInput === 'object' ? riderInput : { name: rawName };
   }
 
   // Build TO and FROM driver collections
@@ -1041,15 +1102,31 @@ export async function buildTabularWorkbook(
       const claimedScoutsTo = d.claimedScoutsTo || d.claimedScouts || [];
       const claimedAdultsTo = d.claimedAdultsTo || d.claimedAdults || [];
       const ridersTo = [
-        ...claimedScoutsTo.map(s => ({ name: typeof s === 'string' ? s : s.name, type: 'scout' })),
-        ...claimedAdultsTo.map(a => ({ name: typeof a === 'string' ? a : a.name, type: 'adult' })),
+        ...claimedScoutsTo.map(s => ({
+          name: typeof s === 'string' ? s : s.name,
+          originalName: typeof s === 'object' ? s.originalName : s,
+          type: 'scout',
+        })),
+        ...claimedAdultsTo.map(a => ({
+          name: typeof a === 'string' ? a : a.name,
+          originalName: typeof a === 'object' ? a.originalName : a,
+          type: 'adult',
+        })),
       ];
 
       const claimedScoutsFrom = d.claimedScoutsFrom || d.claimedScouts || [];
       const claimedAdultsFrom = d.claimedAdultsFrom || d.claimedAdults || [];
       const ridersFrom = [
-        ...claimedScoutsFrom.map(s => ({ name: typeof s === 'string' ? s : s.name, type: 'scout' })),
-        ...claimedAdultsFrom.map(a => ({ name: typeof a === 'string' ? a : a.name, type: 'adult' })),
+        ...claimedScoutsFrom.map(s => ({
+          name: typeof s === 'string' ? s : s.name,
+          originalName: typeof s === 'object' ? s.originalName : s,
+          type: 'scout',
+        })),
+        ...claimedAdultsFrom.map(a => ({
+          name: typeof a === 'string' ? a : a.name,
+          originalName: typeof a === 'object' ? a.originalName : a,
+          type: 'adult',
+        })),
       ];
 
       const driverObj = {
@@ -1073,19 +1150,46 @@ export async function buildTabularWorkbook(
   const assignedToKeys = new Set();
   toDriversList.forEach(d => {
     (d.riders || []).forEach(r => {
-      if (r && r.name) assignedToKeys.add(normalizeNameKey(typeof r === 'string' ? r : r.name));
+      if (!r || r.type === 'adult') return;
+      const nameStr = typeof r === 'string' ? r : r.name;
+      if (nameStr) assignedToKeys.add(normalizeNameKey(nameStr));
+      if (typeof r === 'object' && r.originalName) assignedToKeys.add(normalizeNameKey(r.originalName));
     });
   });
 
   const assignedFromKeys = new Set();
   fromDriversList.forEach(d => {
     (d.riders || []).forEach(r => {
-      if (r && r.name) assignedFromKeys.add(normalizeNameKey(typeof r === 'string' ? r : r.name));
+      if (!r || r.type === 'adult') return;
+      const nameStr = typeof r === 'string' ? r : r.name;
+      if (nameStr) assignedFromKeys.add(normalizeNameKey(nameStr));
+      if (typeof r === 'object' && r.originalName) assignedFromKeys.add(normalizeNameKey(r.originalName));
     });
   });
 
-  const unassignedToScouts = scouts.filter(s => !assignedToKeys.has(normalizeNameKey(s.name)));
-  const unassignedFromScouts = scouts.filter(s => !assignedFromKeys.has(normalizeNameKey(s.name)));
+  function isScoutAssigned(scout, assignedKeySet) {
+    if (!scout || !scout.name) return false;
+    const norm = normalizeNameKey(scout.name);
+    if (assignedKeySet.has(norm)) return true;
+
+    const parts = norm.split(' ').filter(Boolean);
+    if (parts.length > 2) {
+      if (assignedKeySet.has(`${parts[0]} ${parts[parts.length - 1]}`)) return true;
+    }
+
+    if (parts.length >= 2) {
+      for (const assignedKey of assignedKeySet) {
+        const aParts = assignedKey.split(' ').filter(Boolean);
+        if (aParts.length >= 2 && aParts[0] === parts[0] && aParts[aParts.length - 1] === parts[parts.length - 1]) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  const unassignedToScouts = scouts.filter(s => !isScoutAssigned(s, assignedToKeys));
+  const unassignedFromScouts = scouts.filter(s => !isScoutAssigned(s, assignedFromKeys));
 
   // Generate cartesian rows
   let rows = [];
@@ -1113,7 +1217,7 @@ export async function buildTabularWorkbook(
             const isAdult = riderEntry.type === 'adult';
             const riderObj = isAdult
               ? { name: riderName, bsaRegistered: 'Current' }
-              : resolveScout(riderName);
+              : resolveScout(riderEntry);
 
             rows.push({
               tripLeg: legDir,
@@ -1176,7 +1280,7 @@ export async function buildTabularWorkbook(
               tripLeg: 'TO only',
               seatNumber: s + 1,
               adult: dTo,
-              rider: isAdult ? { name: r.name, bsaRegistered: 'Current' } : resolveScout(r.name),
+              rider: isAdult ? { name: r.name, bsaRegistered: 'Current' } : resolveScout(r),
               riderType: isAdult ? 'Adult Passenger' : 'Scout',
             });
           } else if (s < cap && includeOpenSeats) {
@@ -1201,7 +1305,7 @@ export async function buildTabularWorkbook(
               tripLeg: 'FROM only',
               seatNumber: s + 1,
               adult: dFrom,
-              rider: isAdult ? { name: r.name, bsaRegistered: 'Current' } : resolveScout(r.name),
+              rider: isAdult ? { name: r.name, bsaRegistered: 'Current' } : resolveScout(r),
               riderType: isAdult ? 'Adult Passenger' : 'Scout',
             });
           } else if (s < cap && includeOpenSeats) {
@@ -1227,11 +1331,12 @@ export async function buildTabularWorkbook(
           if (toRiders[s]) {
             toSlots.push({
               type: toRiders[s].type === 'adult' ? 'Adult Passenger' : 'Scout',
+              raw: toRiders[s],
               name: typeof toRiders[s] === 'string' ? toRiders[s] : toRiders[s].name,
               seatNum: s + 1,
             });
           } else if (s < toCap && includeOpenSeats) {
-            toSlots.push({ type: 'Open Seat', name: '[Open Seat]', seatNum: s + 1 });
+            toSlots.push({ type: 'Open Seat', raw: null, name: '[Open Seat]', seatNum: s + 1 });
           }
         }
 
@@ -1241,11 +1346,12 @@ export async function buildTabularWorkbook(
           if (fromRiders[s]) {
             fromSlots.push({
               type: fromRiders[s].type === 'adult' ? 'Adult Passenger' : 'Scout',
+              raw: fromRiders[s],
               name: typeof fromRiders[s] === 'string' ? fromRiders[s] : fromRiders[s].name,
               seatNum: s + 1,
             });
           } else if (s < fromCap && includeOpenSeats) {
-            fromSlots.push({ type: 'Open Seat', name: '[Open Seat]', seatNum: s + 1 });
+            fromSlots.push({ type: 'Open Seat', raw: null, name: '[Open Seat]', seatNum: s + 1 });
           }
         }
 
@@ -1265,7 +1371,7 @@ export async function buildTabularWorkbook(
               tripLeg: 'Both',
               seatNumber: seatCounter++,
               adult: baseDriver,
-              rider: isOpen ? null : (isAdult ? { name: toItem.name, bsaRegistered: 'Current' } : resolveScout(toItem.name)),
+              rider: isOpen ? null : (isAdult ? { name: toItem.name, bsaRegistered: 'Current' } : resolveScout(toItem.raw || toItem.name)),
               riderType: toItem.type,
             });
           } else {
@@ -1275,7 +1381,7 @@ export async function buildTabularWorkbook(
               tripLeg: 'TO only',
               seatNumber: seatCounter++,
               adult: baseDriver,
-              rider: isOpen ? null : (isAdult ? { name: toItem.name, bsaRegistered: 'Current' } : resolveScout(toItem.name)),
+              rider: isOpen ? null : (isAdult ? { name: toItem.name, bsaRegistered: 'Current' } : resolveScout(toItem.raw || toItem.name)),
               riderType: toItem.type,
             });
           }
@@ -1290,7 +1396,7 @@ export async function buildTabularWorkbook(
               tripLeg: 'FROM only',
               seatNumber: seatCounter++,
               adult: baseDriver,
-              rider: isOpen ? null : (isAdult ? { name: fromItem.name, bsaRegistered: 'Current' } : resolveScout(fromItem.name)),
+              rider: isOpen ? null : (isAdult ? { name: fromItem.name, bsaRegistered: 'Current' } : resolveScout(fromItem.raw || fromItem.name)),
               riderType: fromItem.type,
             });
           }
@@ -1300,17 +1406,21 @@ export async function buildTabularWorkbook(
 
     // Unassigned scouts coalescing
     if (includeUnassigned) {
-      const allUnassignedNames = Array.from(new Set([
-        ...unassignedToScouts.map(s => s.name),
-        ...unassignedFromScouts.map(s => s.name),
-      ]));
+      const unassignedScoutMap = new Map();
+      unassignedToScouts.forEach(s => {
+        const norm = normalizeNameKey(s.name);
+        unassignedScoutMap.set(norm, { scout: s, inTo: true, inFrom: false });
+      });
+      unassignedFromScouts.forEach(s => {
+        const norm = normalizeNameKey(s.name);
+        if (unassignedScoutMap.has(norm)) {
+          unassignedScoutMap.get(norm).inFrom = true;
+        } else {
+          unassignedScoutMap.set(norm, { scout: s, inTo: false, inFrom: true });
+        }
+      });
 
-      allUnassignedNames.forEach(name => {
-        const norm = normalizeNameKey(name);
-        const inTo = unassignedToScouts.some(s => normalizeNameKey(s.name) === norm);
-        const inFrom = unassignedFromScouts.some(s => normalizeNameKey(s.name) === norm);
-        const scoutObj = resolveScout(name);
-
+      for (const { scout, inTo, inFrom } of unassignedScoutMap.values()) {
         let legLabel = 'Both';
         if (inTo && !inFrom) legLabel = 'TO only';
         else if (!inTo && inFrom) legLabel = 'FROM only';
@@ -1319,10 +1429,10 @@ export async function buildTabularWorkbook(
           tripLeg: legLabel,
           seatNumber: '',
           adult: null,
-          rider: scoutObj,
+          rider: scout,
           riderType: 'Scout',
         });
-      });
+      }
     }
   }
 

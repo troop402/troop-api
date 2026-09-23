@@ -303,6 +303,22 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
   - User selections persist across sessions in `localStorage` under `twh_tabular_export_settings`.
   - When triggered from `coordinator.html`, `POST /api/events/:id/tabular.xlsx` transmits the live in-browser `localDraft` state so exports reflect uncommitted assignments.
 
+### 9.11 Tabular Export Scout Attribute Resolution & Unassigned Deduplication
+* **Bug Squashed**:
+  - In initial testing of the tabular export, scouts assigned to drivers had blank values for all scout-related columns (`rider_patrol`, `rider_parent_names`, `rider_parent_phone`, `rider_age`, `rider_grade`, `rider_rank`), and were simultaneously duplicated as unassigned rows (`(Unassigned)`) at the bottom of the spreadsheet.
+* **Root Cause**:
+  - In `carpoolData.scouts`, attendee names are stored as `"Last, First"` (e.g. `"Annis, Allison"`), whereas in driver comments parsed by `parseDriverComments`, riders are represented as `"First Last"` (e.g. `"Allison Annis"`).
+  - The previous `normalizeNameKey(name)` merely stripped commas without transposing word order, producing `"annis allison"` vs. `"allison annis"`.
+  - Consequently, `resolveScout()` failed to locate the scout in `scoutsByName` and returned a bare `{ name }` stub without attributes.
+  - In parallel, `assignedToKeys.has("annis allison")` evaluated to `false`, wrongly classifying the assigned scout as unassigned and re-emitting them at the bottom.
+* **Solution**:
+  - Transposed `"Last, First"` &rarr; `"first last"` in `normalizeNameKey()`, ensuring identical normalized keys across all sources.
+  - Enriched `scoutsByName` with multi-key indexing (including middle name/initial omission and original raw names) and merged attributes from `rosterSummary` when available.
+  - Upgraded `resolveScout()` to accept both objects and strings, inspect `originalName`, and match first + last parts.
+  - Updated `assignedToKeys` and `assignedFromKeys` to register both `r.name` and `r.originalName` while ignoring `r.type === 'adult'`.
+  - Direct end-to-end testing on Event 1957 confirmed 100% attribute population on driver rows and 0 duplicate unassigned rows.
+
+
 
 
 

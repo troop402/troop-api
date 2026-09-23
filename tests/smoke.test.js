@@ -881,4 +881,119 @@ describe('Tabular Cartesian Excel export unit test', () => {
 
     assert.ok(riderNames.includes('Custom, ScoutA'), 'Should export riders from customState');
   });
+
+  it('resolves scout attributes on driver rows and prevents duplicate unassigned rows when names use "First Last"', async () => {
+    const { buildTabularWorkbook } = await import('../excel-export.js');
+
+    const testCarpool = {
+      meta: { title: 'Lassen Volcanic 2026' },
+      drivers: [
+        {
+          name: 'Clayshulte, Alison',
+          attending: 'Y',
+          seats: 4,
+          drivingToFrom: 'Both',
+          // Driver comment parsing yields First Last or objects with originalName
+          claimedScoutsTo: [
+            { name: 'Anya Lavrinets', originalName: 'Lavrinets, Anya', status: 'confirmed' },
+            { name: 'Evelyn Adams', originalName: 'Adams, Evelyn', status: 'confirmed' },
+          ],
+          claimedScoutsFrom: [
+            { name: 'Anya Lavrinets', originalName: 'Lavrinets, Anya', status: 'confirmed' },
+            { name: 'Evelyn Adams', originalName: 'Adams, Evelyn', status: 'confirmed' },
+          ],
+        },
+      ],
+      scouts: [
+        {
+          name: 'Lavrinets, Anya',
+          patrol: 'Sun Bear',
+          parentNames: 'Olga Lavrinets',
+          parentPhone: '925-555-1111',
+          age: '13',
+          grade: '8',
+          rank: 'First Class',
+        },
+        {
+          name: 'Adams, Evelyn',
+          patrol: 'Sun Bear',
+          parentNames: 'Melanie Adams',
+          parentPhone: '925-555-2222',
+          age: '12',
+          grade: '7',
+          rank: 'Second Class',
+        },
+        {
+          name: 'Unassigned, Sam',
+          patrol: 'Gator',
+          parentNames: 'Alex Unassigned',
+          parentPhone: '925-555-3333',
+          age: '11',
+          grade: '6',
+          rank: 'Scout',
+        },
+      ],
+      adults: [],
+    };
+
+    const workbook = await buildTabularWorkbook(testCarpool, null, null, {
+      columns: [
+        'trip_leg',
+        'adult_name',
+        'rider_name',
+        'rider_patrol',
+        'rider_parent_names',
+        'rider_parent_phone',
+        'rider_age',
+        'rider_grade',
+        'rider_rank',
+      ],
+      splitTripLegs: true,
+      includeOpenSeats: true,
+      includeUnassigned: true,
+    });
+
+    const sheet = workbook.getWorksheet('Carpool Tabular');
+    const rows = [];
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        rows.push({
+          leg: row.getCell(1).value,
+          driver: row.getCell(2).value,
+          rider: row.getCell(3).value,
+          patrol: row.getCell(4).value,
+          parentNames: row.getCell(5).value,
+          parentPhone: row.getCell(6).value,
+          age: row.getCell(7).value,
+          grade: row.getCell(8).value,
+          rank: row.getCell(9).value,
+        });
+      }
+    });
+
+    // 1. Check Anya on driver row
+    const anyaDriverRow = rows.find(r => r.driver && r.driver.includes('Clayshulte') && r.rider.includes('Lavrinets, Anya'));
+    assert.ok(anyaDriverRow, 'Anya Lavrinets must appear on a driver row');
+    assert.equal(anyaDriverRow.patrol, 'Sun Bear', 'Patrol must be populated on driver row');
+    assert.equal(anyaDriverRow.parentNames, 'Olga Lavrinets', 'Parent names must be populated on driver row');
+    assert.equal(anyaDriverRow.parentPhone, '925-555-1111', 'Parent phone must be populated on driver row');
+    assert.equal(anyaDriverRow.age, '13', 'Age must be populated on driver row');
+    assert.equal(anyaDriverRow.grade, '8', 'Grade must be populated on driver row');
+    assert.equal(anyaDriverRow.rank, 'First Class', 'Rank must be populated on driver row');
+
+    // 2. Check Evelyn on driver row
+    const evelynDriverRow = rows.find(r => r.driver && r.driver.includes('Clayshulte') && r.rider.includes('Adams, Evelyn'));
+    assert.ok(evelynDriverRow, 'Evelyn Adams must appear on a driver row');
+    assert.equal(evelynDriverRow.patrol, 'Sun Bear');
+    assert.equal(evelynDriverRow.parentNames, 'Melanie Adams');
+
+    // 3. Check unassigned rows
+    const unassignedRows = rows.filter(r => r.driver === '(Unassigned)');
+    assert.equal(unassignedRows.length, 2, 'Should have exactly 2 unassigned rows (1 for TO, 1 for FROM for Sam Unassigned)');
+    unassignedRows.forEach(ur => {
+      assert.ok(ur.rider.includes('Unassigned, Sam'), 'Only Sam Unassigned should appear in unassigned rows');
+      assert.ok(!ur.rider.includes('Lavrinets'), 'Assigned scout Anya Lavrinets must NOT appear in unassigned rows');
+      assert.ok(!ur.rider.includes('Adams'), 'Assigned scout Evelyn Adams must NOT appear in unassigned rows');
+    });
+  });
 });
