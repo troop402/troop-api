@@ -126,19 +126,22 @@
     }
 
     .clickable-contact {
-      color: #0284c7;
+      color: var(--primary);
       text-decoration: none;
       font-size: 0.78rem;
       display: inline-flex;
       align-items: center;
-      gap: 0.2rem;
+      gap: 0.25rem;
       border-radius: 4px;
-      padding: 0.1rem 0.25rem;
+      padding: 0.1rem 0.3rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       transition: all 0.15s ease;
     }
     .clickable-contact:hover {
       text-decoration: underline;
       background: #e0f2fe;
+      border-color: #bae6fd;
       color: #0369a1;
     }
 
@@ -2638,10 +2641,24 @@
         const raw = sessionStorage.getItem(UNDO_STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          undoStack = parsed.undoStack || [];
-          redoStack = parsed.redoStack || [];
+          const isStale = !parsed.savedAt || (Date.now() - parsed.savedAt > 15 * 60 * 1000);
+          if (isStale) {
+            sessionStorage.removeItem(UNDO_STORAGE_KEY);
+            undoStack = [];
+            redoStack = [];
+          } else {
+            undoStack = parsed.undoStack || [];
+            // Redo stack is strictly transient and wipes clean across page reloads/refreshes
+            redoStack = [];
+          }
+        } else {
+          undoStack = [];
+          redoStack = [];
         }
-      } catch {}
+      } catch {
+        undoStack = [];
+        redoStack = [];
+      }
       updateUndoRedoButtons();
     }
 
@@ -2649,7 +2666,8 @@
       try {
         sessionStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify({
           undoStack: undoStack.slice(-50),
-          redoStack: redoStack.slice(-50),
+          redoStack: [], // Do not persist forward redo branches across reloads
+          savedAt: Date.now(),
         }));
       } catch {}
       updateUndoRedoButtons();

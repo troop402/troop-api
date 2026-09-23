@@ -136,68 +136,6 @@
       gap: 0.35rem;
     }
 
-    /* Sync Status Badge */
-    .sync-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.35rem 0.7rem;
-      font-size: 0.78rem;
-      font-weight: 700;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      background: white;
-      transition: all 0.25s ease;
-      white-space: nowrap;
-      user-select: none;
-    }
-    .sync-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #94a3b8;
-      display: inline-block;
-      flex-shrink: 0;
-    }
-    .sync-idle {
-      color: #64748b;
-      border-color: #cbd5e1;
-      background: #f8fafc;
-    }
-    .sync-idle .sync-dot {
-      background: #10b981;
-    }
-    .sync-saving {
-      color: #0369a1;
-      border-color: #7dd3fc;
-      background: #f0f9ff;
-    }
-    .sync-saving .sync-dot {
-      background: #0284c7;
-      animation: pulse-dot 1s infinite alternate ease-in-out;
-    }
-    .sync-success {
-      color: #065f46;
-      border-color: #a7f3d0;
-      background: #ecfdf5;
-    }
-    .sync-success .sync-dot {
-      background: #10b981;
-    }
-    .sync-error {
-      color: #991b1b;
-      border-color: #fca5a5;
-      background: #fef2f2;
-    }
-    .sync-error .sync-dot {
-      background: #ef4444;
-    }
-
-    @keyframes pulse-dot {
-      from { opacity: 0.4; transform: scale(0.85); }
-      to { opacity: 1; transform: scale(1.2); }
-    }
-
     .card {
       background: var(--card-bg);
       border: 1px solid var(--border);
@@ -633,10 +571,6 @@
           <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
             <a id="coordGridLink" href="#" class="btn">🗂️ Coordinator View</a>
             <button id="refreshBtn" class="btn" onclick="refreshData()">🔄 Refresh Website Data</button>
-            <span id="twhSyncBadge" class="sync-badge sync-idle" title="Website Sync Status">
-              <span class="sync-dot"></span>
-              <span id="twhSyncText">Website Connected</span>
-            </span>
             <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View sign-ups on Website">🌐 Website Sign-Ups ↗</a>
             <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View event details on Website">📅 Website Event ↗</a>
           </div>
@@ -935,15 +869,6 @@
         .replace(/'/g, '&#39;');
     }
 
-    function updateSyncBadge(status, text) {
-      const badge = document.getElementById('twhSyncBadge');
-      const textEl = document.getElementById('twhSyncText');
-      if (!badge || !textEl) return;
-
-      badge.className = `sync-badge sync-${status}`;
-      textEl.textContent = text;
-    }
-
     async function loadCarpool(forceRefresh = false) {
       if (!eventId) {
         document.getElementById('loadingView').style.display = 'none';
@@ -988,8 +913,6 @@
         refreshBtn.textContent = '🔄 Refreshing...';
       }
 
-      updateSyncBadge('saving', forceRefresh ? 'Refreshing from Website...' : 'Checking Website...');
-
       try {
         const res = await fetch(`/api/events/${eventId}/carpool${forceRefresh ? '?forceRefresh=true' : ''}`);
         if (!res.ok) {
@@ -1011,19 +934,16 @@
           console.warn('LocalStorage carpool cache save error:', e);
         }
 
-        updateSyncBadge('idle', 'Website Connected');
         document.getElementById('loadingView').style.display = 'none';
         document.getElementById('errorView').style.display = 'none';
         document.getElementById('carpoolContent').style.display = 'block';
       } catch (err) {
         if (!hasExistingRender) {
-          updateSyncBadge('error', 'Sync Failed');
           document.getElementById('loadingView').style.display = 'none';
           document.getElementById('errorView').style.display = 'block';
           document.getElementById('errorMsg').textContent = err.message || 'Failed to fetch carpool details.';
         } else {
           console.warn('Background carpool refresh failed:', err);
-          updateSyncBadge('error', 'Offline (Cached)');
         }
       } finally {
         if (refreshBtn) {
