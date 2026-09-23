@@ -108,6 +108,61 @@
     }
     .btn-danger:hover { background: #fecaca; }
 
+    .clickable-contact {
+      color: #0284c7;
+      text-decoration: none;
+      font-size: 0.78rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+      border-radius: 4px;
+      padding: 0.1rem 0.25rem;
+      transition: all 0.15s ease;
+    }
+    .clickable-contact:hover {
+      text-decoration: underline;
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    /* Undo Split Dropdown */
+    .dropdown-wrapper {
+      position: relative;
+      display: inline-flex;
+    }
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      min-width: 250px;
+      max-width: 320px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      z-index: 1000;
+      padding: 0.4rem 0;
+    }
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      width: 100%;
+      text-align: left;
+      padding: 0.45rem 0.75rem;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: var(--text);
+      transition: background 0.15s;
+    }
+    .dropdown-item:hover {
+      background: #f1f5f9;
+    }
+
     /* Draft banner */
     .draft-banner {
       display: none;
@@ -747,22 +802,33 @@
             <button type="button" class="btn no-print" style="padding:0.15rem 0.45rem; font-size:0.75rem;" onclick="openLocationModal()">✏️ Edit Location / Map</button>
             <span style="color:#0284c7; font-weight:600;">Standard Coordinator Layout</span>
           </div>
+          <!-- Edit Operations Toolbar -->
+          <div class="no-print" style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.75rem; flex-wrap: wrap;">
+            <button id="addDriverBtn" class="btn btn-primary" onclick="openAddDriverModal()">➕ Add Driver</button>
+            <div class="dropdown-wrapper" id="undoDropdownWrapper" style="position: relative; display: inline-flex;">
+              <button id="undoBtn" class="btn" onclick="undoAction()" title="Undo last action (Ctrl+Z)" disabled style="border-top-right-radius: 0; border-bottom-right-radius: 0;">↩️ Undo</button>
+              <button id="undoMenuToggleBtn" class="btn" onclick="toggleUndoMenu(event)" title="Undo history &amp; Redo" style="padding-left: 0.35rem; padding-right: 0.35rem; border-left: none; border-top-left-radius: 0; border-bottom-left-radius: 0;" disabled>▾</button>
+              <div id="undoMenu" class="dropdown-menu"></div>
+            </div>
+            <span id="twhSyncBadge" class="sync-badge sync-idle" title="Website Sync Status">
+              <span class="sync-dot"></span>
+              <span id="twhSyncText">Website Connected</span>
+            </span>
+          </div>
         </div>
-        <div class="actions no-print">
-          <button id="undoBtn" class="btn" onclick="undoAction()" title="Undo last action (Ctrl+Z)" disabled>↩️ Undo</button>
-          <button id="redoBtn" class="btn" onclick="redoAction()" title="Redo action (Ctrl+Y)" disabled>↪️ Redo</button>
-          <span id="twhSyncBadge" class="sync-badge sync-idle" title="TroopWebHost Sync Status">
-            <span class="sync-dot"></span>
-            <span id="twhSyncText">TWH Connected</span>
-          </span>
-          <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" title="View or edit sign-ups directly in TroopWebHost">🌐 TWH Sign-Ups</a>
-          <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" title="View event details directly in TroopWebHost">📅 TWH Event</a>
-          <button id="addDriverBtn" class="btn btn-primary" onclick="openAddDriverModal()">➕ Add Driver</button>
-          <button id="downloadExcelBtn" class="btn btn-success" onclick="downloadCoordinatorExcel()">📥 Download Excel (.xlsx)</button>
-          <button id="tabularExportBtn" class="btn" style="background:#0f766e; color:#fff; border-color:#0f766e;" onclick="openTabularExportModal()" title="Export flat cartesian spreadsheet with customizable columns">📑 Tabular Export (.xlsx)</button>
-          <button class="btn" onclick="window.print()">🖨️ Print Sheet</button>
-          <a id="viewCarpoolLink" href="#" class="btn">🚗 Public View</a>
-          <button class="btn btn-danger" onclick="resetToBaseline()" title="Clear draft and reload from TroopWebHost">🔄 Reset</button>
+        <div class="actions no-print" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;">
+          <!-- Export & Print -->
+          <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+            <button class="btn" onclick="window.print()">🖨️ Print</button>
+            <button id="tabularExportBtn" class="btn" style="background:#0f766e; color:#fff; border-color:#0f766e;" onclick="openTabularExportModal()" title="Export flat cartesian spreadsheet with customizable columns">📑 Custom Report (.xlsx)</button>
+            <button id="downloadExcelBtn" class="btn" onclick="downloadCoordinatorExcel()">📥 Legacy Spreadsheet (.xlsx)</button>
+          </div>
+          <!-- Navigation -->
+          <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+            <a id="viewCarpoolLink" href="#" class="btn">🚗 Carpool View</a>
+            <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View or edit sign-ups on Website">🌐 Website Sign-Ups ↗</a>
+            <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View event details on Website">📅 Website Event ↗</a>
+          </div>
         </div>
       </header>
 
@@ -780,7 +846,6 @@
       <!-- Draft Notification Banner -->
       <div id="draftBanner" class="draft-banner">
         <span>💾 <strong>Local Working Draft</strong>: Edits are automatically saved in your browser and synced to TroopWebHost.</span>
-        <button class="btn btn-danger" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="resetToBaseline()">Discard Edits</button>
       </div>
 
       <!-- Urgent Alert: Ambiguous Driver Notes -->
@@ -1016,7 +1081,7 @@
           <div class="form-group">
             <label for="newDriverLeg">Driving Direction</label>
             <select id="newDriverLeg">
-              <option value="Both">Both TO and FROM</option>
+              <option value="Both">To and From</option>
               <option value="To">TO the Event only</option>
               <option value="From">FROM the Event only</option>
             </select>
@@ -1093,12 +1158,14 @@
         </div>
       </div>
     </div>
+  </div>
+
   <!-- Modal: Tabular Excel Export -->
   <div id="tabularExportModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'tabularExportModal')">
     <div class="modal-dialog" style="max-width: 680px;">
       <div class="modal-header">
         <div>
-          <h3 style="display:flex; align-items:center; gap:0.4rem;">📑 Tabular Cartesian Export (.xlsx)</h3>
+          <h3 style="display:flex; align-items:center; gap:0.4rem;">📑 Custom Report (.xlsx)</h3>
           <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">
             Export individual driver-rider rows into a flat, filterable spreadsheet with customizable columns.
           </div>
@@ -1109,7 +1176,7 @@
         <!-- Quick Preset & Selection Actions -->
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
           <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-            <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="resetTabularToStandardDefault()">↺ Reset to Standard Default</button>
+            <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="resetTabularToStandardDefault()">↺ Default</button>
             <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="selectTabularColumns(true)">Select All</button>
             <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="selectTabularColumns(false)">Clear All</button>
           </div>
@@ -1156,10 +1223,11 @@
         <div style="display:flex; gap:0.5rem;">
           <button type="button" class="btn" onclick="closeModal('tabularExportModal')">Cancel</button>
           <button type="button" id="btnExecuteTabularExport" class="btn btn-primary" style="background:#0f766e; border-color:#0f766e;" onclick="downloadTabularExcel()">
-            📥 Export Spreadsheet (.xlsx)
+            📥 Download Custom Report (.xlsx)
           </button>
         </div>
       </div>
+    </div>
     </div>
   </div>
 
@@ -1703,7 +1771,7 @@
         if (oneWayInThisLeg.length > 0) {
           subHtml += ` <span class="badge" style="background:#faf5ff; color:#6b21a8; border:1px solid #ddd6fe; font-size:0.75rem; font-weight:700;">🔄 ${oneWayInThisLeg.length} One-Way (${oneWayInThisLeg.map(d => toDisplayName(d.name) + ' – ' + (d.drivingToFrom || 'One-Way') + ' Only').join(', ')})</span>`;
         } else {
-          subHtml += ` <span class="badge" style="background:#f8fafc; color:#64748b; font-size:0.75rem;">All Round-Trip</span>`;
+          subHtml += ` <span class="badge" style="background:#f8fafc; color:#64748b; font-size:0.75rem;">All To and From</span>`;
         }
         if (oneWayInOtherLegOnly.length > 0) {
           subHtml += ` <span class="badge" style="background:#fffbeb; color:#92400e; border:1px solid #fde68a; font-size:0.75rem;">Note: ${oneWayInOtherLegOnly.map(d => toDisplayName(d.name)).join(', ')} is ${otherDir}-only</span>`;
@@ -1763,7 +1831,7 @@
           tr.style.borderLeft = '4px solid #8b5cf6';
         }
 
-        let phoneHtml = d.phone ? `<a href="tel:${escapeHtml(d.phone)}" style="color:var(--text); text-decoration:none;">${escapeHtml(d.phone)}</a>` : '<span class="muted">-</span>';
+        let phoneHtml = d.phone ? `<a href="tel:${escapeHtml(d.phone)}" class="clickable-contact">📞 ${escapeHtml(d.phone)}</a>` : '<span class="muted">-</span>';
         let safetyTag = !d.isCompliant ? '<br><span style="color:#b91c1c; font-size:0.7rem; font-weight:700;">⚠️ Safety Gaps</span>' : '';
         let oneWayTag = isOneWay ? `<br><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.68rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span>` : '';
 
@@ -1875,11 +1943,11 @@
 
         let badgeHtml = '';
         if (needsTo && needsFrom) {
-          badgeHtml = '<span class="badge badge-both">TO &amp; FROM</span>';
+          badgeHtml = '<span class="badge badge-both">To and From</span>';
         } else if (needsTo) {
-          badgeHtml = '<span class="badge badge-to">TO only</span>';
+          badgeHtml = '<span class="badge badge-to">To only</span>';
         } else {
-          badgeHtml = '<span class="badge badge-from">FROM only</span>';
+          badgeHtml = '<span class="badge badge-from">From only</span>';
         }
 
         return `
@@ -2584,6 +2652,7 @@
       } else {
         updateSyncBadge('idle', `↩️ Undone: ${state.description}`);
       }
+      closeUndoMenu();
     }
 
     async function redoAction() {
@@ -2604,23 +2673,102 @@
       } else {
         updateSyncBadge('idle', `↪️ Redone: ${state.description}`);
       }
+      closeUndoMenu();
     }
+
+    function renderUndoDropdown() {
+      const menu = document.getElementById('undoMenu');
+      if (!menu) return;
+
+      let html = '';
+
+      // Redo Option
+      if (redoStack.length > 0) {
+        const nextRedo = redoStack[redoStack.length - 1];
+        html += `
+          <button type="button" class="dropdown-item" onclick="redoAction(); closeUndoMenu();" title="Redo (Ctrl+Y)">
+            <span style="font-weight:700; color:var(--primary);">↪️ Redo:</span>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:210px;">${escapeHtml(nextRedo.description)}</span>
+          </button>
+        `;
+      } else {
+        html += `
+          <div style="padding:0.4rem 0.75rem; font-size:0.78rem; color:var(--text-muted); font-style:italic;">
+            ↪️ Redo: Nothing to redo
+          </div>
+        `;
+      }
+
+      html += `<div style="height:1px; background:var(--border); margin:0.35rem 0;"></div>`;
+
+      // Recent Undo Steps
+      html += `
+        <div style="padding:0.25rem 0.75rem 0.35rem; font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">
+          Undo History (${undoStack.length} action${undoStack.length === 1 ? '' : 's'})
+        </div>
+      `;
+
+      if (undoStack.length === 0) {
+        html += `
+          <div style="padding:0.35rem 0.75rem; font-size:0.78rem; color:var(--text-muted); font-style:italic;">
+            No actions to undo
+          </div>
+        `;
+      } else {
+        const recent = undoStack.slice(-5).reverse();
+        recent.forEach((item, idx) => {
+          html += `
+            <div style="padding:0.3rem 0.75rem; font-size:0.78rem; color:#334155; display:flex; align-items:center; gap:0.4rem;">
+              <span style="color:var(--text-muted); font-size:0.72rem; min-width:14px;">${idx + 1}.</span>
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:230px;" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</span>
+            </div>
+          `;
+        });
+      }
+
+      menu.innerHTML = html;
+    }
+
+    function toggleUndoMenu(e) {
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('undoMenu');
+      if (!menu) return;
+      if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+      } else {
+        renderUndoDropdown();
+        menu.style.display = 'block';
+      }
+    }
+
+    function closeUndoMenu() {
+      const menu = document.getElementById('undoMenu');
+      if (menu) menu.style.display = 'none';
+    }
+
+    window.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('undoDropdownWrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        closeUndoMenu();
+      }
+    });
 
     function updateUndoRedoButtons() {
       const undoBtn = document.getElementById('undoBtn');
-      const redoBtn = document.getElementById('redoBtn');
+      const toggleBtn = document.getElementById('undoMenuToggleBtn');
+      const hasUndo = undoStack.length > 0;
+      const hasRedo = redoStack.length > 0;
+
       if (undoBtn) {
-        undoBtn.disabled = undoStack.length === 0;
-        undoBtn.title = undoStack.length > 0
+        undoBtn.disabled = !hasUndo;
+        undoBtn.title = hasUndo
           ? `Undo: ${undoStack[undoStack.length - 1].description} (Ctrl+Z)`
           : 'Nothing to undo (Ctrl+Z)';
       }
-      if (redoBtn) {
-        redoBtn.disabled = redoStack.length === 0;
-        redoBtn.title = redoStack.length > 0
-          ? `Redo: ${redoStack[redoStack.length - 1].description} (Ctrl+Y)`
-          : 'Nothing to redo (Ctrl+Y)';
+      if (toggleBtn) {
+        toggleBtn.disabled = !hasUndo && !hasRedo;
       }
+      renderUndoDropdown();
     }
 
     // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Cmd+Shift+Z)
@@ -2657,7 +2805,7 @@
       if (status === 'success') {
         syncFadeTimeout = setTimeout(() => {
           badge.className = 'sync-badge sync-idle';
-          textEl.textContent = '✓ TWH in sync';
+          textEl.textContent = '✓ Website in sync';
         }, 4000);
       }
     }
@@ -2724,7 +2872,7 @@
       try {
         const btn = document.getElementById('downloadExcelBtn');
         const origText = btn.textContent;
-        btn.textContent = '⏳ Preparing Excel...';
+        btn.textContent = '⏳ Preparing Spreadsheet...';
         btn.disabled = true;
 
         const unassignedScouts = (carpoolBaseline.scouts || []).filter(s => {
