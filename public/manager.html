@@ -418,6 +418,16 @@
         const res = await fetch(`/api/events/${eventId}/carpool`);
         if (res.ok) {
           const cp = await res.json();
+
+          // Pre-warm client cache for carpool.html and coordinator.html
+          try {
+            localStorage.setItem(`twh_event_carpool_${eventId}`, JSON.stringify({
+              savedAt: Date.now(),
+              data: cp,
+              meta: cp.meta || ev || null,
+            }));
+          } catch {}
+
           const { stats } = cp;
           const balance = stats.seatBalance;
           let badge = '';

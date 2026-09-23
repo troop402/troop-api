@@ -1361,45 +1361,53 @@
       initCoordinator();
     }
 
-    async function initCoordinator() {
+    async function initCoordinator(forceRefresh = false) {
       const carpoolStorageKey = `twh_event_carpool_${eventId}`;
       const draftStorageKey = `troop402_coord_v1_${eventId}`;
       let renderedFromCache = false;
 
       // 1. Instant Render from LocalStorage if available
-      try {
-        const cachedCarpool = localStorage.getItem(carpoolStorageKey);
-        if (cachedCarpool) {
-          const parsed = JSON.parse(cachedCarpool);
-          if (parsed && parsed.data) {
-            carpoolBaseline = parsed.data;
-            if (parsed.meta) carpoolBaseline.meta = parsed.meta;
+      if (!forceRefresh) {
+        try {
+          const cachedCarpool = localStorage.getItem(carpoolStorageKey);
+          if (cachedCarpool) {
+            const parsed = JSON.parse(cachedCarpool);
+            if (parsed && parsed.data) {
+              carpoolBaseline = parsed.data;
+              if (parsed.meta) carpoolBaseline.meta = parsed.meta;
+            }
           }
-        }
 
-        const savedDraftJson = localStorage.getItem(draftStorageKey);
-        if (savedDraftJson && carpoolBaseline) {
-          try {
-            localDraft = JSON.parse(savedDraftJson);
-            const db = document.getElementById('draftBanner');
-            if (db) db.style.display = 'inline-flex';
+          const savedDraftJson = localStorage.getItem(draftStorageKey);
+          if (savedDraftJson && carpoolBaseline) {
+            try {
+              localDraft = JSON.parse(savedDraftJson);
+              const db = document.getElementById('draftBanner');
+              if (db) db.style.display = 'inline-flex';
+              loadUndoHistory();
+              renderPage();
+              renderedFromCache = true;
+            } catch {}
+          } else if (carpoolBaseline) {
+            localDraft = buildBaselineDraft();
             loadUndoHistory();
             renderPage();
             renderedFromCache = true;
-          } catch {}
-        } else if (carpoolBaseline) {
-          localDraft = buildBaselineDraft();
-          loadUndoHistory();
-          renderPage();
-          renderedFromCache = true;
+          }
+        } catch (e) {
+          console.warn('LocalStorage init error:', e);
         }
-      } catch (e) {
-        console.warn('LocalStorage init error:', e);
+      }
+
+      const hasExistingRender = renderedFromCache || Boolean(localDraft && (localDraft.toDrivers || localDraft.fromDrivers));
+
+      if (hasExistingRender) {
+        updateSyncBadge('saving', forceRefresh ? 'Refreshing from Website...' : 'Checking Website...');
       }
 
       // 2. Fetch fresh baseline from server in background (or foreground if no cache)
       try {
-        const res = await fetch(`/api/events/${eventId}/carpool`);
+        const res = await fetch(`/api/events/${eventId}/carpool${forceRefresh ? '?forceRefresh=true' : ''}`);
         if (!res.ok) throw new Error('Failed to load event carpool data');
         const freshData = await res.json();
         carpoolBaseline = freshData;
@@ -1439,7 +1447,7 @@
         // Check if draft exists
         const savedDraftJson = localStorage.getItem(draftStorageKey);
 
-        if (savedDraftJson) {
+        if (savedDraftJson && !forceRefresh) {
           try {
             localDraft = JSON.parse(savedDraftJson);
             const db = document.getElementById('draftBanner');
@@ -1457,19 +1465,24 @@
           } catch {
             localDraft = buildBaselineDraft();
           }
-        } else if (!renderedFromCache) {
+        } else if (!hasExistingRender || forceRefresh) {
           localDraft = buildBaselineDraft();
         }
 
         loadUndoHistory();
         renderPage();
+        updateSyncBadge('idle', 'Website Connected');
       } catch (err) {
-        if (!renderedFromCache) {
+        if (!hasExistingRender) {
+          updateSyncBadge('error', 'Sync Failed');
           document.getElementById('loading').innerHTML = `
             <h3 style="color:#ef4444;">Error Loading Event #${escapeHtml(eventId)}</h3>
             <p>${escapeHtml(err.message)}</p>
             <a href="/manager.html" class="btn" style="margin-top:1rem;">Go to Event Manager</a>
           `;
+        } else {
+          console.warn('Background coordinator refresh failed:', err);
+          updateSyncBadge('error', 'Offline (Cached)');
         }
       }
     }
@@ -2872,7 +2885,7 @@
         undoStack = [];
         redoStack = [];
         saveUndoHistory();
-        location.reload();
+        initCoordinator(true);
       }
     }
 
