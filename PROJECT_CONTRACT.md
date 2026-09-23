@@ -16,7 +16,7 @@ This file is not meant to explain every implementation detail. It exists to be t
 2.1 The application should remain lightweight enough to run on free-tier hosting without heavy runtime overhead.
 2.2 The service should prefer direct HTTP access to TroopWebHost over heavy browser automation.
 2.3 TroopWebHost is treated as the source of truth for roster-export workflows.
-2.4 The service should keep in-memory caching as the default data retention model during alpha.
+2.4 The service shelves server-side in-memory carpool caching (`carpoolTtlMs: 0`) so event carpool data is queried live from TroopWebHost on every request, paired with prominent client-side toast feedback to keep users clearly informed during background refreshes. Roster export/summary continues to use server in-memory caching to avoid heavy repeated scrapes.
 2.5 The project should remain flexible enough to support future endpoints without requiring a full rewrite.
 2.6 The codebase should remain understandable to future developers and future AI agents.
 
@@ -31,6 +31,10 @@ This file is not meant to explain every implementation detail. It exists to be t
 3.7 The service should cache recent export data in memory to reduce redundant work.
 3.8 When the export fails, the service should return a clear error rather than silently succeeding.
 3.9 Missing server configuration should produce a predictable error with a clear response status.
+3.10 The service enforces a two-tier authentication architecture across all API endpoints:
+3.10.1 Tier 1 (Troop Application Key): All read endpoints require a valid shared troop application key supplied via `x-troop-key` HTTP header or `?key=` query parameter. Requests with missing or invalid keys are rejected with HTTP 401.
+3.10.2 Tier 2 (Coordinator Authorization): All coordinator mutation endpoints (such as `POST /api/events/:id/driver-update`) require a valid signed coordinator bearer token (`Authorization: Bearer <token>`) issued by `POST /api/auth/coordinator-login` using the coordinator password.
+3.10.3 The Coordinator Worksheet UI (`/coordinator.html`) presents a full-page lockout overlay requiring the coordinator password to access or edit carpool records, expiring after 5 minutes with a live countdown and manual lock control.
 
 ## 4. Expected endpoint behaviors
 
@@ -98,12 +102,14 @@ H.1 Persists coordinator edits to a driver's comments, passenger seats, driving 
 H.2 Submits directly to TroopWebHost's Admin Sign-Up Form (`FormReport.aspx?Menu_Item_ID=45888&Form_ID=3707`) via authenticated HTTP POST, parsing and sending ASP.NET WebForms ViewState.
 H.3 Provides optimistic concurrency / dirty-state conflict checking: callers may pass `baselineComment`. If the current value in TroopWebHost does not match the baseline, the endpoint responds with HTTP 409 Conflict and the latest comment, unless `force: true` is supplied.
 H.4 Injects discrete leg markup when TO and FROM trips are split (e.g. `Taking TO: ... . Taking FROM: ... .`).
-H.5 Returns HTTP 400 for missing or invalid parameters, HTTP 409 for concurrency conflicts, and HTTP 500 for TroopWebHost submission failures.
+H.5 Requires Tier 2 Coordinator authorization token (`Authorization: Bearer <token>`). Returns HTTP 401 if missing or expired.
+H.6 Returns HTTP 400 for missing or invalid parameters, HTTP 409 for concurrency conflicts, and HTTP 500 for TroopWebHost submission failures.
 
 ### I. GET /api/events/:id/twh-status
 I.1 Checks whether the backend's current TroopWebHost credentials have active permission to edit driver sign-up records on the event.
 I.2 Returns JSON with `authenticated: boolean`, `canEdit: boolean`, and edit URL details.
-I.3 Returns HTTP 400 for invalid event IDs and HTTP 500 if checking fails.
+I.3 Requires Tier 1 application key.
+I.4 Returns HTTP 400 for invalid event IDs and HTTP 500 if checking fails.
 
 ### J. GET and POST /api/events/:id/tabular.xlsx
 J.1 Generates a flat Cartesian-style tabular Excel spreadsheet workbook (`.xlsx`) where each driver-rider assignment occupies its own discrete row.
@@ -115,7 +121,16 @@ J.4 Supports user-configurable column selection across 40+ attributes spanning t
 J.5 The default Standard preset provides a clean operational view without comment clutter (`adult_comment` and `rider_attendance_comment` are excluded by default from the preset).
 J.6 Generates a single styled worksheet (`Carpool Tabular`) with a frozen header row (`ySplit: 1`), auto-filter enabled across all columns, subtle alternating row fills, distinctive styling for open seats and unassigned attendees, and auto-computed column widths.
 J.7 `POST /api/events/:id/tabular.xlsx` accepts an optional live working state (`customState`) from the coordinator worksheet to export uncommitted in-browser edits.
-J.8 Returns HTTP 400 for invalid event IDs and HTTP 500 for generation failures.
+J.8 Requires Tier 1 application key.
+J.9 Returns HTTP 400 for invalid event IDs and HTTP 500 for generation failures.
+
+### K. POST /api/auth/coordinator-login
+K.1 Authenticates coordinator access using `COORDINATOR_PASSWORD` defined in server environment (defaults to dev fallback).
+K.2 Verifies the password using constant-time buffer comparison (`crypto.timingSafeEqual`) to prevent timing side-channel attacks.
+K.3 Returns a signed HMAC session bearer token (`token`), duration (`expiresIn` / `expiresInMs`, 5 minutes / 300 seconds), and exact expiry timestamp (`expiresAt`).
+K.4 Returns HTTP 400 if password is missing or not a string.
+K.5 Returns HTTP 401 if password is incorrect.
+K.6 Does not require prior authentication or application key.
 
 
 

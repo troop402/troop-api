@@ -495,9 +495,28 @@
     let allEvents = [];
     let currentFilter = 'carpool'; // 'carpool' or 'all'
 
+    const DEFAULT_TROOP_APP_KEY = 'troop402-app-access';
+    function getTroopAppKey() {
+      return localStorage.getItem('twh_troop_app_key') || DEFAULT_TROOP_APP_KEY;
+    }
+
+    function getAuthHeaders(extraHeaders = {}) {
+      const headers = {
+        'x-troop-key': getTroopAppKey(),
+        ...extraHeaders,
+      };
+      const coordToken = sessionStorage.getItem('twh_coordinator_token');
+      if (coordToken) {
+        headers['Authorization'] = `Bearer ${coordToken}`;
+      }
+      return headers;
+    }
+
     async function fetchRosterSummary() {
       try {
-        const res = await fetch('/api/roster/summary');
+        const res = await fetch('/api/roster/summary', {
+          headers: getAuthHeaders(),
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
@@ -515,7 +534,9 @@
 
     async function loadEvents() {
       try {
-        const res = await fetch('/api/events');
+        const res = await fetch('/api/events', {
+          headers: getAuthHeaders(),
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         allEvents = data.events || [];
@@ -588,7 +609,7 @@
       const carpoolUrl = `/carpool.html?id=${eventId}`;
       document.getElementById('openCarpoolLink').href = carpoolUrl;
       document.getElementById('openCoordinatorLink').href = `/coordinator.html?id=${eventId}`;
-      document.getElementById('downloadExcelLink').href = `/api/events/${eventId}/carpool.xlsx`;
+      document.getElementById('downloadExcelLink').href = `/api/events/${eventId}/carpool.xlsx?key=${encodeURIComponent(getTroopAppKey())}`;
       box.style.display = 'block';
 
       // Quick preview of capacity
@@ -596,7 +617,9 @@
       indicator.innerHTML = '<span class="muted">Loading quick capacity preview...</span>';
 
       try {
-        const res = await fetch(`/api/events/${eventId}/carpool`);
+        const res = await fetch(`/api/events/${eventId}/carpool`, {
+          headers: getAuthHeaders(),
+        });
         if (res.ok) {
           const cp = await res.json();
 
@@ -858,7 +881,7 @@
 
         const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(payload),
         });
 
