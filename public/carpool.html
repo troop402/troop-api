@@ -99,6 +99,43 @@
     }
     .btn-primary:hover { background: var(--primary-hover); }
 
+    .btn:disabled,
+    .btn[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed !important;
+      background: #f1f5f9 !important;
+      color: #94a3b8 !important;
+      border-color: #cbd5e1 !important;
+      pointer-events: none;
+      box-shadow: none !important;
+    }
+
+    .clickable-contact {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.78rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      border-radius: 4px;
+      padding: 0.1rem 0.3rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      transition: all 0.15s ease;
+    }
+    .clickable-contact:hover {
+      text-decoration: underline;
+      background: #e0f2fe;
+      border-color: #bae6fd;
+      color: #0369a1;
+    }
+    .contact-subline {
+      margin-top: 0.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
     .card {
       background: var(--card-bg);
       border: 1px solid var(--border);
@@ -445,7 +482,12 @@
         border: 1px solid #ccc;
         padding: 0.5rem;
         margin-bottom: 0.75rem;
+        page-break-inside: auto;
+        break-inside: auto;
+      }
+      tr {
         page-break-inside: avoid;
+        break-inside: avoid;
       }
       .capacity-banner {
         padding: 0.5rem 0.75rem;
@@ -518,15 +560,20 @@
             <span id="eventLocation">📍 Location</span>
           </div>
         </div>
-        <div class="actions no-print">
-          <a id="coordGridLink" href="#" class="btn btn-primary">🗂️ Coordinator Worksheet</a>
-          <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View or edit sign-ups directly in TroopWebHost">🌐 TWH Sign-Ups</a>
-          <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View event details directly in TroopWebHost">📅 TWH Event</a>
-          <button id="downloadExcelBtn" class="btn" onclick="downloadExcel()">📥 Download Excel (.xlsx)</button>
-          <button id="tabularExportBtn" class="btn" style="background:#0f766e; color:#fff; border-color:#0f766e;" onclick="openTabularExportModal()" title="Export flat cartesian spreadsheet with customizable columns">📑 Tabular Export (.xlsx)</button>
-          <button id="copyLinkBtn" class="btn" onclick="copyShareableLink()">📋 Copy Shareable Link</button>
-          <button class="btn btn-primary" onclick="window.print()">🖨️ Print Departure Sheet</button>
-          <button id="refreshBtn" class="btn" onclick="refreshData()">🔄 Refresh</button>
+        <div class="actions no-print" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;">
+          <!-- Export & Print -->
+          <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+            <button class="btn" onclick="window.print()">🖨️ Print</button>
+            <button id="tabularExportBtn" class="btn" onclick="openTabularExportModal()" title="Export flat cartesian spreadsheet with customizable columns">📑 Custom Report (.xlsx)</button>
+            <button id="downloadExcelBtn" class="btn" onclick="downloadExcel()">📥 Legacy Spreadsheet (.xlsx)</button>
+          </div>
+          <!-- Operations & Navigation -->
+          <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+            <a id="coordGridLink" href="#" class="btn">🗂️ Coordinator View</a>
+            <button id="refreshBtn" class="btn" onclick="refreshData()">🔄 Refresh Website Data</button>
+            <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View sign-ups on Website">🌐 Website Sign-Ups ↗</a>
+            <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View event details on Website">📅 Website Event ↗</a>
+          </div>
         </div>
       </header>
 
@@ -573,12 +620,11 @@
         </ul>
       </div>
 
-      <!-- TABLE 1: Registered Drivers & Vehicle Fleet Overview -->
+      <!-- TABLE 1: Registered Drivers Overview -->
       <div class="card">
         <div class="section-header">
           <div class="section-title">
-            <span>🚙 Registered Drivers &amp; Vehicle Fleet</span>
-            <span class="badge badge-neutral" id="fleetCountBadge">0 Drivers</span>
+            <span id="fleetSectionTitle">🚙 Registered Drivers (0)</span>
             <span id="nonCompliantDriversBadge" style="display:none;" class="badge badge-danger">⚠️ Incomplete Safety Compliance</span>
           </div>
         </div>
@@ -587,10 +633,10 @@
             <thead>
               <tr>
                 <th>Driver Name</th>
+                <th style="text-align:center;">Attending</th>
                 <th>Trip Leg</th>
                 <th>Vehicle Info</th>
                 <th style="text-align:center;">Seats</th>
-                <th>Contact Info</th>
                 <th>Safety &amp; Compliance</th>
               </tr>
             </thead>
@@ -605,7 +651,7 @@
       <div class="card">
         <div class="section-header">
           <div class="section-title">
-            <span id="toSectionTitle">🚗 "TO" the Event (Outbound)</span>
+            <span id="toSectionTitle">🚗 TO the event</span>
             <span class="badge badge-neutral" id="toDriversBadge">0 Drivers</span>
           </div>
         </div>
@@ -614,14 +660,13 @@
             <thead>
               <tr>
                 <th>Driver Name</th>
-                <th>Driver Cell</th>
                 <th style="text-align:center;">Seats</th>
                 <th style="text-align:center;">Note</th>
                 <th>Assigned Scouts &amp; Open Seats</th>
               </tr>
             </thead>
             <tbody id="toDriversTbody">
-              <tr><td colspan="5" class="muted" style="text-align:center;">Loading outbound carpools...</td></tr>
+              <tr><td colspan="4" class="muted" style="text-align:center;">Loading outbound carpools...</td></tr>
             </tbody>
           </table>
         </div>
@@ -631,7 +676,7 @@
       <div class="card">
         <div class="section-header">
           <div class="section-title">
-            <span id="fromSectionTitle">🚙 "FROM" the Event (Return Leg – Cabin Reading Roster)</span>
+            <span id="fromSectionTitle">🚙 FROM the event</span>
             <span class="badge badge-neutral" id="fromDriversBadge">0 Drivers</span>
           </div>
         </div>
@@ -640,14 +685,13 @@
             <thead>
               <tr>
                 <th>Driver Name</th>
-                <th>Driver Cell</th>
                 <th style="text-align:center;">Seats</th>
                 <th style="text-align:center;">Note</th>
                 <th>Assigned Scouts &amp; Open Seats</th>
               </tr>
             </thead>
             <tbody id="fromDriversTbody">
-              <tr><td colspan="5" class="muted" style="text-align:center;">Loading return carpools...</td></tr>
+              <tr><td colspan="4" class="muted" style="text-align:center;">Loading return carpools...</td></tr>
             </tbody>
           </table>
         </div>
@@ -738,7 +782,7 @@
         <div class="modal-dialog" style="max-width: 680px;">
           <div class="modal-header">
             <div>
-              <h3 style="display:flex; align-items:center; gap:0.4rem;">📑 Tabular Cartesian Export (.xlsx)</h3>
+              <h3 style="display:flex; align-items:center; gap:0.4rem;">📑 Custom Report (.xlsx)</h3>
               <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">
                 Export individual driver-rider rows into a flat, filterable spreadsheet with customizable columns.
               </div>
@@ -749,7 +793,7 @@
             <!-- Quick Preset & Selection Actions -->
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
               <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-                <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="resetTabularToStandardDefault()">↺ Reset to Standard Default</button>
+                <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="resetTabularToStandardDefault()">↺ Default</button>
                 <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="selectTabularColumns(true)">Select All</button>
                 <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="selectTabularColumns(false)">Clear All</button>
               </div>
@@ -796,7 +840,7 @@
             <div style="display:flex; gap:0.5rem;">
               <button type="button" class="btn" onclick="closeModal('tabularExportModal')">Cancel</button>
               <button type="button" id="btnExecuteTabularExport" class="btn btn-primary" style="background:#0f766e; border-color:#0f766e;" onclick="downloadTabularExcel()">
-                📥 Export Spreadsheet (.xlsx)
+                📥 Download Custom Report (.xlsx)
               </button>
             </div>
           </div>
@@ -837,54 +881,52 @@
       let renderedFromCache = false;
 
       // 1. Instant Render from LocalStorage if available
-      if (!forceRefresh) {
-        try {
-          const cachedJson = localStorage.getItem(storageKey);
-          if (cachedJson) {
-            const cached = JSON.parse(cachedJson);
-            if (cached && cached.data) {
-              currentData = cached.data;
-              renderPage(currentData, cached.meta || null);
-              document.getElementById('loadingView').style.display = 'none';
-              document.getElementById('errorView').style.display = 'none';
-              document.getElementById('carpoolContent').style.display = 'block';
-              renderedFromCache = true;
-            }
+      try {
+        const cachedJson = localStorage.getItem(storageKey);
+        if (cachedJson) {
+          const cached = JSON.parse(cachedJson);
+          if (cached && cached.data) {
+            currentData = cached.data;
+            renderPage(currentData, cached.meta || currentData.meta || null, cached.savedAt);
+            document.getElementById('loadingView').style.display = 'none';
+            document.getElementById('errorView').style.display = 'none';
+            document.getElementById('carpoolContent').style.display = 'block';
+            renderedFromCache = true;
           }
-        } catch (e) {
-          console.warn('LocalStorage carpool cache read error:', e);
         }
+      } catch (e) {
+        console.warn('LocalStorage carpool cache read error:', e);
       }
 
-      // If no cache, show initial loading spinner
-      if (!renderedFromCache) {
+      const hasExistingRender = renderedFromCache || Boolean(currentData && currentData.drivers);
+
+      // If no cache or prior render, show initial loading spinner
+      if (!hasExistingRender) {
         document.getElementById('loadingView').style.display = 'block';
         document.getElementById('errorView').style.display = 'none';
         document.getElementById('carpoolContent').style.display = 'none';
       }
 
-      try {
-        // Fetch event metadata from events list if available
-        let eventMeta = null;
-        try {
-          const evRes = await fetch('/api/events');
-          if (evRes.ok) {
-            const evJson = await evRes.json();
-            eventMeta = (evJson.events || []).find(e => String(e.id) === String(eventId));
-          }
-        } catch {}
+      const refreshBtn = document.getElementById('refreshBtn');
+      if (forceRefresh && refreshBtn) {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = '🔄 Refreshing...';
+      }
 
+      try {
         const res = await fetch(`/api/events/${eventId}/carpool${forceRefresh ? '?forceRefresh=true' : ''}`);
         if (!res.ok) {
           throw new Error(`Server returned HTTP ${res.status}`);
         }
         currentData = await res.json();
-        renderPage(currentData, eventMeta);
+        const eventMeta = currentData.meta || null;
+        const now = Date.now();
+        renderPage(currentData, eventMeta, now);
 
         // Save to localStorage for instant subsequent loads
         try {
           localStorage.setItem(storageKey, JSON.stringify({
-            savedAt: Date.now(),
+            savedAt: now,
             data: currentData,
             meta: eventMeta,
           }));
@@ -896,10 +938,17 @@
         document.getElementById('errorView').style.display = 'none';
         document.getElementById('carpoolContent').style.display = 'block';
       } catch (err) {
-        if (!renderedFromCache) {
+        if (!hasExistingRender) {
           document.getElementById('loadingView').style.display = 'none';
           document.getElementById('errorView').style.display = 'block';
           document.getElementById('errorMsg').textContent = err.message || 'Failed to fetch carpool details.';
+        } else {
+          console.warn('Background carpool refresh failed:', err);
+        }
+      } finally {
+        if (refreshBtn) {
+          refreshBtn.disabled = false;
+          refreshBtn.textContent = '🔄 Refresh Website Data';
         }
       }
     }
@@ -913,9 +962,10 @@
       return fullName;
     }
 
-    function renderPage(data, meta) {
-      const { stats, drivers = [], adults = [], scouts = [], cachedAt } = data;
+    function renderPage(data, meta, customCachedAt) {
+      const { stats, drivers = [], adults = [], scouts = [] } = data;
       const combinedMeta = { ...(data.meta || {}), ...(meta || {}) };
+      const effectiveCachedAt = customCachedAt || data.cachedAt;
 
       // Event Meta
       const title = combinedMeta?.title || `Event #${eventId}`;
@@ -930,10 +980,10 @@
       const locText = combinedMeta?.location ? `📍 ${combinedMeta.location}` : '📍 TBA';
       let locHtml = escapeHtml(locText);
       if (combinedMeta?.mapLink) {
-        locHtml += ` <a href="${escapeHtml(combinedMeta.mapLink)}" target="_blank" rel="noopener" style="margin-left:0.5rem; text-decoration:none; font-weight:600; color:var(--primary); font-size:0.85rem;" title="Open in Google Maps">🗺️ View Map</a>`;
+        locHtml += ` <a href="${escapeHtml(combinedMeta.mapLink)}" target="_blank" rel="noopener" class="clickable-contact" title="Open in Google Maps">🗺️ Map ↗</a>`;
       }
       document.getElementById('eventLocation').innerHTML = locHtml;
-      document.getElementById('cachedAtTime').textContent = cachedAt ? new Date(cachedAt).toLocaleTimeString() : 'Just now';
+      document.getElementById('cachedAtTime').textContent = effectiveCachedAt ? new Date(effectiveCachedAt).toLocaleTimeString() : 'Just now';
       document.getElementById('coordGridLink').href = `/coordinator.html?id=${encodeURIComponent(eventId)}`;
 
       // Direct TWH Links
@@ -960,9 +1010,9 @@
       const toDate = combinedMeta?.start ? combinedMeta.start.split(' ')[0] : '';
       const fromDate = combinedMeta?.end ? combinedMeta.end.split(' ')[0] : '';
       const toTitle = document.getElementById('toSectionTitle');
-      if (toTitle) toTitle.textContent = `🚗 "TO" the Event (Outbound${toDate ? ` – ${toDate}` : ''})`;
+      if (toTitle) toTitle.textContent = `🚗 TO the event${toDate ? ` (${toDate})` : ''}`;
       const fromTitle = document.getElementById('fromSectionTitle');
-      if (fromTitle) fromTitle.textContent = `🚙 "FROM" the Event (Return Leg${fromDate ? ` – ${fromDate}` : ''})`;
+      if (fromTitle) fromTitle.textContent = `🚙 FROM the event${fromDate ? ` (${fromDate})` : ''}`;
 
       // Capacity Banner (Scout-Centric)
       const banner = document.getElementById('capacityBanner');
@@ -1037,7 +1087,8 @@
     }
 
     function renderFleetTable(drivers) {
-      document.getElementById('fleetCountBadge').textContent = `${drivers.length} Drivers`;
+      const fleetTitle = document.getElementById('fleetSectionTitle');
+      if (fleetTitle) fleetTitle.textContent = `🚙 Registered Drivers (${drivers.length})`;
       const tbody = document.getElementById('fleetTbody');
       tbody.innerHTML = '';
 
@@ -1063,7 +1114,7 @@
 
         const tripBadge = isOneWay
           ? `<span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-weight:700;">🔄 ${escapeHtml(d.drivingToFrom || 'One-Way')} Only</span>`
-          : `<span class="badge badge-neutral">Round-Trip (Both)</span>`;
+          : `<span class="badge badge-neutral">To and From</span>`;
 
         // Passenger Seats display
         const avail = d.seats > 0 ? Math.max(0, d.seats - 1) : 0;
@@ -1081,23 +1132,27 @@
         const stateBadge = stateIsCurrent
           ? '<span class="badge badge-success" title="State AB506 Training Current">State AB506: Current</span>'
           : `<span class="badge badge-danger" title="State Training Incomplete">⚠️ State AB506: ${escapeHtml(d.stateTraining || 'Incomplete')}</span>`;
-        const attendBadge = isAttending
-          ? '<span class="badge badge-neutral">Attending: Y</span>'
-          : '<span class="badge badge-warning">Attending: ' + escapeHtml(d.attending || 'N') + '</span>';
+
+        // Attending column badge
+        let attendingBadge = '<span class="badge badge-neutral">Unknown</span>';
+        if (d.attending === 'Y') {
+          attendingBadge = '<span class="badge badge-success">Yes</span>';
+        } else if (d.attending === 'N') {
+          attendingBadge = '<span class="badge badge-danger">No</span>';
+        }
 
         const safetyHtml = `
           <div style="display:flex; flex-wrap:wrap; gap:0.25rem;">
-            ${attendBadge}
             ${sytBadge}
             ${stateBadge}
           </div>
         `;
 
-        // Contact Info
-        const contactParts = [];
-        if (d.phone) contactParts.push(`<a href="tel:${escapeHtml(d.phone)}" style="color:var(--text); text-decoration:none;">${escapeHtml(d.phone)}</a>`);
-        if (d.email) contactParts.push(`<a href="mailto:${escapeHtml(d.email)}" style="color:var(--primary); font-size:0.8rem;">${escapeHtml(d.email)}</a>`);
-        const contactHtml = contactParts.length > 0 ? contactParts.join('<br>') : '<span class="muted">-</span>';
+        // Contact Info subline under driver name
+        const contactLinks = [];
+        if (d.phone) contactLinks.push(`<a href="tel:${escapeHtml(d.phone)}" class="clickable-contact">📞 ${escapeHtml(d.phone)}</a>`);
+        if (d.email) contactLinks.push(`<a href="mailto:${escapeHtml(d.email)}" class="clickable-contact">✉️ ${escapeHtml(d.email)}</a>`);
+        const contactSubline = contactLinks.length > 0 ? `<div class="contact-subline">${contactLinks.join('')}</div>` : '';
 
         // Vehicle
         const vehicleHtml = d.registeredVehicle ? escapeHtml(d.registeredVehicle) : '<span class="muted">-</span>';
@@ -1105,13 +1160,14 @@
         tr.innerHTML = `
           <td>
             <strong>${escapeHtml(d.name)}</strong>
-            ${isOneWay ? `<br><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.7rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span>` : ''}
-            ${!d.isCompliant ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span>' : ''}
+            ${contactSubline}
+            ${isOneWay ? `<div style="margin-top:0.25rem;"><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.7rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span></div>` : ''}
+            ${!d.isCompliant ? '<div style="margin-top:0.25rem;"><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span></div>' : ''}
           </td>
+          <td style="text-align:center;">${attendingBadge}</td>
           <td>${tripBadge}</td>
           <td style="font-size:0.85rem;">${vehicleHtml}</td>
           <td style="text-align:center; font-weight:700; font-size:0.95rem;">${seatsDisplay}</td>
-          <td style="font-size:0.85rem;">${contactHtml}</td>
           <td style="font-size:0.8rem;">${safetyHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -1136,12 +1192,12 @@
       if (oneWayDrivers.length > 0) {
         badgeText += ` · ${oneWayDrivers.length} One-Way (${oneWayDrivers.map(d => toDisplayName(d.name) + ' – ' + (d.drivingToFrom || 'One-Way') + ' Only').join(', ')})`;
       } else {
-        badgeText += ' · All Round-Trip';
+        badgeText += ' · All To and From';
       }
       document.getElementById(badgeId).textContent = badgeText;
 
       if (legDrivers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center; padding: 1.5rem;">No drivers registered for ${dir} trip leg.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="muted" style="text-align:center; padding: 1.5rem;">No drivers registered for ${dir} trip leg.</td></tr>`;
         return;
       }
 
@@ -1200,21 +1256,22 @@
           ? `<button type="button" class="btn-note" title="${escapeHtml(noteText)}" onclick="openNoteModal('${escapeHtml(d.name)}', '${escapeHtml(noteText)}')">💬</button>`
           : '<span class="muted">-</span>';
 
-        const phoneHtml = d.phone
-          ? `<a href="tel:${escapeHtml(d.phone)}" style="color:var(--text); text-decoration:none;">${escapeHtml(d.phone)}</a>`
-          : '<span class="muted">-</span>';
+        const contactLinks = [];
+        if (d.phone) contactLinks.push(`<a href="tel:${escapeHtml(d.phone)}" class="clickable-contact">📞 ${escapeHtml(d.phone)}</a>`);
+        if (d.email) contactLinks.push(`<a href="mailto:${escapeHtml(d.email)}" class="clickable-contact">✉️ ${escapeHtml(d.email)}</a>`);
+        const contactSubline = contactLinks.length > 0 ? `<div class="contact-subline">${contactLinks.join('')}</div>` : '';
 
         const oneWayBadge = isOneWay
-          ? `<br><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.7rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom || 'One-Way')} Only</span>`
+          ? `<div style="margin-top:0.25rem;"><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.7rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom || 'One-Way')} Only</span></div>`
           : '';
 
         tr.innerHTML = `
           <td>
             <strong>${escapeHtml(d.name)}</strong>
+            ${contactSubline}
             ${oneWayBadge}
-            ${!d.isCompliant ? '<br><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span>' : ''}
+            ${!d.isCompliant ? '<div style="margin-top:0.25rem;"><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span></div>' : ''}
           </td>
-          <td style="font-size:0.85rem;">${phoneHtml}</td>
           <td style="text-align:center; font-weight:700; font-size:1.05rem;">${legSeats}</td>
           <td style="text-align:center;">${noteBtnHtml}</td>
           <td>${tagsHtml}</td>
@@ -1878,19 +1935,7 @@
       }
     }
 
-    function copyShareableLink() {
-      const url = window.location.href;
-      navigator.clipboard.writeText(url).then(() => {
-        const btn = document.getElementById('copyLinkBtn');
-        const orig = btn.textContent;
-        btn.textContent = '✅ Copied!';
-        setTimeout(() => { btn.textContent = orig; }, 2000);
-      });
-    }
-
     function refreshData() {
-      const storageKey = `twh_event_carpool_${eventId}`;
-      try { localStorage.removeItem(storageKey); } catch {}
       loadCarpool(true);
     }
 

@@ -150,3 +150,12 @@ J.8 Returns HTTP 400 for invalid event IDs and HTTP 500 for generation failures.
 9.2 The implementation may evolve faster than the design docs, but the contract should not drift silently.
 9.3 Longer historical context belongs in `PROJECT_CONTEXT.md`.
 9.4 The technical design and implementation details are not the primary subject of this file.
+
+## 10. Client-side loading, caching, and synchronization contract
+10.1 Instant Render (0ms): All event views (Carpool View, Coordinator Worksheet) MUST render cached data from localStorage immediately on first execution tick if available, bypassing any initial loading splash.
+10.2 Non-Interruptive Refreshing: Non-destructive backend refreshes—whether triggered automatically in the background on load or manually via "Refresh Website Data"—MUST NEVER tear down, hide, or blank out existing rendered data.
+10.3 Subtle Activity Indicators: While revalidating or refreshing data in the background, pages MUST show a non-intrusive status indicator (e.g. animated refresh icon or sync badge), preserving the user's reading position and interaction state.
+10.4 Canonical Data Source: Frontend views MUST rely on `GET /api/events/:id/carpool` as the single authoritative source for both carpool logistics and event metadata, eliminating redundant sequential calls to `/api/events`.
+10.5 Force Refresh Parity: When a user explicitly requests a refresh ("Refresh Website Data"), the client MUST send `?forceRefresh=true` to the backend to bypass in-memory server TTL and scrape fresh data from TroopWebHost, while updating local cache seamlessly on completion.
+10.6 Consistent Key Namespaces: Client-side storage keys MUST adhere to a consistent prefix (`twh_event_carpool_${id}`, `twh_coord_draft_${id}`, `twh_coord_history_${id}`, `twh_tabular_export_settings`).
+

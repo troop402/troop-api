@@ -108,18 +108,95 @@
     }
     .btn-danger:hover { background: #fecaca; }
 
-    /* Draft banner */
-    .draft-banner {
-      display: none;
+    .btn:disabled,
+    .btn[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed !important;
+      background: #f1f5f9 !important;
+      color: #94a3b8 !important;
+      border-color: #cbd5e1 !important;
+      pointer-events: none;
+      box-shadow: none !important;
+    }
+
+    #undoMenuToggleBtn:disabled {
+      color: #94a3b8 !important;
+      opacity: 0.45;
+      cursor: not-allowed !important;
+    }
+
+    .clickable-contact {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.78rem;
+      display: inline-flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 0.6rem 1rem;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
+      gap: 0.25rem;
+      border-radius: 4px;
+      padding: 0.1rem 0.3rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      transition: all 0.15s ease;
+    }
+    .clickable-contact:hover {
+      text-decoration: underline;
+      background: #e0f2fe;
+      border-color: #bae6fd;
+      color: #0369a1;
+    }
+
+    /* Undo Split Dropdown */
+    .dropdown-wrapper {
+      position: relative;
+      display: inline-flex;
+    }
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      min-width: 250px;
+      max-width: 320px;
+      background: white;
+      border: 1px solid var(--border);
       border-radius: 6px;
-      margin-bottom: 1.25rem;
-      font-size: 0.85rem;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      z-index: 1000;
+      padding: 0.4rem 0;
+    }
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      width: 100%;
+      text-align: left;
+      padding: 0.45rem 0.75rem;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: var(--text);
+      transition: background 0.15s;
+    }
+    .dropdown-item:hover {
+      background: #f1f5f9;
+    }
+
+    /* Draft badge */
+    .draft-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.35rem 0.7rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: 20px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
       color: #1e40af;
+      white-space: nowrap;
+      user-select: none;
     }
 
     /* Disparity banner */
@@ -299,11 +376,11 @@
 
     .section-header {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-start;
       align-items: center;
       margin-bottom: 0.5rem;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 0.75rem;
     }
 
     .section-header h2 {
@@ -745,24 +822,37 @@
             <span id="eventLocation"></span>
             <span id="eventMapLink" style="display:none;"></span>
             <button type="button" class="btn no-print" style="padding:0.15rem 0.45rem; font-size:0.75rem;" onclick="openLocationModal()">✏️ Edit Location / Map</button>
-            <span style="color:#0284c7; font-weight:600;">Standard Coordinator Layout</span>
+          </div>
+          <!-- Edit Operations Toolbar -->
+          <div class="no-print" style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.75rem; flex-wrap: wrap;">
+            <button id="addDriverBtn" class="btn btn-primary" onclick="openAddDriverModal()">➕ Add Driver</button>
+            <div class="dropdown-wrapper" id="undoDropdownWrapper" style="position: relative; display: inline-flex;">
+              <button id="undoBtn" class="btn" onclick="undoAction()" title="Undo last action (Ctrl+Z)" disabled style="border-top-right-radius: 0; border-bottom-right-radius: 0;">↩️ Undo</button>
+              <button id="undoMenuToggleBtn" class="btn" onclick="toggleUndoMenu(event)" title="Undo history &amp; Redo" style="padding-left: 0.35rem; padding-right: 0.35rem; border-left: none; border-top-left-radius: 0; border-bottom-left-radius: 0;" disabled>▾</button>
+              <div id="undoMenu" class="dropdown-menu"></div>
+            </div>
+            <span id="twhSyncBadge" class="sync-badge sync-idle" title="Website Sync Status">
+              <span class="sync-dot"></span>
+              <span id="twhSyncText">Website Connected</span>
+            </span>
+            <span id="draftBanner" class="draft-badge" title="Edits are automatically saved in your browser and synced to Website">
+              💾 Edits automatically synced to Website.
+            </span>
           </div>
         </div>
-        <div class="actions no-print">
-          <button id="undoBtn" class="btn" onclick="undoAction()" title="Undo last action (Ctrl+Z)" disabled>↩️ Undo</button>
-          <button id="redoBtn" class="btn" onclick="redoAction()" title="Redo action (Ctrl+Y)" disabled>↪️ Redo</button>
-          <span id="twhSyncBadge" class="sync-badge sync-idle" title="TroopWebHost Sync Status">
-            <span class="sync-dot"></span>
-            <span id="twhSyncText">TWH Connected</span>
-          </span>
-          <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" title="View or edit sign-ups directly in TroopWebHost">🌐 TWH Sign-Ups</a>
-          <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" title="View event details directly in TroopWebHost">📅 TWH Event</a>
-          <button id="addDriverBtn" class="btn btn-primary" onclick="openAddDriverModal()">➕ Add Driver</button>
-          <button id="downloadExcelBtn" class="btn btn-success" onclick="downloadCoordinatorExcel()">📥 Download Excel (.xlsx)</button>
-          <button id="tabularExportBtn" class="btn" style="background:#0f766e; color:#fff; border-color:#0f766e;" onclick="openTabularExportModal()" title="Export flat cartesian spreadsheet with customizable columns">📑 Tabular Export (.xlsx)</button>
-          <button class="btn" onclick="window.print()">🖨️ Print Sheet</button>
-          <a id="viewCarpoolLink" href="#" class="btn">🚗 Public View</a>
-          <button class="btn btn-danger" onclick="resetToBaseline()" title="Clear draft and reload from TroopWebHost">🔄 Reset</button>
+        <div class="actions no-print" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;">
+          <!-- Export & Print -->
+          <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+            <button class="btn" onclick="window.print()">🖨️ Print</button>
+            <button id="tabularExportBtn" class="btn" onclick="openTabularExportModal()" title="Export flat cartesian spreadsheet with customizable columns">📑 Custom Report (.xlsx)</button>
+            <button id="downloadExcelBtn" class="btn" onclick="downloadCoordinatorExcel()">📥 Legacy Spreadsheet (.xlsx)</button>
+          </div>
+          <!-- Navigation -->
+          <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+            <a id="viewCarpoolLink" href="#" class="btn">🚗 Carpool View</a>
+            <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View or edit sign-ups on Website">🌐 Website Sign-Ups ↗</a>
+            <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View event details on Website">📅 Website Event ↗</a>
+          </div>
         </div>
       </header>
 
@@ -775,12 +865,6 @@
           <button class="btn btn-primary" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="refreshFromTWH()">Review &amp; Refresh</button>
           <button class="btn" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="dismissDisparityBanner()">Dismiss</button>
         </div>
-      </div>
-
-      <!-- Draft Notification Banner -->
-      <div id="draftBanner" class="draft-banner">
-        <span>💾 <strong>Local Working Draft</strong>: Edits are automatically saved in your browser and synced to TroopWebHost.</span>
-        <button class="btn btn-danger" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="resetToBaseline()">Discard Edits</button>
       </div>
 
       <!-- Urgent Alert: Ambiguous Driver Notes -->
@@ -894,8 +978,8 @@
 
       <!-- Section 1: TO the Event (Outbound) -->
       <div class="section-card">
-        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-          <h2 id="toSectionTitle">🚗 "TO" the Event (Outbound)</h2>
+        <div class="section-header">
+          <h2 id="toSectionTitle">🚗 TO the event</h2>
           <div id="toSectionSub" class="section-subtitle"></div>
         </div>
         <div class="table-wrapper">
@@ -908,8 +992,8 @@
 
       <!-- Section 2: FROM the Event (Return) -->
       <div class="section-card">
-        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-          <h2 id="fromSectionTitle">🚙 "FROM" the Event (Return)</h2>
+        <div class="section-header">
+          <h2 id="fromSectionTitle">🚙 FROM the event</h2>
           <div id="fromSectionSub" class="section-subtitle"></div>
         </div>
         <div class="table-wrapper">
@@ -1016,7 +1100,7 @@
           <div class="form-group">
             <label for="newDriverLeg">Driving Direction</label>
             <select id="newDriverLeg">
-              <option value="Both">Both TO and FROM</option>
+              <option value="Both">To and From</option>
               <option value="To">TO the Event only</option>
               <option value="From">FROM the Event only</option>
             </select>
@@ -1093,12 +1177,14 @@
         </div>
       </div>
     </div>
+  </div>
+
   <!-- Modal: Tabular Excel Export -->
   <div id="tabularExportModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'tabularExportModal')">
     <div class="modal-dialog" style="max-width: 680px;">
       <div class="modal-header">
         <div>
-          <h3 style="display:flex; align-items:center; gap:0.4rem;">📑 Tabular Cartesian Export (.xlsx)</h3>
+          <h3 style="display:flex; align-items:center; gap:0.4rem;">📑 Custom Report (.xlsx)</h3>
           <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">
             Export individual driver-rider rows into a flat, filterable spreadsheet with customizable columns.
           </div>
@@ -1109,7 +1195,7 @@
         <!-- Quick Preset & Selection Actions -->
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
           <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-            <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="resetTabularToStandardDefault()">↺ Reset to Standard Default</button>
+            <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="resetTabularToStandardDefault()">↺ Default</button>
             <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="selectTabularColumns(true)">Select All</button>
             <button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem;" onclick="selectTabularColumns(false)">Clear All</button>
           </div>
@@ -1156,10 +1242,11 @@
         <div style="display:flex; gap:0.5rem;">
           <button type="button" class="btn" onclick="closeModal('tabularExportModal')">Cancel</button>
           <button type="button" id="btnExecuteTabularExport" class="btn btn-primary" style="background:#0f766e; border-color:#0f766e;" onclick="downloadTabularExcel()">
-            📥 Export Spreadsheet (.xlsx)
+            📥 Download Custom Report (.xlsx)
           </button>
         </div>
       </div>
+    </div>
     </div>
   </div>
 
@@ -1277,44 +1364,53 @@
       initCoordinator();
     }
 
-    async function initCoordinator() {
+    async function initCoordinator(forceRefresh = false) {
       const carpoolStorageKey = `twh_event_carpool_${eventId}`;
       const draftStorageKey = `troop402_coord_v1_${eventId}`;
       let renderedFromCache = false;
 
       // 1. Instant Render from LocalStorage if available
-      try {
-        const cachedCarpool = localStorage.getItem(carpoolStorageKey);
-        if (cachedCarpool) {
-          const parsed = JSON.parse(cachedCarpool);
-          if (parsed && parsed.data) {
-            carpoolBaseline = parsed.data;
-            if (parsed.meta) carpoolBaseline.meta = parsed.meta;
+      if (!forceRefresh) {
+        try {
+          const cachedCarpool = localStorage.getItem(carpoolStorageKey);
+          if (cachedCarpool) {
+            const parsed = JSON.parse(cachedCarpool);
+            if (parsed && parsed.data) {
+              carpoolBaseline = parsed.data;
+              if (parsed.meta) carpoolBaseline.meta = parsed.meta;
+            }
           }
-        }
 
-        const savedDraftJson = localStorage.getItem(draftStorageKey);
-        if (savedDraftJson && carpoolBaseline) {
-          try {
-            localDraft = JSON.parse(savedDraftJson);
-            document.getElementById('draftBanner').style.display = 'flex';
+          const savedDraftJson = localStorage.getItem(draftStorageKey);
+          if (savedDraftJson && carpoolBaseline) {
+            try {
+              localDraft = JSON.parse(savedDraftJson);
+              const db = document.getElementById('draftBanner');
+              if (db) db.style.display = 'inline-flex';
+              loadUndoHistory();
+              renderPage();
+              renderedFromCache = true;
+            } catch {}
+          } else if (carpoolBaseline) {
+            localDraft = buildBaselineDraft();
             loadUndoHistory();
             renderPage();
             renderedFromCache = true;
-          } catch {}
-        } else if (carpoolBaseline) {
-          localDraft = buildBaselineDraft();
-          loadUndoHistory();
-          renderPage();
-          renderedFromCache = true;
+          }
+        } catch (e) {
+          console.warn('LocalStorage init error:', e);
         }
-      } catch (e) {
-        console.warn('LocalStorage init error:', e);
+      }
+
+      const hasExistingRender = renderedFromCache || Boolean(localDraft && (localDraft.toDrivers || localDraft.fromDrivers));
+
+      if (hasExistingRender) {
+        updateSyncBadge('saving', forceRefresh ? 'Refreshing from Website...' : 'Checking Website...');
       }
 
       // 2. Fetch fresh baseline from server in background (or foreground if no cache)
       try {
-        const res = await fetch(`/api/events/${eventId}/carpool`);
+        const res = await fetch(`/api/events/${eventId}/carpool${forceRefresh ? '?forceRefresh=true' : ''}`);
         if (!res.ok) throw new Error('Failed to load event carpool data');
         const freshData = await res.json();
         carpoolBaseline = freshData;
@@ -1354,10 +1450,11 @@
         // Check if draft exists
         const savedDraftJson = localStorage.getItem(draftStorageKey);
 
-        if (savedDraftJson) {
+        if (savedDraftJson && !forceRefresh) {
           try {
             localDraft = JSON.parse(savedDraftJson);
-            document.getElementById('draftBanner').style.display = 'flex';
+            const db = document.getElementById('draftBanner');
+            if (db) db.style.display = 'inline-flex';
             // Upgrade draft: ensure baselineComment & customNote are present
             [...(localDraft.toDrivers || []), ...(localDraft.fromDrivers || [])].forEach(d => {
               if (d.baselineComment === undefined) {
@@ -1371,19 +1468,24 @@
           } catch {
             localDraft = buildBaselineDraft();
           }
-        } else if (!renderedFromCache) {
+        } else if (!hasExistingRender || forceRefresh) {
           localDraft = buildBaselineDraft();
         }
 
         loadUndoHistory();
         renderPage();
+        updateSyncBadge('idle', 'Website Connected');
       } catch (err) {
-        if (!renderedFromCache) {
+        if (!hasExistingRender) {
+          updateSyncBadge('error', 'Sync Failed');
           document.getElementById('loading').innerHTML = `
             <h3 style="color:#ef4444;">Error Loading Event #${escapeHtml(eventId)}</h3>
             <p>${escapeHtml(err.message)}</p>
             <a href="/manager.html" class="btn" style="margin-top:1rem;">Go to Event Manager</a>
           `;
+        } else {
+          console.warn('Background coordinator refresh failed:', err);
+          updateSyncBadge('error', 'Offline (Cached)');
         }
       }
     }
@@ -1504,7 +1606,8 @@
       localDraft.isCustom = true;
       const storageKey = `troop402_coord_v1_${eventId}`;
       localStorage.setItem(storageKey, JSON.stringify(localDraft));
-      document.getElementById('draftBanner').style.display = 'flex';
+      const db = document.getElementById('draftBanner');
+      if (db) db.style.display = 'inline-flex';
       renderPage();
     }
 
@@ -1539,11 +1642,11 @@
       const fromDate = meta.end ? meta.end.split(' ')[0] : '';
       const toTitle = document.getElementById('toSectionTitle');
       if (toTitle) {
-        toTitle.textContent = `🚗 "TO" the Event (Outbound${toDate ? ` – ${toDate}` : ''})`;
+        toTitle.textContent = `🚗 TO the event${toDate ? ` (${toDate})` : ''}`;
       }
       const fromTitle = document.getElementById('fromSectionTitle');
       if (fromTitle) {
-        fromTitle.textContent = `🚙 "FROM" the Event (Return${fromDate ? ` – ${fromDate}` : ''})`;
+        fromTitle.textContent = `🚙 FROM the event${fromDate ? ` (${fromDate})` : ''}`;
       }
 
       document.getElementById('eventLocation').textContent = loc ? `📍 ${loc}` : '📍 TBA';
@@ -1551,7 +1654,7 @@
       const mapLinkEl = document.getElementById('eventMapLink');
       if (mapLinkEl) {
         if (map) {
-          mapLinkEl.innerHTML = `<a href="${escapeHtml(map)}" target="_blank" rel="noopener" style="color:var(--primary); font-weight:600; text-decoration:none;">🗺️ Map</a>`;
+          mapLinkEl.innerHTML = `<a href="${escapeHtml(map)}" target="_blank" rel="noopener" class="clickable-contact" style="font-weight:600;" title="Open in Google Maps">🗺️ Map ↗</a>`;
           mapLinkEl.style.display = 'inline';
         } else {
           mapLinkEl.innerHTML = '';
@@ -1703,7 +1806,7 @@
         if (oneWayInThisLeg.length > 0) {
           subHtml += ` <span class="badge" style="background:#faf5ff; color:#6b21a8; border:1px solid #ddd6fe; font-size:0.75rem; font-weight:700;">🔄 ${oneWayInThisLeg.length} One-Way (${oneWayInThisLeg.map(d => toDisplayName(d.name) + ' – ' + (d.drivingToFrom || 'One-Way') + ' Only').join(', ')})</span>`;
         } else {
-          subHtml += ` <span class="badge" style="background:#f8fafc; color:#64748b; font-size:0.75rem;">All Round-Trip</span>`;
+          subHtml += ` <span class="badge" style="background:#f8fafc; color:#64748b; font-size:0.75rem;">All To and From</span>`;
         }
         if (oneWayInOtherLegOnly.length > 0) {
           subHtml += ` <span class="badge" style="background:#fffbeb; color:#92400e; border:1px solid #fde68a; font-size:0.75rem;">Note: ${oneWayInOtherLegOnly.map(d => toDisplayName(d.name)).join(', ')} is ${otherDir}-only</span>`;
@@ -1763,7 +1866,7 @@
           tr.style.borderLeft = '4px solid #8b5cf6';
         }
 
-        let phoneHtml = d.phone ? `<a href="tel:${escapeHtml(d.phone)}" style="color:var(--text); text-decoration:none;">${escapeHtml(d.phone)}</a>` : '<span class="muted">-</span>';
+        let phoneHtml = d.phone ? `<a href="tel:${escapeHtml(d.phone)}" class="clickable-contact">📞 ${escapeHtml(d.phone)}</a>` : '<span class="muted">-</span>';
         let safetyTag = !d.isCompliant ? '<br><span style="color:#b91c1c; font-size:0.7rem; font-weight:700;">⚠️ Safety Gaps</span>' : '';
         let oneWayTag = isOneWay ? `<br><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.68rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span>` : '';
 
@@ -1875,11 +1978,11 @@
 
         let badgeHtml = '';
         if (needsTo && needsFrom) {
-          badgeHtml = '<span class="badge badge-both">TO &amp; FROM</span>';
+          badgeHtml = '<span class="badge badge-both">To and From</span>';
         } else if (needsTo) {
-          badgeHtml = '<span class="badge badge-to">TO only</span>';
+          badgeHtml = '<span class="badge badge-to">To only</span>';
         } else {
-          badgeHtml = '<span class="badge badge-from">FROM only</span>';
+          badgeHtml = '<span class="badge badge-from">From only</span>';
         }
 
         return `
@@ -2538,10 +2641,24 @@
         const raw = sessionStorage.getItem(UNDO_STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          undoStack = parsed.undoStack || [];
-          redoStack = parsed.redoStack || [];
+          const isStale = !parsed.savedAt || (Date.now() - parsed.savedAt > 15 * 60 * 1000);
+          if (isStale) {
+            sessionStorage.removeItem(UNDO_STORAGE_KEY);
+            undoStack = [];
+            redoStack = [];
+          } else {
+            undoStack = parsed.undoStack || [];
+            // Redo stack is strictly transient and wipes clean across page reloads/refreshes
+            redoStack = [];
+          }
+        } else {
+          undoStack = [];
+          redoStack = [];
         }
-      } catch {}
+      } catch {
+        undoStack = [];
+        redoStack = [];
+      }
       updateUndoRedoButtons();
     }
 
@@ -2549,7 +2666,8 @@
       try {
         sessionStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify({
           undoStack: undoStack.slice(-50),
-          redoStack: redoStack.slice(-50),
+          redoStack: [], // Do not persist forward redo branches across reloads
+          savedAt: Date.now(),
         }));
       } catch {}
       updateUndoRedoButtons();
@@ -2584,6 +2702,7 @@
       } else {
         updateSyncBadge('idle', `↩️ Undone: ${state.description}`);
       }
+      closeUndoMenu();
     }
 
     async function redoAction() {
@@ -2604,23 +2723,103 @@
       } else {
         updateSyncBadge('idle', `↪️ Redone: ${state.description}`);
       }
+      closeUndoMenu();
     }
+
+    function renderUndoDropdown() {
+      const menu = document.getElementById('undoMenu');
+      if (!menu) return;
+
+      let html = '';
+
+      // Redo Option
+      if (redoStack.length > 0) {
+        const nextRedo = redoStack[redoStack.length - 1];
+        html += `
+          <button type="button" class="dropdown-item" onclick="redoAction(); closeUndoMenu();" title="Redo (Ctrl+Y)">
+            <span style="font-weight:700; color:var(--primary);">↪️ Redo:</span>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:210px;">${escapeHtml(nextRedo.description)}</span>
+          </button>
+        `;
+      } else {
+        html += `
+          <div style="padding:0.4rem 0.75rem; font-size:0.78rem; color:var(--text-muted); font-style:italic;">
+            ↪️ Redo: Nothing to redo
+          </div>
+        `;
+      }
+
+      html += `<div style="height:1px; background:var(--border); margin:0.35rem 0;"></div>`;
+
+      // Recent Undo Steps
+      html += `
+        <div style="padding:0.25rem 0.75rem 0.35rem; font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">
+          Undo History (${undoStack.length} action${undoStack.length === 1 ? '' : 's'})
+        </div>
+      `;
+
+      if (undoStack.length === 0) {
+        html += `
+          <div style="padding:0.35rem 0.75rem; font-size:0.78rem; color:var(--text-muted); font-style:italic;">
+            No actions to undo
+          </div>
+        `;
+      } else {
+        const recent = undoStack.slice(-5).reverse();
+        recent.forEach((item, idx) => {
+          html += `
+            <div style="padding:0.3rem 0.75rem; font-size:0.78rem; color:#334155; display:flex; align-items:center; gap:0.4rem;">
+              <span style="color:var(--text-muted); font-size:0.72rem; min-width:14px;">${idx + 1}.</span>
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:230px;" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</span>
+            </div>
+          `;
+        });
+      }
+
+      menu.innerHTML = html;
+    }
+
+    function toggleUndoMenu(e) {
+      if (e) e.stopPropagation();
+      if (undoStack.length === 0 && redoStack.length === 0) return;
+      const menu = document.getElementById('undoMenu');
+      if (!menu) return;
+      if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+      } else {
+        renderUndoDropdown();
+        menu.style.display = 'block';
+      }
+    }
+
+    function closeUndoMenu() {
+      const menu = document.getElementById('undoMenu');
+      if (menu) menu.style.display = 'none';
+    }
+
+    window.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('undoDropdownWrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        closeUndoMenu();
+      }
+    });
 
     function updateUndoRedoButtons() {
       const undoBtn = document.getElementById('undoBtn');
-      const redoBtn = document.getElementById('redoBtn');
+      const toggleBtn = document.getElementById('undoMenuToggleBtn');
+      const hasUndo = undoStack.length > 0;
+      const hasRedo = redoStack.length > 0;
+
       if (undoBtn) {
-        undoBtn.disabled = undoStack.length === 0;
-        undoBtn.title = undoStack.length > 0
+        undoBtn.disabled = !hasUndo;
+        undoBtn.title = hasUndo
           ? `Undo: ${undoStack[undoStack.length - 1].description} (Ctrl+Z)`
           : 'Nothing to undo (Ctrl+Z)';
       }
-      if (redoBtn) {
-        redoBtn.disabled = redoStack.length === 0;
-        redoBtn.title = redoStack.length > 0
-          ? `Redo: ${redoStack[redoStack.length - 1].description} (Ctrl+Y)`
-          : 'Nothing to redo (Ctrl+Y)';
+      if (toggleBtn) {
+        toggleBtn.disabled = !hasUndo && !hasRedo;
       }
+      renderUndoDropdown();
     }
 
     // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Cmd+Shift+Z)
@@ -2657,7 +2856,7 @@
       if (status === 'success') {
         syncFadeTimeout = setTimeout(() => {
           badge.className = 'sync-badge sync-idle';
-          textEl.textContent = '✓ TWH in sync';
+          textEl.textContent = '✓ Website in sync';
         }, 4000);
       }
     }
@@ -2704,7 +2903,7 @@
         undoStack = [];
         redoStack = [];
         saveUndoHistory();
-        location.reload();
+        initCoordinator(true);
       }
     }
 
@@ -2724,7 +2923,7 @@
       try {
         const btn = document.getElementById('downloadExcelBtn');
         const origText = btn.textContent;
-        btn.textContent = '⏳ Preparing Excel...';
+        btn.textContent = '⏳ Preparing Spreadsheet...';
         btn.disabled = true;
 
         const unassignedScouts = (carpoolBaseline.scouts || []).filter(s => {

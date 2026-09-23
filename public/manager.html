@@ -247,10 +247,6 @@
           <div class="label" id="cacheLabel">Cache Status</div>
         </div>
       </div>
-      <div class="btn-group">
-        <button id="refreshRosterBtn" class="btn" onclick="fetchRosterSummary(true)">🔄 Force Sync from TWH</button>
-        <button id="downloadCsvBtn" class="btn" onclick="downloadRosterCsv()">📥 Download Roster CSV</button>
-      </div>
     </div>
 
     <!-- Event Carpool Explorer -->
@@ -265,10 +261,10 @@
       <!-- Filter Pills -->
       <div class="filter-pills">
         <button id="filterCarpoolBtn" class="filter-pill active" onclick="setFilter('carpool')">
-          🏕️ Carpool Candidates Only (<span id="carpoolEventsCount">...</span>)
+          🏕️ Carpool Events (<span id="carpoolEventsCount">...</span>)
         </button>
         <button id="filterAllBtn" class="filter-pill" onclick="setFilter('all')">
-          📋 All Upcoming Events (<span id="allEventsCount">...</span>)
+          📋 All Events (<span id="allEventsCount">...</span>)
         </button>
       </div>
 
@@ -280,14 +276,14 @@
       <div id="eventLaunchBox" class="event-launch-box">
         <div class="launch-header">
           <div>
-            <div class="launch-title" id="launchEventTitle">Mt. Lassen</div>
+            <div class="launch-title" id="launchEventTitle"></div>
             <div class="launch-meta">
-              <span id="launchEventDate">📅 Oct 10, 2026</span> • 
-              <span id="launchEventLocation">📍 Mt. Lassen State Park</span> • 
-              <span id="launchEventType">Campout</span>
+              <span id="launchEventDate"></span> • 
+              <span id="launchEventLocation"></span> • 
+              <span id="launchEventType"></span>
             </div>
           </div>
-          <span class="badge badge-neutral" id="launchEventIdBadge">ID: #1957</span>
+          <span class="badge badge-neutral" id="launchEventIdBadge"></span>
         </div>
 
         <!-- Quick Capacity Indicator -->
@@ -297,15 +293,14 @@
 
         <div class="btn-group">
           <a id="openCarpoolLink" href="#" target="_blank" class="btn btn-primary" style="font-size: 0.95rem; padding: 0.65rem 1.25rem;">
-            🚗 Open Shareable Carpool Page &rarr;
+            🚗 Carpool View
           </a>
           <a id="openCoordinatorLink" href="#" target="_blank" class="btn btn-success" style="font-size: 0.95rem; padding: 0.65rem 1.25rem;">
-            🗂️ Coordinator Grid &rarr;
+            🗂️ Coordinator View
           </a>
           <a id="downloadExcelLink" href="#" class="btn" style="font-size: 0.95rem; padding: 0.65rem 1rem;">
-            📥 Download Excel (.xlsx)
+            📥 Legacy Spreadsheet (.xlsx)
           </a>
-          <button id="copyCarpoolBtn" class="btn" onclick="copyEventLink()">📋 Copy Shareable Link</button>
         </div>
       </div>
     </div>
@@ -319,13 +314,9 @@
     let allEvents = [];
     let currentFilter = 'carpool'; // 'carpool' or 'all'
 
-    async function fetchRosterSummary(forceRefresh = false) {
-      const btn = document.getElementById('refreshRosterBtn');
-      btn.disabled = true;
-      btn.textContent = 'Syncing...';
-
+    async function fetchRosterSummary() {
       try {
-        const res = await fetch(`/api/roster/summary${forceRefresh ? '?forceRefresh=true' : ''}`);
+        const res = await fetch('/api/roster/summary');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
@@ -338,34 +329,6 @@
         document.getElementById('cacheLabel').textContent = data.fresh ? 'Cached at' : 'Just Updated';
       } catch (err) {
         document.getElementById('cacheAge').textContent = 'Error';
-      } finally {
-        btn.disabled = false;
-        btn.textContent = '🔄 Force Sync from TWH';
-      }
-    }
-
-    async function downloadRosterCsv() {
-      const btn = document.getElementById('downloadCsvBtn');
-      btn.disabled = true;
-      btn.textContent = 'Downloading...';
-
-      try {
-        const res = await fetch('/api/export-roster', { method: 'POST' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `troop_402_roster_${new Date().toISOString().slice(0, 10)}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-      } catch (err) {
-        alert('Download failed: ' + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = '📥 Download Roster CSV';
       }
     }
 
@@ -399,7 +362,7 @@
         ? allEvents.filter(e => e.isCarpoolCandidate)
         : allEvents;
 
-      select.innerHTML = '<option value="">-- Choose an Event to View Carpool --</option>';
+      select.innerHTML = '<option value="">-- Select an Event to View Carpool --</option>';
       filtered.forEach(e => {
         const opt = document.createElement('option');
         opt.value = e.id;
@@ -409,12 +372,14 @@
         select.appendChild(opt);
       });
 
-      // Default to Mt. Lassen if present
-      const lassen = filtered.find(e => /lassen/i.test(e.title));
-      if (lassen) {
-        select.value = lassen.id;
+      // Default to last selected event from localStorage if present
+      const lastPickedId = localStorage.getItem('twh_manager_last_event_id');
+      const foundLast = lastPickedId ? filtered.find(e => String(e.id) === String(lastPickedId)) : null;
+      if (foundLast) {
+        select.value = foundLast.id;
         onEventSelected();
       } else {
+        select.value = '';
         document.getElementById('eventLaunchBox').style.display = 'none';
       }
     }
@@ -426,8 +391,11 @@
 
       if (!eventId) {
         box.style.display = 'none';
+        localStorage.removeItem('twh_manager_last_event_id');
         return;
       }
+
+      localStorage.setItem('twh_manager_last_event_id', eventId);
 
       const ev = allEvents.find(e => String(e.id) === String(eventId));
       document.getElementById('launchEventTitle').textContent = ev?.title || `Event #${eventId}`;
@@ -450,6 +418,16 @@
         const res = await fetch(`/api/events/${eventId}/carpool`);
         if (res.ok) {
           const cp = await res.json();
+
+          // Pre-warm client cache for carpool.html and coordinator.html
+          try {
+            localStorage.setItem(`twh_event_carpool_${eventId}`, JSON.stringify({
+              savedAt: Date.now(),
+              data: cp,
+              meta: cp.meta || ev || null,
+            }));
+          } catch {}
+
           const { stats } = cp;
           const balance = stats.seatBalance;
           let badge = '';
@@ -470,20 +448,6 @@
       } catch {
         indicator.innerHTML = '';
       }
-    }
-
-    function copyEventLink() {
-      const select = document.getElementById('eventSelect');
-      const eventId = select.value;
-      if (!eventId) return;
-
-      const fullUrl = `${window.location.origin}/carpool.html?id=${eventId}`;
-      navigator.clipboard.writeText(fullUrl).then(() => {
-        const btn = document.getElementById('copyCarpoolBtn');
-        const orig = btn.textContent;
-        btn.textContent = '✅ Copied!';
-        setTimeout(() => { btn.textContent = orig; }, 2000);
-      });
     }
 
     // Init
