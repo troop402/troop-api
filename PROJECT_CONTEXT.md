@@ -282,5 +282,27 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
   - **Interactive Sorting & Live Filtering**: Multi-column sorting (`toggleScoutSort`) and live search (`scoutSearch`) search across all scout attributes including notes, medical status, and swim tests.
   - **`coordinator.html` Waitlist & Seat Modal**: Waitlist cards and the seat assignment selection modal display scout attendance comments inline (e.g. `💬 need to leave sunday morning...`), preventing coordinators from assigning riders with early departure constraints to the wrong drivers.
 
+### 9.10 Customizable Cartesian Tabular Excel Export (`tabular.xlsx`)
+* **Design Rationale**:
+  - While the 4-sheet Lake Berryessa coordinator workbook (`carpool.xlsx`) serves printable roster check-in and complex cell-formula coordination, troop leadership often needs flat, plain-text relational data exports for pivot tables, ad-hoc filtering, external rosters, and custom analysis.
+  - Rather than fixed columns, leadership requested full control to pick and order exported attributes from a rich catalog.
+* **Cartesian Row Architecture**:
+  - Each adult-driver-rider assignment is split into its own discrete row.
+  - **Open Seats**: Drivers with remaining passenger capacity emit individual rows labeled `[Open Seat]` (with vehicle and driver info filled, rider info blank), making unfilled capacity instantly auditable. Toggleable via `includeOpenSeats` (default: on).
+  - **Unassigned Attendees**: Scouts without rides emit individual rows with Driver labeled `(Unassigned)`, ensuring no attendee is missed during early export stages. Toggleable via `includeUnassigned` (default: on).
+* **Trip Leg Splitting & Coalescing**:
+  - Controlled by the `splitTripLegs` toggle (default: true).
+  - When true: Outbound (`TO`) and return (`FROM`) trips produce distinct individual rows labeled with their specific leg, allowing users to filter by leg using Excel's built-in column auto-filter.
+  - When false: Identical driver-rider trips across both directions coalesce into a single row marked `Trip Leg: Both`. One-way or asymmetric rides emit separate `TO only` or `FROM only` rows.
+* **Column Catalog & Standard Preset**:
+  - Supports 40+ selectable columns covering trip/event details, driver info (vehicle, license plate, driver status, SYT, AB506), and passenger info (rank, age, grade, parent emergency contacts 1 & 2, phone, permission, medical clearance dates, swim level, allergies, and dietary restrictions).
+  - **Standard Preset**: Focused on core carpool logistics (`trip_leg`, `adult_name`, `adult_cell`, `adult_vehicle`, `adult_passenger_seats`, `seat_number`, `rider_name`, `rider_patrol`, `rider_parent_names`, `rider_parent_phone`, `rider_permission`, `rider_medical_forms`).
+  - **Comments Excluded by Default**: In response to user feedback, driver comments and rider attendance comments are unchecked by default in the standard preset to keep exports clean and tabular, but remain selectable.
+* **Client-Side Persistence & Workflow**:
+  - Both `coordinator.html` and `carpool.html` feature a dedicated `📑 Tabular Export (.xlsx)` button opening an interactive modal with live column count badges, category groups, quick preset actions, and row toggles.
+  - User selections persist across sessions in `localStorage` under `twh_tabular_export_settings`.
+  - When triggered from `coordinator.html`, `POST /api/events/:id/tabular.xlsx` transmits the live in-browser `localDraft` state so exports reflect uncommitted assignments.
+
+
 
 

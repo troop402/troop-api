@@ -5,7 +5,7 @@ import { CookieJar } from 'tough-cookie';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { pathToFileURL } from 'url';
-import { buildCarpoolWorkbook } from './excel-export.js';
+import { buildCarpoolWorkbook, buildTabularWorkbook } from './excel-export.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -297,16 +297,36 @@ function computeRosterSummary(csvBuffer) {
 
     const name = String(row.Name || '').trim();
     if (name) {
+      const parent1 = (row['Emergency Contact 1'] || '').trim();
+      const parent2 = (row['Emergency Contact 2'] || '').trim();
+      const parentPhone1 = (row['Emergency Contact 1 Phone'] || '').trim();
+      const parentPhone2 = (row['Emergency Contact 2 Phone'] || '').trim();
+
+      const parentNames = [parent1, parent2].filter(Boolean).join(' / ');
+      const parentPhone = [parentPhone1, parentPhone2].filter(Boolean).join(' / ');
+
       membersByName.set(name.toLowerCase(), {
         name,
         isAdult,
         leadership: row.Leadership || '',
         patrol: row.Patrol || '',
         rank: row.Rank || '',
+        age: row.Age || '',
+        grade: row.Grade || '',
         phone: row['Cell Phone'] || row['Home Phone'] || '',
         email: row.Email || '',
         seatBelts: parseInt(row['Seat Belts'], 10) || 0,
         vehicle: row['Make/Model/Year'] || '',
+        licensePlate: row['License Plate'] || '',
+        driverLicense: row["Driver's License"] || '',
+        parentNames,
+        parentPhone,
+        emergencyContact1: parent1,
+        emergencyContact1Phone: parentPhone1,
+        emergencyContact2: parent2,
+        emergencyContact2Phone: parentPhone2,
+        allergies: row.Allergies || '',
+        dietary: row['Dietary Restrictions'] || '',
         swimLevel: row['Swim Level'] || '',
         swimDate: row['Swim Date'] || '',
         bsaId: row['BSA ID'] || '',
@@ -1219,13 +1239,18 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
 
     const adults = rawAdults.map((row) => {
       const name = row.Participant || '';
+      const rosterInfo = membersMap.get(name.toLowerCase()) || {};
       const trainingInfo = adultTrainingMap.get(name.toLowerCase()) || null;
       return {
         name,
-        leadership: row.Leadership || '',
+        leadership: row.Leadership || rosterInfo.leadership || '',
         sytStatus: row['SYT Status'] || '',
         stateTraining: evaluateStateTrainingStatus(trainingInfo),
         registered: row['BSA Registered?'] || '',
+        phone: rosterInfo.phone || '',
+        email: rosterInfo.email || '',
+        vehicle: rosterInfo.vehicle || '',
+        licensePlate: rosterInfo.licensePlate || '',
       };
     });
 
@@ -1262,6 +1287,17 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
         bsaRegistrationEnds: bsaEnds,
         swimTest: rosterInfo.swimLevel || row['Swim Test'] || '',
         swimDate: rosterInfo.swimDate || '',
+        age: rosterInfo.age || '',
+        grade: rosterInfo.grade || '',
+        rank: rosterInfo.rank || '',
+        parentNames: rosterInfo.parentNames || '',
+        parentPhone: rosterInfo.parentPhone || '',
+        emergencyContact1: rosterInfo.emergencyContact1 || '',
+        emergencyContact1Phone: rosterInfo.emergencyContact1Phone || '',
+        emergencyContact2: rosterInfo.emergencyContact2 || '',
+        emergencyContact2Phone: rosterInfo.emergencyContact2Phone || '',
+        allergies: rosterInfo.allergies || '',
+        dietary: rosterInfo.dietary || '',
       };
     });
 
@@ -1295,6 +1331,9 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
         phone: rosterInfo.phone || '',
         email: rosterInfo.email || '',
         registeredVehicle: rosterInfo.vehicle || '',
+        leadership: matchingAdult?.leadership || rosterInfo.leadership || '',
+        licensePlate: rosterInfo.licensePlate || '',
+        driverLicense: rosterInfo.driverLicense || '',
         sytStatus,
         stateTraining,
         bsaRegistered,
@@ -1550,6 +1589,95 @@ app.post('/api/events/:id/carpool.xlsx', async (req, res) => {
     res.end();
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to generate carpool spreadsheet.' });
+  }
+});
+
+app.get('/api/events/:id/tabular.xlsx', async (req, res) => {
+  const eventId = req.params.id;
+  const forceRefresh = req.query.forceRefresh === 'true';
+
+  if (!eventId || !/^\d+$/.test(eventId)) {
+    return res.status(400).json({ error: 'Valid numeric event ID is required.' });
+  }
+
+  try {
+    getTroopWebHostConfig();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  try {
+    const carpool = await fetchEventCarpoolDetails({ eventId, forceRefresh });
+    let rosterSummary = null;
+    try {
+      const rosterData = await getRosterData(false);
+      rosterSummary = rosterData.summary;
+    } catch {
+      // Best-effort roster lookup
+    }
+
+    const columns = req.query.columns ? req.query.columns.split(',').map(c => c.trim()).filter(Boolean) : null;
+    const splitTripLegs = req.query.splitTripLegs !== 'false';
+    const includeOpenSeats = req.query.includeOpenSeats !== 'false';
+    const includeUnassigned = req.query.includeUnassigned !== 'false';
+
+    const workbook = await buildTabularWorkbook(carpool, rosterSummary, null, {
+      columns,
+      splitTripLegs,
+      includeOpenSeats,
+      includeUnassigned,
+    });
+
+    const safeTitle = (carpool.meta?.title || 'event').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="carpool_tabular_${eventId}_${safeTitle}.xlsx"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to generate tabular carpool spreadsheet.' });
+  }
+});
+
+app.post('/api/events/:id/tabular.xlsx', async (req, res) => {
+  const eventId = req.params.id;
+  if (!eventId || !/^\d+$/.test(eventId)) {
+    return res.status(400).json({ error: 'Valid numeric event ID is required.' });
+  }
+
+  try {
+    getTroopWebHostConfig();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  try {
+    const carpool = await fetchEventCarpoolDetails({ eventId, forceRefresh: false });
+    let rosterSummary = null;
+    try {
+      const rosterData = await getRosterData(false);
+      rosterSummary = rosterData.summary;
+    } catch {
+      // Best-effort roster lookup
+    }
+
+    const { customState, columns, splitTripLegs, includeOpenSeats, includeUnassigned } = req.body || {};
+
+    const workbook = await buildTabularWorkbook(carpool, rosterSummary, customState, {
+      columns,
+      splitTripLegs: splitTripLegs !== false,
+      includeOpenSeats: includeOpenSeats !== false,
+      includeUnassigned: includeUnassigned !== false,
+    });
+
+    const safeTitle = (carpool.meta?.title || 'event').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="carpool_tabular_${eventId}_${safeTitle}.xlsx"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to generate tabular carpool spreadsheet.' });
   }
 });
 
@@ -1828,6 +1956,7 @@ export {
   updateEventDriverInTWH,
   firstMatches,
   NICKNAMES,
+  buildTabularWorkbook,
 };
 
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;

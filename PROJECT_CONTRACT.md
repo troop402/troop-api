@@ -105,6 +105,18 @@ I.1 Checks whether the backend's current TroopWebHost credentials have active pe
 I.2 Returns JSON with `authenticated: boolean`, `canEdit: boolean`, and edit URL details.
 I.3 Returns HTTP 400 for invalid event IDs and HTTP 500 if checking fails.
 
+### J. GET and POST /api/events/:id/tabular.xlsx
+J.1 Generates a flat Cartesian-style tabular Excel spreadsheet workbook (`.xlsx`) where each driver-rider assignment occupies its own discrete row.
+J.2 Emits rows for assigned riders, extra rows for open passenger seats (`[Open Seat]`, enabled by default via `includeOpenSeats`), and rows for unassigned scouts (`(Unassigned)`, enabled by default via `includeUnassigned`).
+J.3 Supports trip leg splitting via `splitTripLegs`:
+J.3.1 When `splitTripLegs` is true (default), outbound (`TO`) and return (`FROM`) trips produce distinct individual rows labeled with their specific leg.
+J.3.2 When `splitTripLegs` is false, identical driver-rider trips across both directions coalesce into a single row marked `Trip Leg: Both`, while asymmetric or one-way rides list `TO only` or `FROM only`.
+J.4 Supports user-configurable column selection across 40+ attributes spanning trip details, adult driver data (name, cell, email, vehicle, license plate, SYT, AB506, seats), and rider data (name, patrol, rank, age, grade, parent contacts, emergency phone, permission slip, medical forms, BSA registration, swim test, and comments).
+J.5 The default Standard preset provides a clean operational view without comment clutter (`adult_comment` and `rider_attendance_comment` are excluded by default from the preset).
+J.6 Generates a single styled worksheet (`Carpool Tabular`) with a frozen header row (`ySplit: 1`), auto-filter enabled across all columns, subtle alternating row fills, distinctive styling for open seats and unassigned attendees, and auto-computed column widths.
+J.7 `POST /api/events/:id/tabular.xlsx` accepts an optional live working state (`customState`) from the coordinator worksheet to export uncommitted in-browser edits.
+J.8 Returns HTTP 400 for invalid event IDs and HTTP 500 for generation failures.
+
 
 
 
