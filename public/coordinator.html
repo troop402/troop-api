@@ -108,6 +108,23 @@
     }
     .btn-danger:hover { background: #fecaca; }
 
+    .btn:disabled,
+    .btn[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed !important;
+      background: #f1f5f9 !important;
+      color: #94a3b8 !important;
+      border-color: #cbd5e1 !important;
+      pointer-events: none;
+      box-shadow: none !important;
+    }
+
+    #undoMenuToggleBtn:disabled {
+      color: #94a3b8 !important;
+      opacity: 0.45;
+      cursor: not-allowed !important;
+    }
+
     .clickable-contact {
       color: #0284c7;
       text-decoration: none;
@@ -354,11 +371,11 @@
 
     .section-header {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-start;
       align-items: center;
       margin-bottom: 0.5rem;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 0.75rem;
     }
 
     .section-header h2 {
@@ -800,7 +817,6 @@
             <span id="eventLocation"></span>
             <span id="eventMapLink" style="display:none;"></span>
             <button type="button" class="btn no-print" style="padding:0.15rem 0.45rem; font-size:0.75rem;" onclick="openLocationModal()">✏️ Edit Location / Map</button>
-            <span style="color:#0284c7; font-weight:600;">Standard Coordinator Layout</span>
           </div>
           <!-- Edit Operations Toolbar -->
           <div class="no-print" style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.75rem; flex-wrap: wrap;">
@@ -959,8 +975,8 @@
 
       <!-- Section 1: TO the Event (Outbound) -->
       <div class="section-card">
-        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-          <h2 id="toSectionTitle">🚗 "TO" the Event (Outbound)</h2>
+        <div class="section-header">
+          <h2 id="toSectionTitle">🚗 TO the event</h2>
           <div id="toSectionSub" class="section-subtitle"></div>
         </div>
         <div class="table-wrapper">
@@ -973,8 +989,8 @@
 
       <!-- Section 2: FROM the Event (Return) -->
       <div class="section-card">
-        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-          <h2 id="fromSectionTitle">🚙 "FROM" the Event (Return)</h2>
+        <div class="section-header">
+          <h2 id="fromSectionTitle">🚙 FROM the event</h2>
           <div id="fromSectionSub" class="section-subtitle"></div>
         </div>
         <div class="table-wrapper">
@@ -1607,11 +1623,11 @@
       const fromDate = meta.end ? meta.end.split(' ')[0] : '';
       const toTitle = document.getElementById('toSectionTitle');
       if (toTitle) {
-        toTitle.textContent = `🚗 "TO" the Event (Outbound${toDate ? ` – ${toDate}` : ''})`;
+        toTitle.textContent = `🚗 TO the event${toDate ? ` (${toDate})` : ''}`;
       }
       const fromTitle = document.getElementById('fromSectionTitle');
       if (fromTitle) {
-        fromTitle.textContent = `🚙 "FROM" the Event (Return${fromDate ? ` – ${fromDate}` : ''})`;
+        fromTitle.textContent = `🚙 FROM the event${fromDate ? ` (${fromDate})` : ''}`;
       }
 
       document.getElementById('eventLocation').textContent = loc ? `📍 ${loc}` : '📍 TBA';
@@ -1619,7 +1635,7 @@
       const mapLinkEl = document.getElementById('eventMapLink');
       if (mapLinkEl) {
         if (map) {
-          mapLinkEl.innerHTML = `<a href="${escapeHtml(map)}" target="_blank" rel="noopener" style="color:var(--primary); font-weight:600; text-decoration:none;">🗺️ Map</a>`;
+          mapLinkEl.innerHTML = `<a href="${escapeHtml(map)}" target="_blank" rel="noopener" class="clickable-contact" style="font-weight:600;" title="Open in Google Maps">🗺️ Map ↗</a>`;
           mapLinkEl.style.display = 'inline';
         } else {
           mapLinkEl.innerHTML = '';
@@ -2731,6 +2747,7 @@
 
     function toggleUndoMenu(e) {
       if (e) e.stopPropagation();
+      if (undoStack.length === 0 && redoStack.length === 0) return;
       const menu = document.getElementById('undoMenu');
       if (!menu) return;
       if (menu.style.display === 'block') {

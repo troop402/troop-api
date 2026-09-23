@@ -99,6 +99,17 @@
     }
     .btn-primary:hover { background: var(--primary-hover); }
 
+    .btn:disabled,
+    .btn[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed !important;
+      background: #f1f5f9 !important;
+      color: #94a3b8 !important;
+      border-color: #cbd5e1 !important;
+      pointer-events: none;
+      box-shadow: none !important;
+    }
+
     .clickable-contact {
       color: var(--primary);
       text-decoration: none;
@@ -471,7 +482,12 @@
         border: 1px solid #ccc;
         padding: 0.5rem;
         margin-bottom: 0.75rem;
+        page-break-inside: auto;
+        break-inside: auto;
+      }
+      tr {
         page-break-inside: avoid;
+        break-inside: avoid;
       }
       .capacity-banner {
         padding: 0.5rem 0.75rem;
@@ -547,14 +563,13 @@
         <div class="actions no-print" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;">
           <!-- Export & Print -->
           <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
-            <button class="btn btn-primary" onclick="window.print()">🖨️ Print Departure Sheet</button>
+            <button class="btn" onclick="window.print()">🖨️ Print</button>
             <button id="tabularExportBtn" class="btn" style="background:#0f766e; color:#fff; border-color:#0f766e;" onclick="openTabularExportModal()" title="Export flat cartesian spreadsheet with customizable columns">📑 Custom Report (.xlsx)</button>
             <button id="downloadExcelBtn" class="btn" onclick="downloadExcel()">📥 Legacy Spreadsheet (.xlsx)</button>
           </div>
           <!-- Operations & Navigation -->
           <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
-            <a id="coordGridLink" href="#" class="btn">🗂️ Coordinator</a>
-            <button id="copyLinkBtn" class="btn" onclick="copyShareableLink()">📋 Copy Link</button>
+            <a id="coordGridLink" href="#" class="btn">🗂️ Coordinator View</a>
             <button id="refreshBtn" class="btn" onclick="refreshData()">🔄 Refresh Website Data</button>
             <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View sign-ups on Website">🌐 Website Sign-Ups ↗</a>
             <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View event details on Website">📅 Website Event ↗</a>
@@ -605,12 +620,11 @@
         </ul>
       </div>
 
-      <!-- TABLE 1: Registered Drivers & Vehicle Fleet Overview -->
+      <!-- TABLE 1: Registered Drivers Overview -->
       <div class="card">
         <div class="section-header">
           <div class="section-title">
-            <span>🚙 Registered Drivers &amp; Vehicle Fleet</span>
-            <span class="badge badge-neutral" id="fleetCountBadge">0 Drivers</span>
+            <span id="fleetSectionTitle">🚙 Registered Drivers (0)</span>
             <span id="nonCompliantDriversBadge" style="display:none;" class="badge badge-danger">⚠️ Incomplete Safety Compliance</span>
           </div>
         </div>
@@ -637,7 +651,7 @@
       <div class="card">
         <div class="section-header">
           <div class="section-title">
-            <span id="toSectionTitle">🚗 "TO" the Event (Outbound)</span>
+            <span id="toSectionTitle">🚗 TO the event</span>
             <span class="badge badge-neutral" id="toDriversBadge">0 Drivers</span>
           </div>
         </div>
@@ -662,7 +676,7 @@
       <div class="card">
         <div class="section-header">
           <div class="section-title">
-            <span id="fromSectionTitle">🚙 "FROM" the Event (Return Leg – Cabin Reading Roster)</span>
+            <span id="fromSectionTitle">🚙 FROM the event</span>
             <span class="badge badge-neutral" id="fromDriversBadge">0 Drivers</span>
           </div>
         </div>
@@ -960,7 +974,7 @@
       const locText = combinedMeta?.location ? `📍 ${combinedMeta.location}` : '📍 TBA';
       let locHtml = escapeHtml(locText);
       if (combinedMeta?.mapLink) {
-        locHtml += ` <a href="${escapeHtml(combinedMeta.mapLink)}" target="_blank" rel="noopener" style="margin-left:0.5rem; text-decoration:none; font-weight:600; color:var(--primary); font-size:0.85rem;" title="Open in Google Maps">🗺️ View Map</a>`;
+        locHtml += ` <a href="${escapeHtml(combinedMeta.mapLink)}" target="_blank" rel="noopener" class="clickable-contact" title="Open in Google Maps">🗺️ Map ↗</a>`;
       }
       document.getElementById('eventLocation').innerHTML = locHtml;
       document.getElementById('cachedAtTime').textContent = cachedAt ? new Date(cachedAt).toLocaleTimeString() : 'Just now';
@@ -990,9 +1004,9 @@
       const toDate = combinedMeta?.start ? combinedMeta.start.split(' ')[0] : '';
       const fromDate = combinedMeta?.end ? combinedMeta.end.split(' ')[0] : '';
       const toTitle = document.getElementById('toSectionTitle');
-      if (toTitle) toTitle.textContent = `🚗 "TO" the Event (Outbound${toDate ? ` – ${toDate}` : ''})`;
+      if (toTitle) toTitle.textContent = `🚗 TO the event${toDate ? ` (${toDate})` : ''}`;
       const fromTitle = document.getElementById('fromSectionTitle');
-      if (fromTitle) fromTitle.textContent = `🚙 "FROM" the Event (Return Leg${fromDate ? ` – ${fromDate}` : ''})`;
+      if (fromTitle) fromTitle.textContent = `🚙 FROM the event${fromDate ? ` (${fromDate})` : ''}`;
 
       // Capacity Banner (Scout-Centric)
       const banner = document.getElementById('capacityBanner');
@@ -1067,7 +1081,8 @@
     }
 
     function renderFleetTable(drivers) {
-      document.getElementById('fleetCountBadge').textContent = `${drivers.length} Drivers`;
+      const fleetTitle = document.getElementById('fleetSectionTitle');
+      if (fleetTitle) fleetTitle.textContent = `🚙 Registered Drivers (${drivers.length})`;
       const tbody = document.getElementById('fleetTbody');
       tbody.innerHTML = '';
 
@@ -1912,16 +1927,6 @@
         btn.textContent = origText;
         btn.disabled = false;
       }
-    }
-
-    function copyShareableLink() {
-      const url = window.location.href;
-      navigator.clipboard.writeText(url).then(() => {
-        const btn = document.getElementById('copyLinkBtn');
-        const orig = btn.textContent;
-        btn.textContent = '✅ Copied!';
-        setTimeout(() => { btn.textContent = orig; }, 2000);
-      });
     }
 
     function refreshData() {

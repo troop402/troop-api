@@ -296,15 +296,11 @@
             🚗 Carpool View
           </a>
           <a id="openCoordinatorLink" href="#" target="_blank" class="btn btn-success" style="font-size: 0.95rem; padding: 0.65rem 1.25rem;">
-            🗂️ Coordinator
+            🗂️ Coordinator View
           </a>
           <a id="downloadExcelLink" href="#" class="btn" style="font-size: 0.95rem; padding: 0.65rem 1rem;">
             📥 Legacy Spreadsheet (.xlsx)
           </a>
-          <a id="downloadCustomReportLink" href="#" class="btn" style="font-size: 0.95rem; padding: 0.65rem 1rem; background:#0f766e; color:#fff; border-color:#0f766e;">
-            📑 Custom Report (.xlsx)
-          </a>
-          <button id="copyCarpoolBtn" class="btn" onclick="copyEventLink()">📋 Copy Link</button>
         </div>
       </div>
     </div>
@@ -412,7 +408,6 @@
       document.getElementById('openCarpoolLink').href = carpoolUrl;
       document.getElementById('openCoordinatorLink').href = `/coordinator.html?id=${eventId}`;
       document.getElementById('downloadExcelLink').href = `/api/events/${eventId}/carpool.xlsx`;
-      document.getElementById('downloadCustomReportLink').href = `/api/events/${eventId}/tabular.xlsx`;
       box.style.display = 'block';
 
       // Quick preview of capacity
@@ -443,20 +438,6 @@
       } catch {
         indicator.innerHTML = '';
       }
-    }
-
-    function copyEventLink() {
-      const select = document.getElementById('eventSelect');
-      const eventId = select.value;
-      if (!eventId) return;
-
-      const fullUrl = `${window.location.origin}/carpool.html?id=${eventId}`;
-      navigator.clipboard.writeText(fullUrl).then(() => {
-        const btn = document.getElementById('copyCarpoolBtn');
-        const orig = btn.textContent;
-        btn.textContent = '✅ Copied!';
-        setTimeout(() => { btn.textContent = orig; }, 2000);
-      });
     }
 
     // Init
