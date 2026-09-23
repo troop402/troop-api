@@ -180,18 +180,20 @@
       background: #f1f5f9;
     }
 
-    /* Draft banner */
-    .draft-banner {
-      display: none;
+    /* Draft badge */
+    .draft-badge {
+      display: inline-flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 0.6rem 1rem;
-      background: #eff6ff;
+      gap: 0.45rem;
+      padding: 0.35rem 0.7rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: 20px;
       border: 1px solid #bfdbfe;
-      border-radius: 6px;
-      margin-bottom: 1.25rem;
-      font-size: 0.85rem;
+      background: #eff6ff;
       color: #1e40af;
+      white-space: nowrap;
+      user-select: none;
     }
 
     /* Disparity banner */
@@ -830,13 +832,16 @@
               <span class="sync-dot"></span>
               <span id="twhSyncText">Website Connected</span>
             </span>
+            <span id="draftBanner" class="draft-badge" title="Edits are automatically saved in your browser and synced to Website">
+              💾 Edits automatically synced to Website.
+            </span>
           </div>
         </div>
         <div class="actions no-print" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;">
           <!-- Export & Print -->
           <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
             <button class="btn" onclick="window.print()">🖨️ Print</button>
-            <button id="tabularExportBtn" class="btn" style="background:#0f766e; color:#fff; border-color:#0f766e;" onclick="openTabularExportModal()" title="Export flat cartesian spreadsheet with customizable columns">📑 Custom Report (.xlsx)</button>
+            <button id="tabularExportBtn" class="btn" onclick="openTabularExportModal()" title="Export flat cartesian spreadsheet with customizable columns">📑 Custom Report (.xlsx)</button>
             <button id="downloadExcelBtn" class="btn" onclick="downloadCoordinatorExcel()">📥 Legacy Spreadsheet (.xlsx)</button>
           </div>
           <!-- Navigation -->
@@ -857,11 +862,6 @@
           <button class="btn btn-primary" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="refreshFromTWH()">Review &amp; Refresh</button>
           <button class="btn" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="dismissDisparityBanner()">Dismiss</button>
         </div>
-      </div>
-
-      <!-- Draft Notification Banner -->
-      <div id="draftBanner" class="draft-banner">
-        <span>💾 <strong>Local Working Draft</strong>: Edits are automatically saved in your browser and synced to TroopWebHost.</span>
       </div>
 
       <!-- Urgent Alert: Ambiguous Driver Notes -->
@@ -1381,7 +1381,8 @@
         if (savedDraftJson && carpoolBaseline) {
           try {
             localDraft = JSON.parse(savedDraftJson);
-            document.getElementById('draftBanner').style.display = 'flex';
+            const db = document.getElementById('draftBanner');
+            if (db) db.style.display = 'inline-flex';
             loadUndoHistory();
             renderPage();
             renderedFromCache = true;
@@ -1441,7 +1442,8 @@
         if (savedDraftJson) {
           try {
             localDraft = JSON.parse(savedDraftJson);
-            document.getElementById('draftBanner').style.display = 'flex';
+            const db = document.getElementById('draftBanner');
+            if (db) db.style.display = 'inline-flex';
             // Upgrade draft: ensure baselineComment & customNote are present
             [...(localDraft.toDrivers || []), ...(localDraft.fromDrivers || [])].forEach(d => {
               if (d.baselineComment === undefined) {
@@ -1588,7 +1590,8 @@
       localDraft.isCustom = true;
       const storageKey = `troop402_coord_v1_${eventId}`;
       localStorage.setItem(storageKey, JSON.stringify(localDraft));
-      document.getElementById('draftBanner').style.display = 'flex';
+      const db = document.getElementById('draftBanner');
+      if (db) db.style.display = 'inline-flex';
       renderPage();
     }
 
