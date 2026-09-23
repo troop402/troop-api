@@ -1492,13 +1492,11 @@
         if (ambiguousItems.length > 0) {
           ambiguityBanner.style.display = 'block';
           ambiguityList.innerHTML = ambiguousItems.map(item => {
-            const candText = item.candidates.length > 0 ? `(${item.candidates.join(' / ')})` : '';
             const occCount = item.occurrences.length;
-            const legNote = occCount > 1 ? ' [Both Legs]' : (occCount === 1 ? ` [${item.occurrences[0].dir} Leg]` : '');
             if (occCount > 0) {
-              return `<button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem; background:#fff; border-color:#fde68a; color:#92400e; font-weight:600;" onclick="openResolveAmbiguityModalByKey('${escapeHtml(item.key)}')">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: "${escapeHtml(item.token)}"${escapeHtml(legNote)} ${escapeHtml(candText)} &rarr;</button>`;
+              return `<button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem; background:#fff; border-color:#fde68a; color:#92400e; font-weight:600;" onclick="openResolveAmbiguityModalByKey('${escapeHtml(item.key)}')">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: "${escapeHtml(item.token)}" &rarr;</button>`;
             } else {
-              return `<span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.3rem 0.6rem; font-size:0.75rem;">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: "${escapeHtml(item.token)}" ${escapeHtml(candText)}</span>`;
+              return `<span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.3rem 0.6rem; font-size:0.75rem;">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: "${escapeHtml(item.token)}"</span>`;
             }
           }).join('');
         } else {

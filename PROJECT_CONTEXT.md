@@ -240,9 +240,10 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
 * **Unconditional Safety Flagging**: Drivers who are registered in the event driver table but lack required compliance (e.g. Vanessa Stewart with `attending: '?'` and David Kersten with `attending: 'Y'`) are highlighted in amber (`#fffbeb`) and tagged with `Safety Non-Compliant` / `⚠️ Safety Gaps` across all driver and leg tables regardless of their attending answer. Troop safety compliance is an absolute prerequisite for any driver listed on the event roster.
 
 
-### 9.5 Ambiguity Deduplication Across Trip Legs
+### 9.5 Ambiguity Deduplication & Streamlined Button Format Across Trip Legs
 * When an ambiguous note (e.g. "Taking Anya") applies to a driver driving both legs, `coordinator.html` previously displayed duplicate amber alert buttons.
 * Deduplicated into a single unified action button and resolution modal that resolves both legs simultaneously.
+* **Streamlined Alert Button Format**: The top-of-page alert banner button text is kept clean and concise (`⚠️ Driver Name: "token" →`, e.g. `⚠️ Alison Clayshulte: "anya" →`), omitting cluttered candidate lists and trip leg tags from the button label while preserving full candidate names and leg context within the resolution modal dialog.
 
 ### 9.6 One-Way Driver Differentiation
 * Visual differentiation for drivers driving only outbound or return:
