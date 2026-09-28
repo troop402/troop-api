@@ -728,6 +728,7 @@ function matchAttendeesInText(text, driverFirst, driverLast, scoutEntries, adult
   const matchedAdults = [];
   const ambiguousNotes = [];
   const checkedFirstNames = new Set();
+  const checkedFirstInitials = new Set();
   const consumedTokens = new Set();
 
   ['myself', 'me', 'i', driverFirst, ...(NICKNAMES[driverFirst] || [])].forEach((tok) => {
@@ -755,7 +756,60 @@ function matchAttendeesInText(text, driverFirst, driverLast, scoutEntries, adult
           note: 'Full name matched',
         });
       }
-    } else if (sc.first.length > 2 && !checkedFirstNames.has(sc.first)) {
+      continue;
+    }
+
+    // Check first name + last initial (e.g. "Iris K." or "Iris K")
+    const testTokens = [sc.first, ...(NICKNAMES[sc.first] || [])];
+    const initialPattern = sc.last ? sc.last[0] : '';
+    const initialKey = initialPattern ? `${sc.first}_${initialPattern}` : '';
+    let matchedInitialToken = null;
+
+    if (initialKey && !checkedFirstInitials.has(initialKey)) {
+      for (const tok of testTokens) {
+        const regex = new RegExp(`\\b${tok}\\s+${initialPattern}\\.?\\b`, 'i');
+        if (regex.test(text)) {
+          matchedInitialToken = tok;
+          break;
+        }
+      }
+    }
+
+    if (matchedInitialToken) {
+      checkedFirstInitials.add(initialKey);
+      checkedFirstNames.add(sc.first);
+      consumedTokens.add(matchedInitialToken);
+      consumedTokens.add(sc.first);
+
+      const allWithFirst = firstNameFrequency.get(sc.first) || [];
+      const matchingInitials = allWithFirst.filter((c) => c.last && c.last[0] === initialPattern);
+
+      if (matchingInitials.length === 1) {
+        const singleScout = matchingInitials[0];
+        if (!matchedScouts.some((m) => m.name === singleScout.displayName)) {
+          matchedScouts.push({
+            name: singleScout.displayName,
+            originalName: singleScout.originalName,
+            status: 'confirmed',
+            note: 'First name and last initial matched',
+          });
+        }
+      } else if (matchingInitials.length > 1) {
+        const candidateNames = matchingInitials.map((c) => c.displayName);
+        const displayTok = matchedInitialToken.charAt(0).toUpperCase() + matchedInitialToken.slice(1);
+        const tokenLabel = `${displayTok} ${initialPattern.toUpperCase()}.`;
+        const warningMsg = `Ambiguous "${tokenLabel}": matches ${candidateNames.length} attending scouts (${candidateNames.join(', ')}). Driver clarification needed.`;
+        ambiguousNotes.push({
+          token: tokenLabel,
+          candidates: candidateNames,
+          candidateScouts: matchingInitials,
+          note: warningMsg,
+        });
+      }
+      continue;
+    }
+
+    if (sc.first.length > 2 && !checkedFirstNames.has(sc.first)) {
       // Check exact first name or recognized nicknames
       const testTokens = [sc.first, ...(NICKNAMES[sc.first] || [])];
       const matchedToken = testTokens.find((tok) => new RegExp(`\\b${tok}\\b`, 'i').test(text));
@@ -1046,7 +1100,15 @@ function parseDriverComments(drivers, scouts, adults) {
         }
       });
 
-      ambiguousNotes = [...toMatch.ambiguousNotes, ...fromMatch.ambiguousNotes];
+      const seenAmbTokens = new Set();
+      ambiguousNotes = [];
+      [...toMatch.ambiguousNotes, ...fromMatch.ambiguousNotes].forEach((amb) => {
+        if (!seenAmbTokens.has(amb.token)) {
+          seenAmbTokens.add(amb.token);
+          ambiguousNotes.push(amb);
+        }
+      });
+
       ambiguousNotes.forEach((amb) => {
         allClarifications.push({
           driverName: d.name,
