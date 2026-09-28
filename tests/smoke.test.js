@@ -178,6 +178,23 @@ describe('API smoke tests', () => {
     });
   });
 
+  it('rejects driver comments exceeding 100 characters with 400', async () => {
+    const longComment = 'This is a very long driver comment that is intentionally going to exceed the strict 100 char limit! (101)';
+    assert.ok(longComment.length > 100);
+    const response = await fetch(`${baseUrl}/api/events/1957/driver-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        driverName: 'Simone, Jason',
+        updatedComment: longComment,
+      }),
+    });
+
+    assert.equal(response.status, 400);
+    const body = await response.json();
+    assert.ok(body.error.includes('100-character maximum limit'));
+  });
+
   it('rejects invalid event ID for twh-status with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/not-an-id/twh-status`);
 
@@ -470,6 +487,130 @@ describe('Driver comment parsing unit test', () => {
     assert.equal(anya.assignedDriverTo, null);
     assert.equal(anya.assignedDriverFrom, null);
     assert.equal(anya.rideDirection, 'None');
+  });
+
+  it('parses compact Both (seats) comments and preserves custom notes', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Simone, Jason',
+        attending: 'Y',
+        seats: 3,
+        drivingToFrom: 'Both',
+        comment: 'Both (2): Iris Knudson, Julia Parsons. Leaving at 6am.',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Knudson, Iris', patrol: 'Dragon' },
+      { name: 'Parsons, Julia', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Simone, Jason', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+    assert.equal(driver.toSeats, 2);
+    assert.equal(driver.fromSeats, 2);
+    assert.equal(driver.cleanNote, 'Leaving at 6am.');
+    assert.equal(driver.claimedScoutsTo.length, 2);
+    assert.equal(driver.claimedScoutsFrom.length, 2);
+  });
+
+  it('parses factored Both (seats) with discrete TO/FROM additions', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Simone, Jason',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'Both (4): Iris Knudson. TO: Julia Parsons. Arriving Friday night.',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Knudson, Iris', patrol: 'Dragon' },
+      { name: 'Parsons, Julia', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Simone, Jason', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+    assert.equal(driver.toSeats, 4);
+    assert.equal(driver.fromSeats, 4);
+    assert.equal(driver.cleanNote, 'Arriving Friday night.');
+    // Iris rode both ways (from Both block), Julia rode TO only (from TO block)
+    assert.equal(driver.claimedScoutsTo.length, 2);
+    assert.equal(driver.claimedScoutsFrom.length, 1);
+    assert.equal(driver.claimedScoutsFrom[0].name, 'Iris Knudson');
+  });
+
+  it('parses compact discrete TO and FROM comments without the word Taking', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Simone, Jason',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'TO (1): Iris Knudson. FROM (2): Julia Parsons. Departing Sunday morning.',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Knudson, Iris', patrol: 'Dragon' },
+      { name: 'Parsons, Julia', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Simone, Jason', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+    assert.equal(driver.toSeats, 1);
+    assert.equal(driver.fromSeats, 2);
+    assert.equal(driver.cleanNote, 'Departing Sunday morning.');
+    assert.equal(driver.claimedScoutsTo.length, 1);
+    assert.equal(driver.claimedScoutsTo[0].name, 'Iris Knudson');
+    assert.equal(driver.claimedScoutsFrom.length, 1);
+    assert.equal(driver.claimedScoutsFrom[0].name, 'Julia Parsons');
+  });
+
+  it('parses freeform leg prefix and extracts clean note for complex driver comments', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Simone, Jason',
+        attending: 'Y',
+        seats: 3,
+        drivingToFrom: 'Both',
+        comment: 'TO: Myself and Elianna only, One avaliable seat on return. Departing Sunday morning.',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Simone, Elianna', patrol: 'Sun Bear' },
+    ];
+
+    const adults = [
+      { name: 'Simone, Jason', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+    assert.equal(driver.claimedScoutsTo.length, 1);
+    assert.equal(driver.claimedScoutsTo[0].name, 'Elianna Simone');
   });
 });
 

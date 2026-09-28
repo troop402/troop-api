@@ -928,8 +928,8 @@ function parseDriverComments(drivers, scouts, adults) {
     const driverFirst = (dParts.length > 1 ? dParts[1].split(' ')[0] : dParts[0].split(' ')[0]).toLowerCase();
     const driverLast = (dParts.length > 1 ? dParts[0] : '').toLowerCase();
 
-    // Check if the comment follows structured discrete TO/FROM notation
-    const hasDiscrete = /(?:TO\s*(?:\([^)]*\)|only)|FROM\s*(?:\([^)]*\)|only))/i.test(comment);
+    // Check if the comment follows structured discrete TO/FROM/Both notation
+    const hasDiscrete = /(?:(?:TO|FROM|Both)\s*(?:\([^)]*\)|only|:))/i.test(comment);
 
     let matchedScouts = [];
     let matchedAdults = [];
@@ -943,11 +943,28 @@ function parseDriverComments(drivers, scouts, adults) {
     let cleanNote = '';
 
     if (hasDiscrete) {
-      // Discrete parser: TO (...): ... FROM (...): ...
+      // Discrete parser: Both (...): ... TO (...): ... FROM (...): ...
+      let bothText = '';
       let toText = '';
       let fromText = '';
 
-      const fromBlockMatch = comment.match(/FROM(?:\s*only)?(?:\s*\((?:(\d+)\s*seats?)?\))?\s*:\s*([^]*?)$/i);
+      const bothBlockMatch = comment.match(/Both(?:\s*only)?(?:\s*\((?:(\d+)(?:\s*seats?)?)?\))?\s*:\s*([^]*?)(?=(?:TO|FROM)(?:\s*only)?(?:\s*\([^)]*\))?\s*:|$)/i);
+      if (bothBlockMatch) {
+        if (bothBlockMatch[1]) {
+          toSeats = parseInt(bothBlockMatch[1], 10);
+          fromSeats = toSeats;
+        }
+        const rawBoth = (bothBlockMatch[2] || '').trim();
+        const dotSplit = rawBoth.match(/^(.*?\.)\s+([^.]*.*)$/);
+        if (dotSplit) {
+          bothText = dotSplit[1].trim();
+          if (!cleanNote) cleanNote = dotSplit[2].trim();
+        } else {
+          bothText = rawBoth;
+        }
+      }
+
+      const fromBlockMatch = comment.match(/FROM(?:\s*only)?(?:\s*\((?:(\d+)(?:\s*seats?)?)?\))?\s*:\s*([^]*?)$/i);
       if (fromBlockMatch) {
         if (fromBlockMatch[1]) fromSeats = parseInt(fromBlockMatch[1], 10);
         const rawFrom = (fromBlockMatch[2] || '').trim();
@@ -960,7 +977,7 @@ function parseDriverComments(drivers, scouts, adults) {
         }
       }
 
-      const toBlockMatch = comment.match(/TO(?:\s*only)?(?:\s*\((?:(\d+)\s*seats?)?\))?\s*:\s*([^]*?)(?=(?:FROM(?:\s*only)?(?:\s*\([^)]*\))?\s*:|$))/i);
+      const toBlockMatch = comment.match(/TO(?:\s*only)?(?:\s*\((?:(\d+)(?:\s*seats?)?)?\))?\s*:\s*([^]*?)(?=(?:FROM(?:\s*only)?(?:\s*\([^)]*\))?\s*:|$))/i);
       if (toBlockMatch) {
         if (toBlockMatch[1]) toSeats = parseInt(toBlockMatch[1], 10);
         const rawTo = (toBlockMatch[2] || '').trim();
@@ -968,7 +985,7 @@ function parseDriverComments(drivers, scouts, adults) {
           const dotSplit = rawTo.match(/^(.*?\.)\s+([^.]*.*)$/);
           if (dotSplit) {
             toText = dotSplit[1].trim();
-            cleanNote = dotSplit[2].trim();
+            if (!cleanNote) cleanNote = dotSplit[2].trim();
           } else {
             toText = rawTo;
           }
@@ -977,8 +994,18 @@ function parseDriverComments(drivers, scouts, adults) {
         }
       }
 
-      const toMatch = matchAttendeesInText(toText, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency);
-      const fromMatch = matchAttendeesInText(fromText, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency);
+      if (/^open\.?$/i.test(bothText.trim())) bothText = '';
+      if (/^open\.?$/i.test(toText.trim())) toText = '';
+      if (/^open\.?$/i.test(fromText.trim())) fromText = '';
+      bothText = bothText.replace(/^taking\s+/i, '');
+      toText = toText.replace(/^taking\s+/i, '');
+      fromText = fromText.replace(/^taking\s+/i, '');
+
+      const fullToText = [bothText, toText].filter(Boolean).join(', ');
+      const fullFromText = [bothText, fromText].filter(Boolean).join(', ');
+
+      const toMatch = matchAttendeesInText(fullToText, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency);
+      const fromMatch = matchAttendeesInText(fullFromText, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency);
 
       claimedScoutsTo = toMatch.matchedScouts;
       claimedAdultsTo = toMatch.matchedAdults;
@@ -1040,15 +1067,17 @@ function parseDriverComments(drivers, scouts, adults) {
       matchedAdults = match.matchedAdults;
       ambiguousNotes = match.ambiguousNotes;
 
-      // Extract clean note if comment starts with "Taking: ... ."
-      const takingMatch = comment.match(/^Taking:\s*([^.]+)\.?(.*)$/i);
+      // Extract clean note if comment starts with "Taking: ... ." or "Both (...): ... ."
+      const takingMatch = comment.match(/^(?:Taking|Both(?:\s*\(\d+\))?):\s*([^.]+)\.?(.*)$/i);
       cleanNote = takingMatch ? (takingMatch[2] || '').trim() : comment;
 
       const drivesTo = d.drivingToFrom === 'Both' || d.drivingToFrom === 'To' || !d.drivingToFrom;
       const drivesFrom = d.drivingToFrom === 'Both' || d.drivingToFrom === 'From' || !d.drivingToFrom;
 
-      toSeats = drivesTo ? passengerCapacity : 0;
-      fromSeats = drivesFrom ? passengerCapacity : 0;
+      const bothSeatsMatch = comment.match(/^Both\s*\((?:(\d+)(?:\s*seats?)?)?\)/i);
+      const effectiveCap = (bothSeatsMatch && bothSeatsMatch[1]) ? parseInt(bothSeatsMatch[1], 10) : passengerCapacity;
+      toSeats = drivesTo ? effectiveCap : 0;
+      fromSeats = drivesFrom ? effectiveCap : 0;
 
       claimedScoutsTo = drivesTo ? matchedScouts : [];
       claimedScoutsFrom = drivesFrom ? matchedScouts : [];
@@ -1829,6 +1858,16 @@ async function updateEventDriverInTWH({
     timeout: { request: 25000 },
   });
 
+  const isRedirect = postRes.statusCode === 302 || Boolean(postRes.headers?.location);
+  const isInitError = (postRes.body && typeof postRes.body === 'string' && postRes.body.includes('Initialization Error'));
+
+  if (!isRedirect || isInitError) {
+    const detail = isInitError
+      ? 'TroopWebHost rejected the update with an "Initialization Error" (comment exceeds 100-character limit or session timed out).'
+      : `TroopWebHost did not save the changes (returned HTTP ${postRes.statusCode}).`;
+    throw new Error(`Failed to update driver in TroopWebHost: ${detail}`);
+  }
+
   cache.carpoolByEventId.delete(String(eventId));
 
   return {
@@ -1860,6 +1899,12 @@ app.post('/api/events/:id/driver-update', async (req, res) => {
 
   if (!driverName) {
     return res.status(400).json({ error: 'driverName is required.' });
+  }
+
+  if (updatedComment && typeof updatedComment === 'string' && updatedComment.length > 100) {
+    return res.status(400).json({
+      error: `Comment length (${updatedComment.length} characters) exceeds TroopWebHost's 100-character maximum limit. Please trim the comment.`,
+    });
   }
 
   try {
