@@ -703,6 +703,204 @@ describe('Driver comment parsing unit test', () => {
     assert.equal(result.clarificationsNeeded.length, 1);
     assert.ok(result.clarificationsNeeded[0].token.includes('Emily P'));
   });
+
+  it('matches scouts formatted as First L (without period) with surname initials', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Knudson, BJ',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'BOTH (4): Iris K, Julia P. Arriving Friday night.',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Knudson, Iris', patrol: 'Dragon' },
+      { name: 'Parsons, Julia', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Knudson, BJ', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+    assert.equal(driver.toSeats, 4);
+    assert.equal(driver.fromSeats, 4);
+    assert.equal(driver.cleanNote, 'Arriving Friday night.');
+    assert.equal(driver.claimedScoutsTo.length, 2);
+    assert.ok(driver.claimedScoutsTo.some((s) => s.name === 'Iris Knudson'));
+    assert.ok(driver.claimedScoutsTo.some((s) => s.name === 'Julia Parsons'));
+  });
+
+  it('accurately detects functional equivalence between driver comments to prevent false conflicts', async () => {
+    const { areCommentsFunctionallyEquivalent, normalizeCommentForComparison } = await import('../server.js');
+
+    // Identical comments
+    const c1 = 'TO (1): Elianna S.. FROM (2): Elianna S.. One available seat on return. Departing Sunday morning';
+    const c2 = 'TO (1): Elianna S.. FROM (2): Elianna S.. One available seat on return. Departing Sunday morning';
+    assert.ok(areCommentsFunctionallyEquivalent(c1, c2));
+
+    // Double-dot vs single-dot and trailing period differences
+    const c3 = 'TO (1): Elianna S. FROM (2): Elianna S. One available seat on return. Departing Sunday morning.';
+    assert.ok(areCommentsFunctionallyEquivalent(c1, c3));
+
+    // Surname initial with period vs without period (Iris K. vs Iris K)
+    const cWithDot = 'BOTH (2): Iris K., Julia P. Arriving Friday night.';
+    const cWithoutDot = 'BOTH (2): Iris K, Julia P. Arriving Friday night.';
+    assert.ok(areCommentsFunctionallyEquivalent(cWithDot, cWithoutDot));
+
+    // Case difference in leg prefixes (Both vs BOTH) and extra spaces
+    const c4 = 'both (2): Iris K., Julia P.   Arriving Friday night.';
+    const c5 = 'BOTH (2): Iris K., Julia P. Arriving Friday night';
+    assert.ok(areCommentsFunctionallyEquivalent(c4, c5));
+
+    // Genuine difference in seat counts
+    const diffSeats = 'BOTH (3): Iris K., Julia P. Arriving Friday night';
+    assert.ok(!areCommentsFunctionallyEquivalent(c4, diffSeats));
+
+    // Genuine difference in riders
+    const diffRiders = 'BOTH (2): Iris K., Anya L. Arriving Friday night';
+    assert.ok(!areCommentsFunctionallyEquivalent(c4, diffRiders));
+
+    // Genuine difference in driver note
+    const diffNote = 'BOTH (2): Iris K., Julia P. Leaving Saturday morning';
+    assert.ok(!areCommentsFunctionallyEquivalent(c4, diffNote));
+  });
+
+  it('prioritizes exact primary TWH names over nicknames and prevents token re-use (Emily Polcari & Maddie Curran)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Polcari, Emily',
+        attending: 'Y',
+        seats: 3,
+        drivingToFrom: 'Both',
+        comment: 'Driving Keira, Maddie Curran, and Katie Kidd',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Polcari, Keira', patrol: 'Dragon' },
+      { name: 'Curran, Maddie', patrol: 'Dragon' },
+      { name: 'Kidd, Katie', patrol: 'Dragon' },
+      { name: 'Watkins, Madison', patrol: 'Falcon' },
+      { name: 'Wong, Madison', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Polcari, Emily', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+
+    // Only Keira, Maddie Curran, and Katie Kidd should be claimed
+    assert.equal(driver.claimedScouts.length, 3);
+    assert.ok(driver.claimedScouts.some((s) => s.name === 'Maddie Curran'));
+    assert.ok(driver.claimedScouts.some((s) => s.name === 'Katie Kidd'));
+    assert.ok(driver.claimedScouts.some((s) => s.name === 'Keira Polcari'));
+
+    // Neither Madison Watkins nor Madison Wong should be claimed
+    assert.ok(!driver.claimedScouts.some((s) => s.name.includes('Madison')));
+    assert.ok(!driver.claimedScouts.some((s) => s.name.includes('Watkins')));
+    assert.ok(!driver.claimedScouts.some((s) => s.name.includes('Wong')));
+
+    // No clarifications needed
+    assert.equal(result.clarificationsNeeded.length, 0);
+  });
+
+  it('guarantees exact primary TWH name always matches even if another scout has that name as a nickname', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Driver, Bob',
+        attending: 'Y',
+        seats: 3,
+        drivingToFrom: 'Both',
+        comment: 'Taking Maddie',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Curran, Maddie', patrol: 'Dragon' },
+      { name: 'Watkins, Madison', patrol: 'Falcon' }, // Has nickname "Maddie"
+    ];
+
+    const adults = [
+      { name: 'Driver, Bob', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+
+    // Primary name "Maddie" on Curran, Maddie MUST win over secondary nickname on Watkins, Madison
+    assert.equal(driver.claimedScouts.length, 1);
+    assert.equal(driver.claimedScouts[0].name, 'Maddie Curran');
+    assert.equal(result.clarificationsNeeded.length, 0);
+  });
+
+  it('strictly preserves the original comment order of riders instead of sorting alphabetically', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Polcari, Emily',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'Driving Keira, Maddie Curran, and Katie Kidd',
+      },
+      {
+        name: 'Hoover, Brad',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'Taking Thomas (adult), and Owen',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Curran, Maddie', patrol: 'Dragon' },
+      { name: 'Kidd, Katie', patrol: 'Falcon' },
+      { name: 'Polcari, Keira', patrol: 'Dragon' },
+      { name: 'Ayers, Owen', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Polcari, Emily', leadership: 'Committee Chair' },
+      { name: 'Hoover, Brad', leadership: 'Adult' },
+      { name: 'Renno, Thomas', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const emily = result.enrichedDrivers.find((d) => d.name === 'Polcari, Emily');
+
+    // Keira (index 8), Maddie Curran (index 15), Katie Kidd (index 34)
+    // Must NOT be sorted alphabetically (Curran, Kidd, Polcari)
+    assert.equal(emily.claimedScouts.length, 3);
+    assert.equal(emily.claimedScouts[0].name, 'Keira Polcari');
+    assert.equal(emily.claimedScouts[1].name, 'Maddie Curran');
+    assert.equal(emily.claimedScouts[2].name, 'Katie Kidd');
+
+    assert.equal(emily.claimedRidersTo.length, 3);
+    assert.equal(emily.claimedRidersTo[0].name, 'Keira Polcari');
+    assert.equal(emily.claimedRidersTo[1].name, 'Maddie Curran');
+    assert.equal(emily.claimedRidersTo[2].name, 'Katie Kidd');
+
+    // Brad Hoover: adult Thomas mentioned before scout Owen
+    const brad = result.enrichedDrivers.find((d) => d.name === 'Hoover, Brad');
+    assert.equal(brad.claimedRidersTo.length, 2);
+    assert.equal(brad.claimedRidersTo[0].name, 'Thomas Renno');
+    assert.equal(brad.claimedRidersTo[0].type, 'adult');
+    assert.equal(brad.claimedRidersTo[1].name, 'Owen Ayers');
+    assert.equal(brad.claimedRidersTo[1].type, 'scout');
+  });
 });
 
 describe('Carpool Excel export unit test', () => {

@@ -880,22 +880,36 @@
       const storageKey = `twh_event_carpool_${eventId}`;
       let renderedFromCache = false;
 
-      // 1. Instant Render from LocalStorage if available
+      // Detect if user performed a browser reload (F5 / Cmd+R / reload button)
+      let isBrowserReload = false;
       try {
-        const cachedJson = localStorage.getItem(storageKey);
-        if (cachedJson) {
-          const cached = JSON.parse(cachedJson);
-          if (cached && cached.data) {
-            currentData = cached.data;
-            renderPage(currentData, cached.meta || currentData.meta || null, cached.savedAt);
-            document.getElementById('loadingView').style.display = 'none';
-            document.getElementById('errorView').style.display = 'none';
-            document.getElementById('carpoolContent').style.display = 'block';
-            renderedFromCache = true;
-          }
+        const navEntries = performance.getEntriesByType('navigation');
+        if (navEntries.length > 0 && navEntries[0].type === 'reload') {
+          isBrowserReload = true;
         }
-      } catch (e) {
-        console.warn('LocalStorage carpool cache read error:', e);
+      } catch (e) {}
+
+      const shouldForceRefresh = forceRefresh || isBrowserReload;
+
+      // 1. Instant Render from LocalStorage if available
+      if (!shouldForceRefresh) {
+        try {
+          const cachedJson = localStorage.getItem(storageKey);
+          if (cachedJson) {
+            const cached = JSON.parse(cachedJson);
+            const hasModernRiders = (cached?.data?.drivers || []).some(d => d.claimedRidersTo || d.claimedRidersFrom || !d.comment);
+            if (cached && cached.data && hasModernRiders) {
+              currentData = cached.data;
+              renderPage(currentData, cached.meta || currentData.meta || null, cached.savedAt);
+              document.getElementById('loadingView').style.display = 'none';
+              document.getElementById('errorView').style.display = 'none';
+              document.getElementById('carpoolContent').style.display = 'block';
+              renderedFromCache = true;
+            }
+          }
+        } catch (e) {
+          console.warn('LocalStorage carpool cache read error:', e);
+        }
       }
 
       const hasExistingRender = renderedFromCache || Boolean(currentData && currentData.drivers);
@@ -908,13 +922,13 @@
       }
 
       const refreshBtn = document.getElementById('refreshBtn');
-      if (forceRefresh && refreshBtn) {
+      if (shouldForceRefresh && refreshBtn) {
         refreshBtn.disabled = true;
         refreshBtn.textContent = '🔄 Refreshing...';
       }
 
       try {
-        const res = await fetch(`/api/events/${eventId}/carpool${forceRefresh ? '?forceRefresh=true' : ''}`);
+        const res = await fetch(`/api/events/${eventId}/carpool${shouldForceRefresh ? '?forceRefresh=true' : ''}`);
         if (!res.ok) {
           throw new Error(`Server returned HTTP ${res.status}`);
         }
@@ -952,6 +966,17 @@
         }
       }
     }
+
+    let lastBlurTime = 0;
+    let lastFocusCheckTime = 0;
+    window.addEventListener('blur', () => { lastBlurTime = Date.now(); });
+    window.addEventListener('focus', () => {
+      const now = Date.now();
+      if (now - lastBlurTime >= 15000 && now - lastFocusCheckTime >= 15000) {
+        lastFocusCheckTime = now;
+        loadCarpool(false);
+      }
+    });
 
     function toDisplayName(fullName) {
       if (!fullName) return '';
@@ -1220,27 +1245,39 @@
           ? (d.toSeats !== undefined && d.toSeats !== null ? d.toSeats : (d.seats > 0 ? Math.max(0, d.seats - 1) : 0))
           : (d.fromSeats !== undefined && d.fromSeats !== null ? d.fromSeats : (d.seats > 0 ? Math.max(0, d.seats - 1) : 0));
 
-        // Riders
-        const rawScouts = dir === 'TO' ? (d.claimedScoutsTo || d.claimedScouts || []) : (d.claimedScoutsFrom || d.claimedScouts || []);
-        const rawAdults = dir === 'TO' ? (d.claimedAdultsTo || d.claimedAdults || []) : (d.claimedAdultsFrom || d.claimedAdults || []);
-        const ambiguous = d.ambiguousNotes || [];
+        // Riders in exact parsed comment order
+        let ridersForDir = [];
+        if (dir === 'TO' && d.claimedRidersTo && d.claimedRidersTo.length > 0) {
+          ridersForDir = d.claimedRidersTo;
+        } else if (dir === 'FROM' && d.claimedRidersFrom && d.claimedRidersFrom.length > 0) {
+          ridersForDir = d.claimedRidersFrom;
+        } else {
+          const rawScouts = dir === 'TO' ? (d.claimedScoutsTo || d.claimedScouts || []) : (d.claimedScoutsFrom || d.claimedScouts || []);
+          const rawAdults = dir === 'TO' ? (d.claimedAdultsTo || d.claimedAdults || []) : (d.claimedAdultsFrom || d.claimedAdults || []);
+          const ambiguous = d.ambiguousNotes || [];
+          const combined = [];
+          rawScouts.forEach(s => combined.push({ ...(typeof s === 'string' ? { name: s } : s), type: 'scout', textIndex: s.textIndex ?? 999 }));
+          rawAdults.forEach(a => combined.push({ ...(typeof a === 'string' ? { name: a } : a), type: 'adult', textIndex: a.textIndex ?? 999 }));
+          ambiguous.forEach(an => combined.push({ ...an, type: 'ambiguous', textIndex: an.textIndex ?? 999 }));
+          combined.sort((a, b) => (a.textIndex ?? 999) - (b.textIndex ?? 999));
+          ridersForDir = combined;
+        }
 
         const tags = [];
-        rawScouts.forEach(s => {
-          const scName = typeof s === 'string' ? s : s.name;
-          const scStatus = typeof s === 'string' ? 'confirmed' : s.status;
-          const isFam = scStatus === 'family_match';
-          tags.push(`<span class="badge badge-scout">Scout: ${escapeHtml(scName)}${isFam ? ' (Family)' : ''}</span>`);
-        });
-        rawAdults.forEach(a => {
-          const adName = typeof a === 'string' ? a : a.name;
-          tags.push(`<span class="badge badge-adult">Adult: ${escapeHtml(adName)}</span>`);
-        });
-        ambiguous.forEach(an => {
-          tags.push(`<span class="badge badge-warning" title="${escapeHtml(an.note)}">⚠️ Ambiguous "${escapeHtml(an.token)}"</span>`);
+        ridersForDir.forEach(r => {
+          const rName = typeof r === 'string' ? r : r.name;
+          if (r.type === 'adult') {
+            tags.push(`<span class="badge badge-adult">Adult: ${escapeHtml(rName)}</span>`);
+          } else if (r.type === 'ambiguous') {
+            tags.push(`<span class="badge badge-warning" title="${escapeHtml(r.note || '')}">⚠️ Ambiguous "${escapeHtml(r.token || rName)}"</span>`);
+          } else {
+            const scStatus = typeof r === 'string' ? 'confirmed' : r.status;
+            const isFam = scStatus === 'family_match';
+            tags.push(`<span class="badge badge-scout">Scout: ${escapeHtml(rName)}${isFam ? ' (Family)' : ''}</span>`);
+          }
         });
 
-        const totalClaimed = rawScouts.length + rawAdults.length + ambiguous.length;
+        const totalClaimed = ridersForDir.length;
         const openSeats = Math.max(0, legSeats - totalClaimed);
 
         if (isAttending && openSeats > 0) {

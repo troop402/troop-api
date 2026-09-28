@@ -598,7 +598,9 @@ paths:
                   example: 'Simone, Jason'
                 updatedComment:
                   type: string
-                  example: 'Taking: Evelyn Adams. Notes: Depart 4:30 PM'
+                  maxLength: 100
+                  description: Driver comment adhering to TroopWebHost's strict 100-character maximum limit.
+                  example: 'BOTH (3): Evelyn A, Julia P. Notes: Depart 4:30 PM'
                 passengerSeats:
                   type: integer
                   example: 3
@@ -700,6 +702,9 @@ paths:
                     type: integer
                   signature:
                     type: string
+                  normalizedSignature:
+                    type: string
+                    description: Normalized signature for comparison suppressing whitespace, casing, and initial punctuation differences.
                   timestamp:
                     type: integer
         '400':
