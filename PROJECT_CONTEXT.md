@@ -318,6 +318,138 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
   - Updated `assignedToKeys` and `assignedFromKeys` to register both `r.name` and `r.originalName` while ignoring `r.type === 'adult'`.
   - Direct end-to-end testing on Event 1957 confirmed 100% attribute population on driver rows and 0 duplicate unassigned rows.
 
+### 9.12 TroopWebHost 100-Character Maximum Comment Limit & Compact Syntax
+* **Upstream Ceiling Discovery**:
+  - When persisting driver comments to TroopWebHost Form 3707, strings longer than 100 characters trigger an upstream server error or silent rejection. TWH's underlying database schema hard-limits this field to 100 characters (`VARCHAR(100)`).
+* **Backend Enforcement**:
+  - `POST /api/events/:id/driver-update` strictly enforces `maxLength: 100`. Comments exceeding 100 characters return HTTP 400 with a descriptive error message (`Comment exceeds TroopWebHost 100-character maximum limit`).
+* **Compact Syntax Generation**:
+  - Replaced verbose phrases (`Taking: ... Notes: ...`) with ultra-compact syntax.
+  - Symmetrical legs are coalesced into a single prefix: `BOTH (seats): Scout A, Scout B.`
+  - Overlap factoring: Shared riders appear under `BOTH (seats):`, while direction-specific additions appear under `TO: ...` or `FROM: ...`.
+  - Asymmetric legs format discretely: `TO (seats): ... FROM (seats): ...`
+* **Single-Letter Surnames Without Periods**:
+  - To conserve character budget while eliminating ambiguity, scouts are rendered by default with their first name and single-letter surname initial (`First L`, e.g. `Elianna S, Julia P`).
+  - Periods after initials are omitted (`Elianna S` instead of `Elianna S.`) because comma separation in lists provides sufficient clarity without consuming an extra character per rider.
+  - Sentence trailing periods are normalized (`withDot`) to prevent doubled punctuation (`..`).
+
+### 9.13 Primary TWH Naming Convention Prioritization & Migration to Official Website Representation
+* **Core Principle & Priority**:
+  - While intelligent nickname matching (e.g. Maddie ↔ Madison, Tom ↔ Thomas) is helpful, the naming convention used as a scout's primary name in TroopWebHost MUST take absolute priority.
+  - If a commented name matches exactly one scout's primary name in TWH, it MUST always be derived as that scout with 100% confidence.
+  - If multiple scouts share the primary name (e.g., duplicate first names or identical first name + last initial), it is flagged as an ambiguous collision (`Ambiguous "Name"`), prompting leadership clarification.
+  - Nicknames are evaluated strictly as a secondary fallback only when NO attending scout has that name as their primary name in TWH.
+* **Pass Structure in `matchAttendeesInText` (`server.js`)**:
+  - **Pass 1A**: Exact Primary Full Name (`First + Last`).
+  - **Pass 1B**: Nickname Full Name (`Nickname + Last`).
+  - **Pass 2**: Primary First Name + Last Initial (`First L` / `First L.`).
+  - **Pass 3A**: Exact Primary First Name (`sc.first`). If unique among attendees, matches immediately. If collision, flags ambiguity.
+  - **Pass 3B**: Nickname Fallback (`sc.nickname`). Only evaluated for scouts whose primary name was not matched in Pass 3A.
+  - **Pass 4**: Attending adults (primary names or nicknames).
+* **Token Occurrence Enforcement**:
+  - Word tokens in the comment are tracked by occurrence index (`countTokenOccurrences`).
+  - A word appearance can only be consumed once, preventing multiple scouts (e.g. Maddie Curran and Madison Wong) from claiming the same word occurrence.
+* **Migration to Official Website Representation**:
+  - Any user action—whether assigning a seat via button, resolving ambiguity via modal, or compacting comments—migrates the scout's representation in the generated TWH comment to the official website standard (`First L` or `First Last` if initials collide), based on their primary TWH roster name.
+
+### 9.14 Driver Note Dialog Redesign & Token Re-use Prevention
+* **Side-by-Side Comparison UI**:
+  - When opening the Driver Note modal (`#noteModal`), coordinators see:
+    1. **Live in TroopWebHost Right Now**: The current raw comment from TWH (`#noteLiveCommentBox`), shown in a subtle card for direct comparison.
+    2. **Special Instructions / Constraints**: A clean, single-line text input (`#editNoteInput`) dedicated exclusively to driver notes, departure times, or constraints.
+    3. **Proposed Coordinator Output**: A live preview box (`#noteProposedOutputBox`) showing the full concatenated text (`Trip clause + Note`) that will be saved to TWH.
+* **Real-Time Character Budget Meter**:
+  - The dialog dynamically tallies characters against the 100-character ceiling (`X / 100 chars`).
+  - If the combined string exceeds 100 characters, the meter turns red (`(N chars over limit!)`) and disables the Save Note button, preventing accidental rejection by TWH.
+* **Smart Note Stripping**:
+  - When extracting driver constraints from raw comments, matched rider names and boilerplate words (`driving`, `and`, `to`, `from`) are stripped cleanly across sentences so rider names don't duplicate into custom notes.
+
+### 9.15 Debounced Web Sync, Visual Saving Overlay, and Cross-Leg Clarification Modal
+* **3-Second Debounce**:
+  - Rapid adjustments (e.g. incrementing or decrementing seat counts or typing notes) are debounced by 3,000ms.
+  - This ensures multi-click adjustments settle into a single HTTP transaction rather than firing rapid cascading requests to TroopWebHost.
+* **Visual Saving Overlay (`#savingOverlay`)**:
+  - When the debounced timer expires and the HTTP request fires to `POST /api/events/:id/driver-update`, the screen briefly dims with a semi-transparent backdrop and displays a spinning save icon with status text (`"Saving changes to TroopWebHost..."`).
+  - This gives clear visual feedback that a live sync is underway and prevents conflicting inputs during network latency.
+* **Cross-Leg Clarification Prompt (`#legSyncPromptModal`)**:
+  - When a coordinator resolves a driver clarification or ambiguity on one trip leg (e.g. TO), and the exact same clarification condition exists on the opposite trip leg (e.g. FROM), a modal proactively asks: *"Would you like to apply this same resolution to the FROM trip leg as well?"*
+  - Clicking "Yes, Apply to Both Legs" updates both legs simultaneously, eliminating redundant manual corrections.
+
+### 9.16 Functional Equivalence & False-Conflict Suppression
+* **The Problem**:
+  - Optimistic concurrency checking compares `baselineComment` against the live comment in TroopWebHost.
+  - Minor differences in formatting, extra whitespace, single trailing periods, or capitalization caused false-positive conflict resolution modals even though the semantic meaning was identical.
+* **Normalized Functional Comparison (`normalizeCommentForComparison`)**:
+  - Normalizes text by lowercasing, stripping punctuation (including periods after initials and trailing periods), collapsing consecutive whitespace, and trimming.
+  - If the live comment and the proposed comment (or live comment and baseline) are functionally equivalent, the system suppresses the conflict modal and allows the save to proceed seamlessly without interrupting the coordinator.
+
+### 9.17 Zero-Friction Disparity Toast & Non-Destructive Refresh
+* **Normalized Signature Hashing**:
+  - Background polling computes `normalizedSignature` alongside raw MD5 signatures, comparing normalized representations of driver comments and seat counts across the event.
+  - Trivial formatting discrepancies do not trigger disparity alerts.
+* **Absolute-Positioned Disparity Toast (`#disparityBanner`)**:
+  - When genuine upstream changes by parents or other coordinators are detected, the system displays an unobtrusive, fixed-position toast banner at the top of the viewport.
+  - Coordinators can click "🔄 Refresh Website Data" to fetch fresh data via `?forceRefresh=true` without losing scroll position or having modal dialogs block their workflow.
+
+### 9.18 Granular Row-Level Dirty State & Cache Invalidation Paradigm
+* **The Problem (Cache Mistaken for Active Work)**:
+  - In earlier iterations, `localStorage` contained a whole-worksheet draft key (`troop402_coord_v1_${eventId}`).
+  - Simply having cached data in `localStorage` was mistakenly treated as proof that a coordinator had active, uncommitted local edits that needed to be preserved over live server data.
+  - In reality, 99% of the time, `localStorage` was just an old read-cache. As a result, coordinators visiting the page days later were trapped in frozen local drafts (e.g. seeing 12 drivers instead of 20, or retaining stale assignments).
+* **Unified Model Across View and Coordinator Pages**:
+  - `twh_event_carpool_${eventId}` is strictly a read-through performance cache to guarantee 0ms instant initial rendering on both `carpool.html` and `coordinator.html`.
+  - It NEVER implies dirty/uncommitted state.
+* **Row-Level Dirty State (Spreadsheet-Row Locking)**:
+  - Active work is tracked at the individual driver level (`pendingDriversToSync`).
+  - A driver is dirty only during an active user edit, debounce countdown (3s), or while an HTTP writeback is actively in-flight.
+  - Once the writeback succeeds (200 OK), the driver returns to clean state.
+  - When all drivers are clean (`pendingDriversToSync.size === 0`), background fetches, window focus events, and tab switches AGGRESSIVELY adopt fresh data from TroopWebHost, rebuild the baseline, and re-render without prompt or friction.
+  - If a refresh occurs while specific drivers are dirty, only those dirty driver rows are locked and preserved, while all clean rows update freely from TroopWebHost.
+  - Conflict resolution dialogs are reserved strictly for genuine collisions on active dirty rows.
+
+### 9.19 Stale Dirty Data Escalation & Implicit Uncertainty
+* **Implicit Uncertainty in Old Edits**:
+  - When an uncommitted coordinator draft remains in browser storage for hours or days, or when TroopWebHost's baseline evolves underneath it, implicit uncertainty arises: was the uncommitted edit intentional work that should take precedence, or was it an abandoned experiment from days ago?
+  - Neither silent overwriting of TroopWebHost nor silent discarding of coordinator work is acceptable in this state.
+* **Escalation Trigger**:
+  - `twh_coord_draft_${eventId}` stores `{ savedAt, baselineSignature, dirtyDrivers, draft }`.
+  - When the coordinator loads the worksheet:
+    - If `savedAt` is older than 15 minutes (`ageMs > 15 * 60 * 1000`) OR `baselineSignature !== freshNormalizedSignature`, the system evaluates whether the proposed edits functionally differ from live TroopWebHost.
+    - If differences exist, it triggers the Stale Draft Conflict Modal (`#staleDraftModal`).
+* **Visual Side-by-Side Resolution**:
+  - The modal explicitly displays the age of the uncommitted edit (e.g. "3 hours ago", "yesterday") and presents cards for each conflicting driver showing:
+    - Live in TroopWebHost (with character count)
+    - Stale Uncommitted Coordinator Edit (with character count)
+  - Action buttons:
+    - `✓ Discard Stale Edits & Use Live TroopWebHost (Recommended)`: Purges the stale draft key, rebuilds from live TroopWebHost data, and cleanly synchronizes the worksheet.
+    - `⚠️ Overwrite TroopWebHost with Stale Edits`: Adopts the draft and queues dirty drivers to persist to TroopWebHost via the debounced sync engine.
+
+### 9.20 Strict Preservation of Comment-Parsed Rider Order
+* **The Problem (Alphabetical Reordering Side-Effects)**:
+  - Previously, matching passes in `server.js` iterated over `scoutEntries` and `adultEntries` in alphabetical order by last name, and appended matched attendees in that loop order.
+  - Additionally, `buildBaselineDraft()` in `coordinator.html` grouped all scouts first, then all adults, then all ambiguous notes.
+  - As a result, if a driver wrote `Driving Keira, Maddie Curran, and Katie Kidd`, the system displayed them as `Maddie Curran, Katie Kidd, Keira Polcari` (Curran &rarr; Kidd &rarr; Polcari).
+  - This destroyed semantic context: drivers often list their own child or a co-parent adult first, and the last person added last. When seat adjustments occur (`seats - 1`), the system pops from the end of the array, which was previously dropping the wrong person rather than the most recently added rider.
+* **Position-Aware Parser & Rendering**:
+  - `matchAttendeesInText` records the `textIndex` (character position in comment text) of every matched attendee (scouts, adults, ambiguous notes).
+  - Matched arrays and unified `claimedRidersTo` / `claimedRidersFrom` are sorted strictly by `textIndex`.
+  - Both `coordinator.html` (`buildBaselineDraft`, seat grid, and synthesized TWH comment) and `carpool.html` (driver card tags) render riders in the exact order parsed from the driver's comment without any alphabetical reordering.
+
+### 9.21 Dirty-Aware Full Reconstruction on Refresh & Invalidation of Non-Dirty Drafts
+* **The Problem (LocalStorage Over-Preservation of Obsolete Drafts)**:
+  - Previously, visiting the coordinator page and performing temporary adjustments could leave a serialized draft object in `localStorage` under `twh_coord_draft_${eventId}` even when no actual changes were pending or when adjustments canceled each other out.
+  - Upon subsequent page visits or standard browser reloads (F5), `initCoordinator` inspected `draftStorageKey` and, if within 15 minutes and without comment disparity, unconditionally restored `localDraft = uncommittedDraftPayload.draft`.
+  - This completely bypassed `buildBaselineDraft()` and ignored fresh server data, causing the coordinator sheet to display an obsolete driver roster (e.g. 12 drivers instead of 20), outdated rider assignments, or alphabetical rider ordering from prior code versions.
+* **Dirty-State Truth Engine (`isDriverTrulyDirty`)**:
+  - A driver is verified as dirty if and only if their seat counts or synthesized comment functionally differ from the live baseline (`!areCommentsFunctionallyEquivalent`).
+  - Drafts with `dirtyDrivers.length === 0` or where all drivers pass equality checks are purged immediately from `localStorage`.
+* **Clean Row Reconstruction on Refresh**:
+  - Browser page reloads (detected via `performance.getEntriesByType('navigation')[0].type === 'reload'`) and manual refreshes automatically send `?forceRefresh=true` to bypass in-memory server TTL.
+  - Upon network resolution, clean driver rows are fully reconstructed via `buildBaselineDraft()`, ensuring immediate uptake of server comments and parsing updates.
+  - Only active, verified dirty driver rows retain their in-flight edits, preventing stale local cache from corrupting clean data.
+
+
+
 
 
 
