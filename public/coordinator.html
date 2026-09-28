@@ -1120,23 +1120,27 @@
 
   <!-- Modal: View/Edit Driver Note -->
   <div id="noteModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'noteModal')">
-    <div class="modal-dialog" style="max-width: 480px;">
+    <div class="modal-dialog" style="max-width: 500px;">
       <div class="modal-header">
         <h3 id="noteModalTitle">Driver Note</h3>
         <button class="modal-close" onclick="closeModal('noteModal')">&times;</button>
       </div>
       <div class="modal-body">
         <form onsubmit="submitEditDriverNote(event)">
+          <div id="noteLogisticsInfo" style="font-size:0.75rem; color:#475569; background:#f1f5f9; padding:0.4rem 0.6rem; border-radius:4px; margin-bottom:0.75rem; word-break:break-word;"></div>
           <div class="form-group">
-            <label for="editNoteInput">Special Instructions / Constraints</label>
-            <textarea id="editNoteInput" rows="3" style="width:100%; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.88rem; font-family:inherit; resize:vertical;" placeholder="e.g. Leaving early at 8am, bike rack on car"></textarea>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.25rem;">
+              <label for="editNoteInput" style="margin-bottom:0; font-weight:600;">Special Instructions / Constraints</label>
+              <span id="noteCharCount" style="font-size:0.75rem; font-weight:600; color:#059669;">0 / 100</span>
+            </div>
+            <textarea id="editNoteInput" rows="3" style="width:100%; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.88rem; font-family:inherit; resize:vertical;" placeholder="e.g. Leaving early at 8am, bike rack on car" oninput="updateNoteModalCounter()"></textarea>
             <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">
-              This note is preserved and synced directly with TroopWebHost.
+              Combined trip logistics + note must not exceed TroopWebHost's 100-character limit.
             </div>
           </div>
           <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem;">
             <button type="button" class="btn" onclick="closeModal('noteModal')">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save Note</button>
+            <button type="submit" id="noteSaveBtn" class="btn btn-primary">Save Note</button>
           </div>
         </form>
       </div>
@@ -1158,22 +1162,80 @@
         </p>
 
         <div style="margin-bottom:0.85rem;">
-          <div style="font-size:0.75rem; font-weight:700; color:#047857; margin-bottom:0.25rem; text-transform:uppercase;">
-            Live in TroopWebHost Right Now:
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+            <div style="font-size:0.75rem; font-weight:700; color:#047857; text-transform:uppercase;">
+              Live in TroopWebHost Right Now:
+            </div>
+            <span id="conflictLiveCommentLen" style="font-size:0.75rem; color:#065f46; font-weight:600;"></span>
           </div>
           <div id="conflictLiveComment" style="padding:0.65rem 0.85rem; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:6px; font-size:0.85rem; color:#065f46; word-break:break-word;"></div>
         </div>
 
-        <div style="margin-bottom:1.25rem;">
-          <div style="font-size:0.75rem; font-weight:700; color:#0369a1; margin-bottom:0.25rem; text-transform:uppercase;">
-            Your Proposed Coordinator Comment:
+        <div style="margin-bottom:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+            <div style="font-size:0.75rem; font-weight:700; color:#0369a1; text-transform:uppercase;">
+              Your Proposed Coordinator Comment:
+            </div>
+            <span id="conflictProposedCommentLen" style="font-size:0.75rem; color:#075985; font-weight:600;"></span>
           </div>
           <div id="conflictProposedComment" style="padding:0.65rem 0.85rem; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; font-size:0.85rem; color:#075985; word-break:break-word;"></div>
         </div>
 
+        <div id="conflictOverLimitWarning" style="display:none; margin-bottom:1rem; padding:0.6rem 0.8rem; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:0.82rem; color:#991b1b; line-height:1.4;"></div>
+
         <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border); padding-top:1rem;">
           <button type="button" class="btn" onclick="resolveConflictKeepLive()">Keep TroopWebHost Comment</button>
           <button type="button" class="btn btn-primary" onclick="resolveConflictForceOverwrite()">Overwrite with My Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Trim Comment (100 char limit) -->
+  <div id="trimCommentModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'trimCommentModal')">
+    <div class="modal-dialog" style="max-width: 560px;">
+      <div class="modal-header">
+        <h3 style="color:#d97706; display:flex; align-items:center; gap:0.4rem;">
+          ✂️ Trim Driver Comment: <span id="trimModalDriverName"></span>
+        </h3>
+        <button class="modal-close" onclick="closeModal('trimCommentModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.5;">
+          TroopWebHost strictly enforces a <strong>100-character maximum</strong> per sign-up comment. The combined riders, seat counts, and special note exceed this limit. Please adjust or trim the note below.
+        </p>
+
+        <div style="margin-bottom:0.85rem;">
+          <div style="font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:0.25rem; text-transform:uppercase;">
+            Fixed Trip Logistics (Roster &amp; Capacity):
+          </div>
+          <div id="trimLogisticsPreview" style="padding:0.5rem 0.75rem; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; color:#334155; font-family:monospace; word-break:break-word;"></div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0.85rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+            <label for="trimNoteInput" style="margin-bottom:0; font-size:0.85rem; font-weight:600;">Custom Driver Note / Constraints:</label>
+            <div style="display:flex; gap:0.35rem;">
+              <button type="button" class="btn" style="padding:0.15rem 0.45rem; font-size:0.72rem;" onclick="autoTrimNoteToFit()">Auto-Trim</button>
+              <button type="button" class="btn" style="padding:0.15rem 0.45rem; font-size:0.72rem;" onclick="clearTrimNote()">Clear</button>
+            </div>
+          </div>
+          <textarea id="trimNoteInput" rows="2" style="width:100%; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.88rem; font-family:inherit; resize:vertical;" placeholder="Special instructions, time constraints, etc." oninput="updateTrimCounter()"></textarea>
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+            <div style="font-size:0.75rem; font-weight:700; color:#334155; text-transform:uppercase;">
+              Total TroopWebHost Comment Preview:
+            </div>
+            <span id="trimCharCounter" style="font-size:0.78rem; font-weight:700;"></span>
+          </div>
+          <div id="trimCommentPreview" style="padding:0.6rem 0.8rem; background:#f8fafc; border:1px dashed #94a3b8; border-radius:6px; font-size:0.85rem; color:#1e293b; font-family:monospace; word-break:break-word;"></div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border); padding-top:1rem;">
+          <button type="button" class="btn" onclick="closeModal('trimCommentModal')">Cancel</button>
+          <button type="button" id="trimSaveBtn" class="btn btn-primary" onclick="submitTrimComment()">Save &amp; Sync to TWH</button>
         </div>
       </div>
     </div>
@@ -1313,21 +1375,23 @@
       let str = comment.trim();
       if (!str) return '';
 
-      // Check structured format: TO (...): ... FROM (...): ... [Note]
-      const discreteMatch = str.match(/(?:TO|FROM)\s*\([^)]*\):.*?(?=(?:TO|FROM)\s*\(|$)/gi);
-      if (discreteMatch && discreteMatch.length > 0) {
+      // 1. Structured discrete format: TO (...): ... FROM (...): ... [Note]
+      const discreteMatches = str.match(/(?:TO|FROM|Both)(?:\s*only)?(?:\s*\([^)]*\))?\s*:\s*[^.]+\.?/gi);
+      if (discreteMatches && discreteMatches.length > 0) {
         let remainder = str;
-        discreteMatch.forEach(m => { remainder = remainder.replace(m, ' '); });
-        return remainder.replace(/^[.\s,;]+|[.\s,;]+$/g, '').trim();
+        discreteMatches.forEach(m => { remainder = remainder.replace(m, ' '); });
+        const cleaned = remainder.replace(/^[.\s,;:]+|[.\s,;:]+$/g, '').trim();
+        if (cleaned) return cleaned;
       }
 
-      // Check standard format: Taking: [names]. [Note]
-      const takingMatch = str.match(/^Taking:\s*([^.]+)\.?(.*)$/i);
+      // 2. Structured unified format: Taking: [names]. [Note] or Both (...): [names]. [Note]
+      const takingMatch = str.match(/^(?:Taking|Both(?:\s*\([^)]*\))?):\s*([^.]+)\.?(.*)$/i);
       if (takingMatch) {
-        return (takingMatch[2] || '').trim();
+        const afterTaking = (takingMatch[2] || '').trim();
+        if (afterTaking) return afterTaking;
       }
 
-      // Check if sentences contain non-rider text
+      // 3. Sentence-level analysis for freeform driver notes and chatter
       const sentences = str.split(/(?<=[.!?])\s+/);
       const nonRiderSentences = [];
       const riderTokens = new Set();
@@ -1337,21 +1401,25 @@
         parts.forEach(p => riderTokens.add(p));
       });
 
+      const boilerplate = new Set([
+        'to', 'from', 'taking', 'takes', 'take', 'driving', 'drives', 'drive', 'with', 'and', 'seats',
+        'seat', 'room', 'space', 'more', 'spots', 'spot', 'both', 'ways', 'way', 'only',
+        'car', 'rides', 'ride', 'riding', 'for', 'scouts', 'scout', 'open', 'myself', 'self',
+        'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+        'available', 'avaliable', 'return', 'trip', 'inbound', 'outbound', 'none', 'full', 'no'
+      ]);
+
       for (const s of sentences) {
-        const sNorm = s.toLowerCase().replace(/[^a-z0-9]/g, ' ');
+        const sClean = s.replace(/^(?:TO|FROM|Both)(?:\s*only)?(?:\s*\([^)]*\))?\s*:\s*/i, '').trim();
+        const sNorm = sClean.toLowerCase().replace(/[^a-z0-9]/g, ' ');
         const words = sNorm.split(/\s+/).filter(w => w.length > 2);
-        const boilerplate = new Set([
-          'taking', 'takes', 'take', 'driving', 'drives', 'drive', 'with', 'and', 'seats',
-          'seat', 'room', 'space', 'more', 'spots', 'spot', 'both', 'ways', 'way', 'only',
-          'car', 'rides', 'ride', 'riding', 'for', 'scouts', 'scout', 'open', 'myself'
-        ]);
         const meaningfulWords = words.filter(w => !boilerplate.has(w) && !riderTokens.has(w));
         if (meaningfulWords.length > 0) {
-          nonRiderSentences.push(s.trim());
+          nonRiderSentences.push(sClean);
         }
       }
 
-      return nonRiderSentences.join(' ').trim();
+      return nonRiderSentences.join(' ').replace(/^[.\s,;:]+|[.\s,;:]+$/g, '').trim();
     }
 
     if (!eventId) {
@@ -1901,7 +1969,7 @@
                 <td>
                   <div class="slot slot-ambiguous" onclick="openResolveAmbiguityModal('${dir}', ${driverIdx}, ${s})" title="${escapeHtml(rider.note || 'Click to resolve this ambiguous name')}">
                     <span style="font-weight:700;">⚠️ "${escapeHtml(rider.token || 'Ambiguous')}"</span>
-                    <button class="btn-resolve no-print" type="button">Resolve</button>
+                    <button class="btn-resolve no-print" type="button">FIX</button>
                     <button class="btn-remove no-print" type="button" title="Remove rider" onclick="event.stopPropagation(); removeRider('${dir}', ${driverIdx}, ${s})">&times;</button>
                   </div>
                 </td>
@@ -2441,13 +2509,57 @@
       const note = driver ? (driver.customNote !== undefined ? driver.customNote : (driver.comment || '')) : '';
       document.getElementById('noteModalTitle').textContent = `Driver Note: ${toDisplayName(driverName)}`;
       document.getElementById('editNoteInput').value = note;
+
+      const logistics = getTripLogisticsClause(driverName);
+      const logisticsInfo = document.getElementById('noteLogisticsInfo');
+      if (logisticsInfo) {
+        logisticsInfo.textContent = logistics ? `Trip clause: "${logistics}" (${logistics.length} chars)` : 'No trip clause';
+      }
+      updateNoteModalCounter();
       openModal('noteModal');
+    }
+
+    function updateNoteModalCounter() {
+      if (!activeNoteDriverName) return;
+      const logistics = getTripLogisticsClause(activeNoteDriverName);
+      const note = (document.getElementById('editNoteInput').value || '').trim();
+      const combined = logistics ? (note ? `${logistics} ${note}` : logistics) : note;
+      const totalLen = combined.length;
+      const diff = 100 - totalLen;
+
+      const counterEl = document.getElementById('noteCharCount');
+      const saveBtn = document.getElementById('noteSaveBtn');
+      if (!counterEl) return;
+
+      if (totalLen <= 100) {
+        counterEl.style.color = '#059669';
+        counterEl.textContent = `${totalLen} / 100 (${diff >= 0 ? diff : 0} remaining)`;
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.style.opacity = '1';
+          saveBtn.style.cursor = 'pointer';
+        }
+      } else {
+        counterEl.style.color = '#dc2626';
+        counterEl.textContent = `${totalLen} / 100 (${Math.abs(diff)} chars over limit!)`;
+        if (saveBtn) {
+          saveBtn.disabled = true;
+          saveBtn.style.opacity = '0.5';
+          saveBtn.style.cursor = 'not-allowed';
+        }
+      }
     }
 
     function submitEditDriverNote(e) {
       e.preventDefault();
       if (!activeNoteDriverName) return;
       const newNote = (document.getElementById('editNoteInput').value || '').trim();
+      const logistics = getTripLogisticsClause(activeNoteDriverName);
+      const combined = logistics ? (newNote ? `${logistics} ${newNote}` : logistics) : newNote;
+      if (combined.length > 100) {
+        return;
+      }
+
       const norm = normalizeName(activeNoteDriverName);
       const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
       const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
@@ -2476,7 +2588,7 @@
         });
     }
 
-    function synthesizeDriverComment(driverName) {
+    function getTripLogisticsClause(driverName) {
       const norm = normalizeName(driverName);
       const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
       const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
@@ -2485,7 +2597,6 @@
 
       const toRiders = getRiderDisplayList(toDriver);
       const fromRiders = getRiderDisplayList(fromDriver);
-      const note = (toDriver?.customNote || fromDriver?.customNote || '').trim();
 
       // If driver drives both legs
       if (toDriver && fromDriver) {
@@ -2494,31 +2605,57 @@
         const sameRiders = toSorted === fromSorted;
         const sameSeats = (toDriver.seats || 0) === (fromDriver.seats || 0);
 
+        // All riders and seats are identical
         if (sameRiders && sameSeats) {
-          const riderClause = toRiders.length > 0 ? `Taking: ${toRiders.join(', ')}.` : '';
-          if (riderClause && note) return `${riderClause} ${note}`;
-          if (riderClause) return riderClause;
-          return note || '';
-        } else {
-          const toClause = `TO (${toDriver.seats} seats): ${toRiders.length > 0 ? 'Taking ' + toRiders.join(', ') : 'Open'}.`;
-          const fromClause = `FROM (${fromDriver.seats} seats): ${fromRiders.length > 0 ? 'Taking ' + fromRiders.join(', ') : 'Open'}.`;
-          return note ? `${toClause} ${fromClause} ${note}` : `${toClause} ${fromClause}`;
+          const riderClause = toRiders.length > 0 ? toRiders.join(', ') : 'Open';
+          return `Both (${toDriver.seats || 0}): ${riderClause}.`;
         }
+
+        // Partial overlap: Factor common riders into Both ( )
+        const commonRiders = toRiders.filter(r => fromRiders.includes(r));
+        const toOnlyRiders = toRiders.filter(r => !commonRiders.includes(r));
+        const fromOnlyRiders = fromRiders.filter(r => !commonRiders.includes(r));
+
+        if (commonRiders.length > 0 && sameSeats) {
+          let parts = [`Both (${toDriver.seats || 0}): ${commonRiders.join(', ')}.`];
+          if (toOnlyRiders.length > 0) parts.push(`TO: ${toOnlyRiders.join(', ')}.`);
+          if (fromOnlyRiders.length > 0) parts.push(`FROM: ${fromOnlyRiders.join(', ')}.`);
+          return parts.join(' ');
+        }
+
+        // No common riders or different seat counts: use discrete TO (X): ... FROM (Y): ...
+        const toClause = `TO (${toDriver.seats || 0}): ${toRiders.length > 0 ? toRiders.join(', ') : 'Open'}.`;
+        const fromClause = `FROM (${fromDriver.seats || 0}): ${fromRiders.length > 0 ? fromRiders.join(', ') : 'Open'}.`;
+        return `${toClause} ${fromClause}`;
       }
 
       // Driving TO only
       if (toDriver && !fromDriver) {
-        const toClause = `TO only (${toDriver.seats} seats): ${toRiders.length > 0 ? 'Taking ' + toRiders.join(', ') : 'Open'}.`;
-        return note ? `${toClause} ${note}` : toClause;
+        return `TO (${toDriver.seats || 0}): ${toRiders.length > 0 ? toRiders.join(', ') : 'Open'}.`;
       }
 
       // Driving FROM only
       if (!toDriver && fromDriver) {
-        const fromClause = `FROM only (${fromDriver.seats} seats): ${fromRiders.length > 0 ? 'Taking ' + fromRiders.join(', ') : 'Open'}.`;
-        return note ? `${fromClause} ${note}` : fromClause;
+        return `FROM (${fromDriver.seats || 0}): ${fromRiders.length > 0 ? fromRiders.join(', ') : 'Open'}.`;
       }
 
       return '';
+    }
+
+    function synthesizeDriverComment(driverName) {
+      const norm = normalizeName(driverName);
+      const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+
+      if (!toDriver && !fromDriver) return '';
+
+      const logistics = getTripLogisticsClause(driverName);
+      const note = (toDriver?.customNote !== undefined ? toDriver.customNote : (fromDriver?.customNote || '')).trim();
+
+      if (logistics && note) {
+        return `${logistics} ${note}`;
+      }
+      return logistics || note || '';
     }
 
     // Direct TroopWebHost Persistence Engine
@@ -2530,6 +2667,12 @@
       if (!toDriver && !fromDriver) return;
 
       const updatedComment = synthesizeDriverComment(driverName);
+      if (updatedComment.length > 100) {
+        updateSyncBadge('error', `⚠️ Over 100 chars (${updatedComment.length}/100)`);
+        openTrimCommentModal(driverName);
+        return;
+      }
+
       const passengerSeats = Math.max(toDriver?.seats || 0, fromDriver?.seats || 0);
       let drivingToFrom = 'Both';
       if (toDriver && !fromDriver) drivingToFrom = 'To';
@@ -2595,11 +2738,127 @@
       }
     }
 
+    // Trim Comment Modal Handlers
+    let activeTrimDriverName = null;
+
+    function openTrimCommentModal(driverName) {
+      activeTrimDriverName = driverName;
+      const norm = normalizeName(driverName);
+      const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+      const note = (toDriver?.customNote !== undefined ? toDriver.customNote : (fromDriver?.customNote || '')).trim();
+      const logistics = getTripLogisticsClause(driverName);
+
+      document.getElementById('trimModalDriverName').textContent = toDisplayName(driverName);
+      document.getElementById('trimLogisticsPreview').textContent = logistics || '(No trip clause)';
+      document.getElementById('trimNoteInput').value = note;
+      updateTrimCounter();
+      openModal('trimCommentModal');
+    }
+
+    function updateTrimCounter() {
+      if (!activeTrimDriverName) return;
+      const logistics = getTripLogisticsClause(activeTrimDriverName);
+      const note = (document.getElementById('trimNoteInput').value || '').trim();
+      const combined = logistics ? (note ? `${logistics} ${note}` : logistics) : note;
+      const totalLen = combined.length;
+      const diff = 100 - totalLen;
+
+      const counterEl = document.getElementById('trimCharCounter');
+      const previewEl = document.getElementById('trimCommentPreview');
+      const saveBtn = document.getElementById('trimSaveBtn');
+
+      if (previewEl) previewEl.textContent = combined || '(Empty comment)';
+
+      if (counterEl) {
+        if (totalLen <= 100) {
+          counterEl.style.color = '#059669';
+          counterEl.textContent = `${totalLen} / 100 (${diff >= 0 ? diff : 0} remaining)`;
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.style.opacity = '1';
+            saveBtn.style.cursor = 'pointer';
+          }
+        } else {
+          counterEl.style.color = '#dc2626';
+          counterEl.textContent = `${totalLen} / 100 (${Math.abs(diff)} chars over limit!)`;
+          if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.style.opacity = '0.5';
+            saveBtn.style.cursor = 'not-allowed';
+          }
+        }
+      }
+    }
+
+    function autoTrimNoteToFit() {
+      if (!activeTrimDriverName) return;
+      const logistics = getTripLogisticsClause(activeTrimDriverName);
+      const maxNoteLen = logistics ? Math.max(0, 100 - logistics.length - 1) : 100;
+      let note = (document.getElementById('trimNoteInput').value || '').trim();
+      if (note.length > maxNoteLen) {
+        note = note.substring(0, maxNoteLen).trim();
+      }
+      document.getElementById('trimNoteInput').value = note;
+      updateTrimCounter();
+    }
+
+    function clearTrimNote() {
+      document.getElementById('trimNoteInput').value = '';
+      updateTrimCounter();
+    }
+
+    function submitTrimComment() {
+      if (!activeTrimDriverName) return;
+      const logistics = getTripLogisticsClause(activeTrimDriverName);
+      const newNote = (document.getElementById('trimNoteInput').value || '').trim();
+      const combined = logistics ? (newNote ? `${logistics} ${newNote}` : logistics) : newNote;
+
+      if (combined.length > 100) {
+        return;
+      }
+
+      const driverName = activeTrimDriverName;
+      const norm = normalizeName(driverName);
+      const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+
+      pushUndoState(`Trim note for ${toDisplayName(driverName)}`, driverName);
+
+      if (toDriver) toDriver.customNote = newNote;
+      if (fromDriver) fromDriver.customNote = newNote;
+
+      closeModal('trimCommentModal');
+      activeTrimDriverName = null;
+      saveDraft();
+      persistDriverChange(driverName);
+    }
+
     // Conflict Resolution Modal Handlers
     function openConflictModal(conflict) {
       document.getElementById('conflictDriverName').textContent = toDisplayName(conflict.driverName);
-      document.getElementById('conflictLiveComment').textContent = conflict.liveComment || '(Empty comment)';
-      document.getElementById('conflictProposedComment').textContent = conflict.proposedComment || '(Empty comment)';
+      const liveText = conflict.liveComment || '(Empty comment)';
+      const liveLen = (conflict.liveComment || '').length;
+      document.getElementById('conflictLiveComment').textContent = liveText;
+      const liveLenEl = document.getElementById('conflictLiveCommentLen');
+      if (liveLenEl) liveLenEl.textContent = `${liveLen} / 100 chars`;
+
+      const proposedText = conflict.proposedComment || '(Empty comment)';
+      const proposedLen = (conflict.proposedComment || '').length;
+      document.getElementById('conflictProposedComment').textContent = proposedText;
+      const proposedLenEl = document.getElementById('conflictProposedCommentLen');
+      if (proposedLenEl) proposedLenEl.textContent = `${proposedLen} / 100 chars`;
+
+      const overLimitWarning = document.getElementById('conflictOverLimitWarning');
+      if (overLimitWarning) {
+        if (proposedLen > 100) {
+          overLimitWarning.style.display = 'block';
+          overLimitWarning.textContent = `⚠️ Your proposed comment is ${proposedLen} characters, which exceeds TroopWebHost's 100-character limit! Overwriting will open the Trim Comment window.`;
+        } else {
+          overLimitWarning.style.display = 'none';
+        }
+      }
+
       openModal('conflictModal');
     }
 
@@ -2625,14 +2884,19 @@
       closeModal('conflictModal');
       activeConflict = null;
       updateSyncBadge('idle', 'Kept TWH comment');
+      renderPage();
     }
 
     async function resolveConflictForceOverwrite() {
       if (!activeConflict) return;
-      const { driverName } = activeConflict;
+      const { driverName, proposedComment } = activeConflict;
       closeModal('conflictModal');
       activeConflict = null;
-      await persistDriverChange(driverName, true);
+      if (proposedComment && proposedComment.length > 100) {
+        openTrimCommentModal(driverName);
+      } else {
+        await persistDriverChange(driverName, true);
+      }
     }
 
     // Undo / Redo Stack Management
