@@ -200,7 +200,7 @@ describe('API smoke tests', () => {
     assert.ok(longComment.length > 100);
     const response = await fetch(`${baseUrl}/api/events/1957/driver-update`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: COORD_AUTH_HEADER,
       body: JSON.stringify({
         driverName: 'Simone, Jason',
         updatedComment: longComment,
