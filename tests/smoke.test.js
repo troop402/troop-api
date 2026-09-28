@@ -612,6 +612,97 @@ describe('Driver comment parsing unit test', () => {
     assert.equal(driver.claimedScoutsTo.length, 1);
     assert.equal(driver.claimedScoutsTo[0].name, 'Elianna Simone');
   });
+
+  it('matches scouts formatted as First L. with surname initials and uppercase BOTH', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Knudson, BJ',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'BOTH (4): Iris K., Julia P. Arriving Friday night.',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Knudson, Iris', patrol: 'Dragon' },
+      { name: 'Parsons, Julia', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Knudson, BJ', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+    assert.equal(driver.toSeats, 4);
+    assert.equal(driver.fromSeats, 4);
+    assert.equal(driver.cleanNote, 'Arriving Friday night.');
+    assert.equal(driver.claimedScoutsTo.length, 2);
+    assert.ok(driver.claimedScoutsTo.some((s) => s.name === 'Iris Knudson'));
+    assert.ok(driver.claimedScoutsTo.some((s) => s.name === 'Julia Parsons'));
+  });
+
+  it('disambiguates duplicate first names using last initial (First L.)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Leader, Dan',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'BOTH (4): Emily P., Emily R.',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Polcari, Emily', patrol: 'Dragon' },
+      { name: 'Renno, Emily', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Leader, Dan', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+    assert.equal(driver.claimedScoutsTo.length, 2);
+    assert.ok(driver.claimedScoutsTo.some((s) => s.name === 'Emily Polcari'));
+    assert.ok(driver.claimedScoutsTo.some((s) => s.name === 'Emily Renno'));
+    assert.equal(result.clarificationsNeeded.length, 0);
+  });
+
+  it('detects ambiguity when multiple scouts share the same first name and same last initial', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Leader, Dan',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'BOTH (4): Emily P.',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Polcari, Emily', patrol: 'Dragon' },
+      { name: 'Patterson, Emily', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Leader, Dan', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+    assert.equal(driver.claimedScoutsTo.length, 0);
+    assert.equal(result.clarificationsNeeded.length, 1);
+    assert.ok(result.clarificationsNeeded[0].token.includes('Emily P'));
+  });
 });
 
 describe('Carpool Excel export unit test', () => {

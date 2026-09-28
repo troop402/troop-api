@@ -2576,16 +2576,79 @@
     }
 
     // Comment Synthesizer
+    function formatRiderForComment(rider) {
+      if (!rider || !rider.name) return '';
+      const rawName = rider.name.trim();
+
+      // If ambiguous token, preserve as-is
+      if (rider.type === 'ambiguous') {
+        return rider.token || rawName;
+      }
+
+      // Adult passengers retain First Last
+      if (rider.type === 'adult') {
+        return toDisplayName(rawName);
+      }
+
+      // Parse last and first
+      let last = '';
+      let first = '';
+      if (rawName.includes(',')) {
+        const [lastPart, ...firstParts] = rawName.split(',');
+        last = lastPart.trim();
+        first = firstParts.join(' ').trim();
+      } else {
+        const parts = rawName.split(/\s+/);
+        last = parts.pop() || '';
+        first = parts.join(' ').trim();
+      }
+
+      const lastInitial = last ? last[0].toUpperCase() : '';
+      if (!lastInitial) {
+        return first || toDisplayName(rawName);
+      }
+
+      // Check if another attending scout shares the exact same first name and last initial
+      const allAttendingScouts = carpoolBaseline?.scouts || [];
+      const firstNorm = first.toLowerCase();
+      const initialNorm = lastInitial.toLowerCase();
+
+      let collision = false;
+      for (const other of allAttendingScouts) {
+        const oName = (typeof other === 'string' ? other : (other.name || '')).trim();
+        if (!oName || oName.toLowerCase() === rawName.toLowerCase()) continue;
+
+        let oLast = '';
+        let oFirst = '';
+        if (oName.includes(',')) {
+          const [oL, ...oF] = oName.split(',');
+          oLast = oL.trim();
+          oFirst = oF.join(' ').trim();
+        } else {
+          const oParts = oName.split(/\s+/);
+          oLast = oParts.pop() || '';
+          oFirst = oParts.join(' ').trim();
+        }
+
+        if (oFirst.toLowerCase() === firstNorm && oLast && oLast[0].toLowerCase() === initialNorm) {
+          collision = true;
+          break;
+        }
+      }
+
+      // If duplicate first name + last initial exists, fall back to "First Last" to avoid conflict
+      if (collision) {
+        return toDisplayName(rawName);
+      }
+
+      return `${first} ${lastInitial}.`;
+    }
+
     function getRiderDisplayList(driver) {
       if (!driver || !driver.riders) return [];
       return driver.riders
         .filter(r => r && r.name)
-        .map(r => {
-          if (r.type === 'ambiguous') {
-            return r.token || r.name;
-          }
-          return toDisplayName(r.name);
-        });
+        .map(r => formatRiderForComment(r));
     }
 
     function getTripLogisticsClause(driverName) {
@@ -2608,16 +2671,16 @@
         // All riders and seats are identical
         if (sameRiders && sameSeats) {
           const riderClause = toRiders.length > 0 ? toRiders.join(', ') : 'Open';
-          return `Both (${toDriver.seats || 0}): ${riderClause}.`;
+          return `BOTH (${toDriver.seats || 0}): ${riderClause}.`;
         }
 
-        // Partial overlap: Factor common riders into Both ( )
+        // Partial overlap: Factor common riders into BOTH ( )
         const commonRiders = toRiders.filter(r => fromRiders.includes(r));
         const toOnlyRiders = toRiders.filter(r => !commonRiders.includes(r));
         const fromOnlyRiders = fromRiders.filter(r => !commonRiders.includes(r));
 
         if (commonRiders.length > 0 && sameSeats) {
-          let parts = [`Both (${toDriver.seats || 0}): ${commonRiders.join(', ')}.`];
+          let parts = [`BOTH (${toDriver.seats || 0}): ${commonRiders.join(', ')}.`];
           if (toOnlyRiders.length > 0) parts.push(`TO: ${toOnlyRiders.join(', ')}.`);
           if (fromOnlyRiders.length > 0) parts.push(`FROM: ${fromOnlyRiders.join(', ')}.`);
           return parts.join(' ');
