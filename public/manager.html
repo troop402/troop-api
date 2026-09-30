@@ -326,7 +326,7 @@
     <header>
       <div class="title-area">
         <h1>Troop 402 Manager Console</h1>
-        <p>Operational control, TroopWebHost roster cache, and event carpool hub.</p>
+        <p>Operational control, website roster cache, and event carpool hub.</p>
       </div>
       <div>
         <a href="/" class="btn" style="font-size: 0.8rem;">Public Status &rarr;</a>
@@ -580,7 +580,7 @@
 
       const ev = allEvents.find(e => String(e.id) === String(eventId));
       document.getElementById('launchEventTitle').textContent = ev?.title || `Event #${eventId}`;
-      document.getElementById('launchEventDate').textContent = `📅 ${ev?.start || 'See TWH'}`;
+      document.getElementById('launchEventDate').textContent = `📅 ${ev?.start || 'See Website'}`;
       document.getElementById('launchEventLocation').textContent = `📍 ${ev?.location || 'TBA'}`;
       document.getElementById('launchEventType').textContent = ev?.eventType || 'Trip';
       document.getElementById('launchEventIdBadge').textContent = `ID: #${eventId}`;

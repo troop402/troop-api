@@ -848,7 +848,7 @@
       </div>
 
       <div style="margin-top: 2rem; font-size: 0.8rem; color: var(--text-muted); text-align: center;" class="no-print">
-        Troop 402 Lafayette • Updated from TroopWebHost at <span id="cachedAtTime">-</span> • 
+        Troop 402 Lafayette • Updated from Website at <span id="cachedAtTime">-</span> • 
         <a href="/manager.html" style="color: var(--primary);">Open Manager Console</a>
       </div>
     </div>
@@ -999,7 +999,7 @@
       document.getElementById('eventTypeBadge').textContent = combinedMeta?.eventType || 'Troop Event';
       const dateRange = (combinedMeta?.start && combinedMeta?.end && combinedMeta.start.split(' ')[0] !== combinedMeta.end.split(' ')[0])
         ? `${combinedMeta.start} – ${combinedMeta.end}`
-        : (combinedMeta?.start || 'See TroopWebHost');
+        : (combinedMeta?.start || 'See Website');
       document.getElementById('eventDate').textContent = `📅 ${dateRange}`;
 
       const locText = combinedMeta?.location ? `📍 ${combinedMeta.location}` : '📍 TBA';
@@ -1118,7 +1118,7 @@
       tbody.innerHTML = '';
 
       if (drivers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center; padding: 1.5rem;">No drivers registered on TroopWebHost yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center; padding: 1.5rem;">No drivers registered on the website yet.</td></tr>';
         return;
       }
 
@@ -1265,15 +1265,15 @@
 
         const tags = [];
         ridersForDir.forEach(r => {
-          const rName = typeof r === 'string' ? r : r.name;
+          const rName = typeof r === 'string' ? r : (r.displayName || r.compactName || r.name);
           if (r.type === 'adult') {
-            tags.push(`<span class="badge badge-adult">Adult: ${escapeHtml(rName)}</span>`);
+            tags.push(`<span class="badge badge-adult">Adult: ${escapeHtml(r.displayName || rName)}</span>`);
           } else if (r.type === 'ambiguous') {
             tags.push(`<span class="badge badge-warning" title="${escapeHtml(r.note || '')}">⚠️ Ambiguous "${escapeHtml(r.token || rName)}"</span>`);
           } else {
             const scStatus = typeof r === 'string' ? 'confirmed' : r.status;
             const isFam = scStatus === 'family_match';
-            tags.push(`<span class="badge badge-scout">Scout: ${escapeHtml(rName)}${isFam ? ' (Family)' : ''}</span>`);
+            tags.push(`<span class="badge badge-scout">Scout: ${escapeHtml(r.displayName || rName)}${isFam ? ' (Family)' : ''}</span>`);
           }
         });
 

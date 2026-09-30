@@ -1090,7 +1090,7 @@
           </div>
           <!-- Navigation -->
           <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
-            <button type="button" id="refreshBtn" class="btn" onclick="refreshFromTWH()" title="Check and refresh live sign-ups from TroopWebHost">🔄 Refresh</button>
+            <button type="button" id="refreshBtn" class="btn" onclick="refreshFromTWH()" title="Check and refresh live sign-ups from Website">🔄 Refresh</button>
             <a id="viewCarpoolLink" href="#" class="btn">🚗 Carpool View</a>
             <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View or edit sign-ups on Website">🌐 Website Sign-Ups ↗</a>
             <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View event details on Website">📅 Website Event ↗</a>
@@ -1103,9 +1103,9 @@
         <div style="display:flex; align-items:center; gap:0.6rem;">
           <span style="font-size:1.2rem; line-height:1;">⚠️</span>
           <div>
-            <div style="font-weight:700; color:#b45309;">TroopWebHost Updated</div>
+            <div style="font-weight:700; color:#b45309;">Website Updated</div>
             <div style="font-size:0.78rem; color:var(--text-muted); margin-top:1px;">
-              Driver sign-ups or comments were modified in TroopWebHost.
+              Driver sign-ups or comments were modified on the website.
             </div>
           </div>
         </div>
@@ -1392,11 +1392,11 @@
       </div>
       <div class="modal-body">
         <form onsubmit="submitSaveDriverToTWH(event)">
-          <!-- Live in TroopWebHost Box -->
+          <!-- Live on Website Box -->
           <div style="margin-bottom: 0.85rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
               <div style="font-size:0.75rem; font-weight:700; color:#047857; text-transform:uppercase;">
-                Live in TroopWebHost Right Now:
+                Live on Website Right Now:
               </div>
               <span id="noteLiveCharCount" style="font-size:0.75rem; color:#065f46; font-weight:600;">0 / 100 chars</span>
             </div>
@@ -1419,7 +1419,7 @@
             </div>
             <div id="noteProposedOutputBox" style="padding:0.6rem 0.85rem; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; font-size:0.85rem; color:#075985; font-family:monospace; word-break:break-word; min-height:2.2rem;"></div>
             <div id="noteLimitHint" style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">
-              Combined trip logistics + note must not exceed TroopWebHost's 100-character limit.
+              Combined trip logistics + note must not exceed the website's 100-character limit.
             </div>
           </div>
 
@@ -1446,7 +1446,7 @@
       </div>
       <div class="modal-body">
         <p style="font-size:0.88rem; color:var(--text); margin-bottom:0.75rem; line-height:1.5;">
-          You have pending changes that have not yet been synchronized to TroopWebHost. Click <strong>Review &amp; Save</strong> on any driver to push their combined TO &amp; FROM comments to the website:
+          You have pending changes that have not yet been synchronized to the website. Click <strong>Review &amp; Save</strong> on any driver to push their combined TO &amp; FROM comments to the website:
         </p>
         <div id="unsavedReminderDriversList" style="max-height: 240px; overflow-y: auto; margin-bottom: 0.75rem;"></div>
         <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border); padding-top:0.75rem;">
@@ -1467,10 +1467,10 @@
       </div>
       <div class="modal-body">
         <p style="font-size:0.88rem; color:var(--text); margin-bottom:0.75rem; line-height:1.5;">
-          You have uncommitted edits saved in this browser from <strong id="staleDraftAge" style="color:#b45309;"></strong> that were not synchronized to TroopWebHost.
+          You have uncommitted edits saved in this browser from <strong id="staleDraftAge" style="color:#b45309;"></strong> that were not synchronized to the website.
         </p>
         <p style="font-size:0.83rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">
-          TroopWebHost data has since evolved. Because these edits are old, we cannot assume they are still accurate. Please choose how to resolve this discrepancy:
+          Website data has since evolved. Because these edits are old, we cannot assume they are still accurate. Please choose how to resolve this discrepancy:
         </p>
 
         <div id="staleDraftDriversList" style="max-height: 280px; overflow-y: auto; margin-bottom:1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
@@ -1479,10 +1479,10 @@
 
         <div style="display:flex; justify-content:flex-end; gap:0.6rem; border-top:1px solid var(--border); padding-top:1rem; flex-wrap:wrap;">
           <button type="button" class="btn btn-primary" onclick="resolveStaleDraftDiscard()" style="background:#059669; border-color:#059669;">
-            ✓ Discard Stale Edits &amp; Use Live TroopWebHost (Recommended)
+            ✓ Discard Stale Edits &amp; Use Live Website (Recommended)
           </button>
           <button type="button" class="btn" onclick="resolveStaleDraftOverwrite()" style="color:#b45309; border-color:#f59e0b;">
-            ⚠️ Overwrite TroopWebHost with Stale Edits
+            ⚠️ Overwrite Website with Stale Edits
           </button>
         </div>
       </div>
@@ -1500,13 +1500,13 @@
       </div>
       <div class="modal-body">
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.5;">
-          Another user or parent modified this driver's sign-up directly in TroopWebHost while you were editing. How would you like to resolve this?
+          Another user or parent modified this driver's sign-up directly on the website while you were editing. How would you like to resolve this?
         </p>
 
         <div style="margin-bottom:0.85rem;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
             <div style="font-size:0.75rem; font-weight:700; color:#047857; text-transform:uppercase;">
-              Live in TroopWebHost Right Now:
+              Live on Website Right Now:
             </div>
             <span id="conflictLiveCommentLen" style="font-size:0.75rem; color:#065f46; font-weight:600;"></span>
           </div>
@@ -1526,7 +1526,7 @@
         <div id="conflictOverLimitWarning" style="display:none; margin-bottom:1rem; padding:0.6rem 0.8rem; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:0.82rem; color:#991b1b; line-height:1.4;"></div>
 
         <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border); padding-top:1rem;">
-          <button type="button" class="btn" onclick="resolveConflictKeepLive()">Keep TroopWebHost Comment</button>
+          <button type="button" class="btn" onclick="resolveConflictKeepLive()">Keep Website Comment</button>
           <button type="button" class="btn btn-primary" onclick="resolveConflictForceOverwrite()">Overwrite with My Changes</button>
         </div>
       </div>
@@ -1544,7 +1544,7 @@
       </div>
       <div class="modal-body">
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.5;">
-          TroopWebHost strictly enforces a <strong>100-character maximum</strong> per sign-up comment. The combined riders, seat counts, and special note exceed this limit. Please adjust or trim the note below.
+          The website strictly enforces a <strong>100-character maximum</strong> per sign-up comment. The combined riders, seat counts, and special note exceed this limit. Please adjust or trim the note below.
         </p>
 
         <div style="margin-bottom:0.85rem;">
@@ -1568,7 +1568,7 @@
         <div style="margin-bottom:1rem;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
             <div style="font-size:0.75rem; font-weight:700; color:#334155; text-transform:uppercase;">
-              Total TroopWebHost Comment Preview:
+              Total Website Comment Preview:
             </div>
             <span id="trimCharCounter" style="font-size:0.78rem; font-weight:700;"></span>
           </div>
@@ -1577,7 +1577,7 @@
 
         <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border); padding-top:1rem;">
           <button type="button" class="btn" onclick="closeModal('trimCommentModal')">Cancel</button>
-          <button type="button" id="trimSaveBtn" class="btn btn-primary" onclick="submitTrimComment()">Save &amp; Sync to TWH</button>
+          <button type="button" id="trimSaveBtn" class="btn btn-primary" onclick="submitTrimComment()">Save &amp; Sync to Website</button>
         </div>
       </div>
     </div>
@@ -1655,7 +1655,7 @@
   <div id="savingOverlay" class="saving-overlay" style="display:none;">
     <div class="saving-card">
       <div class="saving-spinner"></div>
-      <div id="savingOverlayText">Saving changes to TroopWebHost...</div>
+      <div id="savingOverlayText">Saving changes to Website...</div>
     </div>
   </div>
 
@@ -1706,6 +1706,13 @@
       if (trimmed.includes(',')) return trimmed;
       const parts = trimmed.split(/\s+/);
       if (parts.length <= 1) return trimmed;
+
+      if (parts.length >= 3 && /^(?:di|de|van|von|la|le|del|dos)$/i.test(parts[parts.length - 2])) {
+        const last = parts.slice(parts.length - 2).join(' ');
+        const first = parts.slice(0, parts.length - 2).join(' ');
+        return `${last}, ${first}`;
+      }
+
       const last = parts.pop();
       const first = parts.join(' ');
       return `${last}, ${first}`;
@@ -1744,12 +1751,98 @@
         str = (takingMatch[2] || '').trim();
       }
 
-      // 3. Remove driver self-references:
-      // "driving myself", "driving self", "myself", "self", "driver"
+      // 3. Remove discrete leg prefixes like "TO and FROM" and capacity notes
+      str = str.replace(/\b(?:TO\s+and\s+FROM|TO\s*&\s*FROM)\b/gi, ' ');
+      str = str.replace(/\b\d+\s+seats?\b/gi, ' ');
+
+      // 4. Build comprehensive list of rider names AND tokens to remove FIRST
+      const namesToRemove = [];
+      const nameMap = carpoolBaseline?.nameMap || window.carpoolData?.nameMap;
+
+      (riders || []).forEach(r => {
+        if (!r) return;
+        // Ambiguous tokens should be removed from note because they are already placed into the rider clause!
+        if (r.type === 'ambiguous' && r.token) {
+          namesToRemove.push(r.token);
+          return;
+        }
+
+        // Direct tokens from server rider object
+        if (r.tokens && Array.isArray(r.tokens)) {
+          namesToRemove.push(...r.tokens);
+        }
+
+        const raw = typeof r === 'string' ? r : (r.name || '');
+        if (!raw || raw.startsWith('⚠️')) return;
+
+        // Tokens from server nameMap
+        if (nameMap) {
+          const entry = nameMap[raw] || nameMap[raw.toLowerCase()] || nameMap[toDisplayName(raw).toLowerCase()];
+          if (entry && entry.tokens) {
+            namesToRemove.push(...entry.tokens);
+          }
+        }
+
+        let first = '';
+        let last = '';
+        if (raw.includes(',')) {
+          const [l, ...f] = raw.split(',');
+          last = l.trim();
+          first = f.join(' ').trim();
+        } else {
+          const parts = raw.trim().split(/\s+/);
+          if (parts.length >= 3 && /^(?:di|de|van|von|la|le|del|dos)$/i.test(parts[parts.length - 2])) {
+            last = parts.slice(parts.length - 2).join(' ');
+            first = parts.slice(0, parts.length - 2).join(' ');
+          } else {
+            last = parts.pop() || '';
+            first = parts.join(' ').trim();
+          }
+        }
+
+        const firstNameOnly = first.split(/\s+/)[0] || first;
+
+        if (first && last) {
+          namesToRemove.push(`${first} ${last}`);
+          namesToRemove.push(`${last}, ${first}`);
+          namesToRemove.push(`${last} ${first}`);
+          if (firstNameOnly !== first) {
+            namesToRemove.push(`${firstNameOnly} ${last}`);
+            namesToRemove.push(`${last}, ${firstNameOnly}`);
+          }
+        }
+        if (first && first.length > 1) {
+          namesToRemove.push(first);
+        }
+        if (firstNameOnly && firstNameOnly.length > 1 && firstNameOnly !== first) {
+          namesToRemove.push(firstNameOnly);
+        }
+
+        // Common adult nicknames (e.g. Thomas -> Tom)
+        if (firstNameOnly.toLowerCase() === 'thomas') namesToRemove.push('Tom');
+        if (firstNameOnly.toLowerCase() === 'william') namesToRemove.push('Bill', 'Will');
+        if (firstNameOnly.toLowerCase() === 'robert') namesToRemove.push('Bob', 'Rob');
+        if (firstNameOnly.toLowerCase() === 'richard') namesToRemove.push('Rick', 'Dick');
+        if (firstNameOnly.toLowerCase() === 'james') namesToRemove.push('Jim');
+      });
+
+      // Sort names by length descending so longer full names are replaced before single first names
+      namesToRemove.sort((a, b) => b.length - a.length);
+
+      const seenPatterns = new Set();
+      for (const name of namesToRemove) {
+        const key = name.toLowerCase();
+        if (seenPatterns.has(key)) continue;
+        seenPatterns.add(key);
+
+        // Support optional possessive (e.g. "Melia's" -> remove with 's)
+        const regex = new RegExp(`\\b${escapeRegex(name)}(?:['’]s)?\\b`, 'gi');
+        str = str.replace(regex, ' ');
+      }
+
+      // 5. Remove driver self-references AFTER full rider names are removed
       str = str.replace(/\b(?:driving|drives|drive|taking|takes|take)?\s*(?:with\s+)?(?:myself|self|driver)\b/gi, ' ');
 
-      // If driverName is supplied, also check driver's first name as self-reference
-      // e.g. Driver "Clayshulte, Alison" writing "Alison, Anya, Mila..."
       if (driverName) {
         let driverFirst = '';
         if (driverName.includes(',')) {
@@ -1764,55 +1857,16 @@
         }
       }
 
-      // 4. Remove boilerplate intro phrases: "driving", "taking", "with", "scouts" before names
+      // 6. Remove boilerplate intro phrases
       str = str.replace(/\b(?:driving|drives|drive|taking|takes|take)\s+(?:with\s+)?/gi, ' ');
       str = str.replace(/\b(?:scouts?|passengers?|riders?)\s*:\s*/gi, ' ');
-      str = str.replace(/\bscouts\s+(?=[A-Z])/gi, ' '); // e.g. "Scouts Penny Campos" -> "Penny Campos"
+      str = str.replace(/\b(?:scouts?|passengers?|riders?)\b\s*/gi, ' ');
 
-      // 5. Build list of rider name patterns to remove
-      const namesToRemove = [];
-      (riders || []).forEach(r => {
-        if (!r) return;
-        const raw = typeof r === 'string' ? r : (r.name || '');
-        if (!raw || raw.startsWith('⚠️')) return; // do not remove ambiguous tokens
-
-        let first = '';
-        let last = '';
-        if (raw.includes(',')) {
-          const [l, ...f] = raw.split(',');
-          last = l.trim();
-          first = f.join(' ').trim();
-        } else {
-          const parts = raw.trim().split(/\s+/);
-          last = parts.pop() || '';
-          first = parts.join(' ').trim();
-        }
-
-        if (first && last) {
-          namesToRemove.push(`${first} ${last}`);
-          namesToRemove.push(`${last}, ${first}`);
-          namesToRemove.push(`${last} ${first}`);
-        }
-        if (first && first.length > 1) {
-          namesToRemove.push(first);
-        }
-      });
-
-      // Sort names by length descending so longer full names are replaced before single first names
-      namesToRemove.sort((a, b) => b.length - a.length);
-
-      const seenPatterns = new Set();
-      for (const name of namesToRemove) {
-        const key = name.toLowerCase();
-        if (seenPatterns.has(key)) continue;
-        seenPatterns.add(key);
-
-        const regex = new RegExp(`\\b${escapeRegex(name)}\\b`, 'gi');
-        str = str.replace(regex, ' ');
-      }
-
-      // 6. Clean up residual connector words and punctuation
+      // 7. Clean up residual connector words, punctuation, and orphaned possessives
       str = str
+        .replace(/(?:['’]s)\b/gi, ' ')
+        .replace(/\(\s*[,;\s]+\s*/g, '(')
+        .replace(/\s*[,;\s]+\s*\)/g, ')')
         .replace(/\(\s*\)/g, ' ')
         .replace(/\[\s*\]/g, ' ')
         .replace(/\s+/g, ' ')
@@ -1820,11 +1874,16 @@
         .replace(/(?:,\s*)+/g, ', ')
         .replace(/\b(?:and|&|\+)\b(?:\s*,\s*|\s+and\b|\s*&|\s*\+)+/gi, ' ')
         .replace(/^[,\s;&+.]+|[,\s;&+]+$/g, '')
-        .replace(/^[,\s;&+.]+|[,\s;&+]+$/g, '')
         .trim();
 
-      // If only punctuation or orphaned connectors remain, clear it
-      if (/^(?:and|with|&|\+|[.,;:\s])+$/i.test(str)) {
+      // Unwrap redundant outer parentheses: e.g. "(rest for family, 0 available)" -> "rest for family, 0 available"
+      str = str.replace(/^\(([^()]+)\)$/, '$1').trim();
+
+      // If only punctuation or orphaned connectors or pure capacity remark remain, clear it
+      if (/^(?:and|with|&|\+|[.,;:\s]|including)+$/i.test(str)) {
+        return '';
+      }
+      if (/^\d+\s+including$/i.test(str)) {
         return '';
       }
 
@@ -2334,7 +2393,7 @@
         db.style.display = 'inline-flex';
         const count = pendingDriversToSync.size;
         db.innerHTML = `💾 ${count} driver${count === 1 ? '' : 's'} with unsaved edits (click 💾 on driver row to save)`;
-        db.title = 'Unsaved local edits. Click the Save button on highlighted driver rows to push changes to TroopWebHost.';
+        db.title = 'Unsaved local edits. Click the Save button on highlighted driver rows to push changes to Website.';
       }
 
       const count = pendingDriversToSync.size;
@@ -2344,7 +2403,7 @@
     }
 
     function resetToBaseline() {
-      if (confirm('Reset coordinator worksheet to TroopWebHost baseline? All local changes will be cleared.')) {
+      if (confirm('Reset coordinator worksheet to Website baseline? All local changes will be cleared.')) {
         try {
           localStorage.removeItem(legacyDraftKey);
           localStorage.removeItem(draftStorageKey);
@@ -2540,7 +2599,7 @@
           });
 
           const notAttendingHtml = notAttendingItems.map(item => {
-            return `<span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.3rem 0.6rem; font-size:0.75rem;" title="${escapeHtml(formatLastFirst(item.riderName))} is claimed by ${escapeHtml(toDisplayName(item.driverName))} but is not registered for the campout in TroopWebHost">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: ${escapeHtml(formatLastFirst(item.riderName))} (Not Attending)</span>`;
+            return `<span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.3rem 0.6rem; font-size:0.75rem;" title="${escapeHtml(formatLastFirst(item.riderName))} is claimed by ${escapeHtml(toDisplayName(item.driverName))} but is not registered for the campout on the website">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: ${escapeHtml(formatLastFirst(item.riderName))} (Not Attending)</span>`;
           });
 
           const dupHtml = dupItems.map(item => {
@@ -2786,7 +2845,7 @@
               `;
             } else {
               const dupTitle = isDup ? `⚠️ Duplicate: ${escapeHtml(rider.name)} is claimed by multiple drivers on this leg!` : '';
-              const notAttendingTitle = isNotAttending ? `⚠️ Not Attending: ${escapeHtml(rider.name)} is claimed by this driver but is not registered for the campout in TroopWebHost` : '';
+              const notAttendingTitle = isNotAttending ? `⚠️ Not Attending: ${escapeHtml(rider.name)} is claimed by this driver but is not registered for the campout on the website` : '';
               const slotTitle = [dupTitle, notAttendingTitle].filter(Boolean).join(' | ');
 
               cellsHtml += `
@@ -2794,7 +2853,7 @@
                   <div class="slot slot-filled ${isAdult ? 'adult' : ''} ${isDup ? 'slot-duplicate' : ''} ${isNotAttending ? 'slot-not-attending' : ''}" ${slotTitle ? `title="${escapeHtml(slotTitle)}"` : ''}>
                     <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(rider.name)}</span>
                     ${isDup ? `<span class="badge-dup" title="Claimed by multiple drivers on this trip leg">DUP</span>` : ''}
-                    ${isNotAttending ? `<span style="margin-left:0.25rem; font-size:0.75rem; cursor:help; vertical-align:middle;" title="⚠️ Not Attending: ${escapeHtml(rider.name)} is not registered for the campout in TroopWebHost">⚠️</span>` : ''}
+                    ${isNotAttending ? `<span style="margin-left:0.25rem; font-size:0.75rem; cursor:help; vertical-align:middle;" title="⚠️ Not Attending: ${escapeHtml(rider.name)} is not registered for the campout on the website">⚠️</span>` : ''}
                     <button class="btn-remove no-print" title="Remove rider" onclick="removeRider('${dir}', ${driverIdx}, ${s})">&times;</button>
                   </div>
                 </td>
@@ -2822,11 +2881,11 @@
 
         let saveBtnHtml = '';
         if (hasUserEdits) {
-          saveBtnHtml = `<button type="button" class="btn-row-save dirty" title="⚠️ Unsaved edits! Click to review and save to TroopWebHost" onclick="openDriverSaveModal('${escapeHtml(d.name)}')">💾</button>`;
+          saveBtnHtml = `<button type="button" class="btn-row-save dirty" title="⚠️ Unsaved edits! Click to review and save to Website" onclick="openDriverSaveModal('${escapeHtml(d.name)}')">💾</button>`;
         } else if (isFormatDiscrepant) {
-          saveBtnHtml = `<button type="button" class="btn-row-save format-opt" title="Format optimization available: Click to review and format comment on TroopWebHost" onclick="openDriverSaveModal('${escapeHtml(d.name)}')">💾</button>`;
+          saveBtnHtml = `<button type="button" class="btn-row-save format-opt" title="Format optimization available: Click to review and format comment on Website" onclick="openDriverSaveModal('${escapeHtml(d.name)}')">💾</button>`;
         } else {
-          saveBtnHtml = `<button type="button" class="btn-row-save" disabled title="No unsaved changes (Driver is in sync with TroopWebHost)">💾</button>`;
+          saveBtnHtml = `<button type="button" class="btn-row-save" disabled title="No unsaved changes (Driver is in sync with Website)">💾</button>`;
         }
 
         cellsHtml += `
@@ -3552,7 +3611,7 @@
       const liveBox = document.getElementById('noteLiveCommentBox');
       const liveLen = document.getElementById('noteLiveCharCount');
       if (liveBox) {
-        liveBox.textContent = liveComment || '(No comment in TroopWebHost)';
+        liveBox.textContent = liveComment || '(No comment on Website)';
         liveBox.style.color = liveComment ? '#065f46' : '#64748b';
       }
       if (liveLen) {
@@ -3651,7 +3710,7 @@
       const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
       const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
 
-      pushUndoState(`Save driver ${toDisplayName(driverToSave)} to TroopWebHost`, driverToSave);
+      pushUndoState(`Save driver ${toDisplayName(driverToSave)} to Website`, driverToSave);
 
       if (toDriver) toDriver.customNote = newNote;
       if (fromDriver) fromDriver.customNote = newNote;
@@ -3661,7 +3720,7 @@
       closeModal('noteModal');
       activeNoteDriverName = null;
 
-      showSavingOverlay(`Saving ${toDisplayName(driverToSave)} to TroopWebHost...`);
+      showSavingOverlay(`Saving ${toDisplayName(driverToSave)} to Website...`);
       try {
         await persistDriverChange(driverToSave);
         // Remove from pending dirty drivers
@@ -3882,20 +3941,34 @@
 
     // Comment Synthesizer
     function formatRiderForComment(rider) {
-      if (!rider || !rider.name) return '';
-      const rawName = rider.name.trim();
+      if (!rider) return '';
+      const rawName = (typeof rider === 'string' ? rider : (rider.name || '')).trim();
 
       // If ambiguous token, preserve as-is
-      if (rider.type === 'ambiguous') {
+      if (typeof rider === 'object' && rider.type === 'ambiguous') {
         return rider.token || rawName;
       }
 
+      // Check pre-computed compactName directly on rider object
+      if (typeof rider === 'object' && rider.compactName) {
+        return rider.compactName;
+      }
+
+      // Check server-provided deterministic nameMap
+      const nameMap = carpoolBaseline?.nameMap || window.carpoolData?.nameMap;
+      if (nameMap && rawName) {
+        const entry = nameMap[rawName] || nameMap[rawName.toLowerCase()] || nameMap[toDisplayName(rawName).toLowerCase()];
+        if (entry && entry.compactName) {
+          return entry.compactName;
+        }
+      }
+
       // Adult passengers retain First Last
-      if (rider.type === 'adult') {
+      if (typeof rider === 'object' && rider.type === 'adult') {
         return toDisplayName(rawName);
       }
 
-      // Parse last and first
+      // Fallback: Parse last and first deterministically
       let last = '';
       let first = '';
       if (rawName.includes(',')) {
@@ -3904,49 +3977,36 @@
         first = firstParts.join(' ').trim();
       } else {
         const parts = rawName.split(/\s+/);
-        last = parts.pop() || '';
-        first = parts.join(' ').trim();
+        if (parts.length >= 3 && /^(?:di|de|van|von|la|le|del|dos)$/i.test(parts[parts.length - 2])) {
+          last = parts.slice(parts.length - 2).join(' ');
+          first = parts.slice(0, parts.length - 2).join(' ');
+        } else {
+          last = parts.pop() || '';
+          first = parts.join(' ').trim();
+        }
       }
 
-      const lastInitial = last ? last[0].toUpperCase() : '';
-      if (!lastInitial) {
-        return first || toDisplayName(rawName);
-      }
+      const firstNameOnly = first.split(/\s+/)[0] || first;
+      // Single letter initial, no period
+      const lastInitial = last ? (last.match(/[a-zA-Z]/)?.[0]?.toUpperCase() || last[0].toUpperCase()) : '';
+      if (!lastInitial) return firstNameOnly || toDisplayName(rawName);
 
-      // Check if another attending scout shares the exact same first name and last initial
+      // Check collision
       const allAttendingScouts = carpoolBaseline?.scouts || [];
-      const firstNorm = first.toLowerCase();
-      const initialNorm = lastInitial.toLowerCase();
-
+      const firstNorm = firstNameOnly.toLowerCase();
       let collision = false;
       for (const other of allAttendingScouts) {
         const oName = (typeof other === 'string' ? other : (other.name || '')).trim();
         if (!oName || oName.toLowerCase() === rawName.toLowerCase()) continue;
-
-        let oLast = '';
-        let oFirst = '';
-        if (oName.includes(',')) {
-          const [oL, ...oF] = oName.split(',');
-          oLast = oL.trim();
-          oFirst = oF.join(' ').trim();
-        } else {
-          const oParts = oName.split(/\s+/);
-          oLast = oParts.pop() || '';
-          oFirst = oParts.join(' ').trim();
-        }
-
-        if (oFirst.toLowerCase() === firstNorm && oLast && oLast[0].toLowerCase() === initialNorm) {
+        const oEntry = nameMap?.[oName.toLowerCase()];
+        if (oEntry && oEntry.first.toLowerCase() === firstNorm && oEntry.initial.toLowerCase() === lastInitial.toLowerCase()) {
           collision = true;
           break;
         }
       }
 
-      // If duplicate first name + last initial exists, fall back to "First Last" to avoid conflict
-      if (collision) {
-        return toDisplayName(rawName);
-      }
-
-      return `${first} ${lastInitial}`;
+      if (collision) return toDisplayName(rawName);
+      return `${firstNameOnly} ${lastInitial}`;
     }
 
     function getRiderDisplayList(driver) {
@@ -4112,7 +4172,7 @@
       }
 
       isSyncInProgress = true;
-      showSavingOverlay('Saving changes to TroopWebHost...');
+      showSavingOverlay('Saving changes to Website...');
 
       try {
         while (pendingDriversToSync.size > 0) {
@@ -4123,7 +4183,7 @@
             continue;
           }
 
-          showSavingOverlay(`Saving ${toDisplayName(driverName)} to TroopWebHost...`);
+          showSavingOverlay(`Saving ${toDisplayName(driverName)} to Website...`);
           await persistDriverChange(driverName);
         }
 
@@ -4163,7 +4223,7 @@
       const isDriver = (toDriver?.attending !== 'N' && fromDriver?.attending !== 'N');
       const baselineComment = toDriver?.baselineComment !== undefined ? toDriver.baselineComment : (fromDriver?.baselineComment || '');
 
-      updateSyncBadge('saving', `Saving ${toDisplayName(driverName)} to TWH...`);
+      updateSyncBadge('saving', `Saving ${toDisplayName(driverName)} to Website...`);
 
       try {
         const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/driver-update`, {
@@ -4195,7 +4255,7 @@
               fromDriver.comment = liveComment || updatedComment;
             }
             saveDraft();
-            updateSyncBadge('success', '✓ In sync with TroopWebHost');
+            updateSyncBadge('success', '✓ In sync with Website');
             return;
           }
 
@@ -4207,7 +4267,7 @@
             drivingToFrom,
             isDriver,
           };
-          updateSyncBadge('conflict', '⚠️ Conflict in TWH');
+          updateSyncBadge('conflict', '⚠️ Conflict on Website');
           openConflictModal(activeConflict);
           return;
         }
@@ -4256,10 +4316,10 @@
           }));
         } catch (e) {}
 
-        updateSyncBadge('success', '✓ Saved to TroopWebHost');
+        updateSyncBadge('success', '✓ Saved to Website');
       } catch (err) {
         console.error('Failed to persist driver change to TWH:', err);
-        updateSyncBadge('error', `⚠️ TWH Save Failed: ${err.message}`);
+        updateSyncBadge('error', `⚠️ Save to Website Failed: ${err.message}`);
       }
     }
 
@@ -4412,7 +4472,7 @@
               🚗 ${escapeHtml(toDisplayName(driverName))}
             </div>
             <div style="font-size:0.72rem; color:#065f46; font-weight:700; text-transform:uppercase; margin-bottom:0.2rem;">
-              Live in TroopWebHost (${liveComment.length}/100 chars):
+              Live on Website (${liveComment.length}/100 chars):
             </div>
             <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:4px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#065f46; margin-bottom:0.5rem; word-break:break-word;">
               ${escapeHtml(liveComment || '(Empty comment)')}
@@ -4456,7 +4516,7 @@
       if (db) db.style.display = 'none';
 
       renderPage();
-      updateSyncBadge('idle', 'Using live TroopWebHost data');
+      updateSyncBadge('idle', 'Using live Website data');
     }
 
     async function resolveStaleDraftOverwrite() {
@@ -4517,7 +4577,7 @@
       if (overLimitWarning) {
         if (proposedLen > 100) {
           overLimitWarning.style.display = 'block';
-          overLimitWarning.textContent = `⚠️ Your proposed comment is ${proposedLen} characters, which exceeds TroopWebHost's 100-character limit! Overwriting will open the Trim Comment window.`;
+          overLimitWarning.textContent = `⚠️ Your proposed comment is ${proposedLen} characters, which exceeds the website's 100-character limit! Overwriting will open the Trim Comment window.`;
         } else {
           overLimitWarning.style.display = 'none';
         }
@@ -4547,7 +4607,7 @@
       saveDraft();
       closeModal('conflictModal');
       activeConflict = null;
-      updateSyncBadge('idle', 'Kept TWH comment');
+      updateSyncBadge('idle', 'Kept Website comment');
       renderPage();
     }
 
@@ -4559,7 +4619,7 @@
       if (proposedComment && proposedComment.length > 100) {
         openTrimCommentModal(driverName);
       } else {
-        showSavingOverlay(`Overwriting ${toDisplayName(driverName)} in TroopWebHost...`);
+        showSavingOverlay(`Overwriting ${toDisplayName(driverName)} on Website...`);
         try {
           await persistDriverChange(driverName, true);
         } finally {
@@ -4729,7 +4789,7 @@
       html += `<div style="height:1px; background:var(--border); margin:0.35rem 0;"></div>`;
       if (pendingDriversToSync.size > 0 || undoStack.length > 0) {
         html += `
-          <button type="button" class="dropdown-item" onclick="resetToBaseline(); closeUndoMenu();" style="display:flex; align-items:center; gap:0.4rem; padding:0.4rem 0.75rem; text-align:left; width:100%; border:none; background:none; cursor:pointer;" title="Reset all changes to TroopWebHost baseline">
+          <button type="button" class="dropdown-item" onclick="resetToBaseline(); closeUndoMenu();" style="display:flex; align-items:center; gap:0.4rem; padding:0.4rem 0.75rem; text-align:left; width:100%; border:none; background:none; cursor:pointer;" title="Reset all changes to Website baseline">
             <span style="font-weight:700; color:#b91c1c; white-space:nowrap;">↺ Revert All:</span>
             <span style="font-size:0.78rem; color:#dc2626;">Reset Worksheet to Website Baseline</span>
           </button>
@@ -4854,7 +4914,7 @@
     window.addEventListener('beforeunload', (e) => {
       if (pendingDriversToSync.size > 0 || isSyncInProgress) {
         e.preventDefault();
-        e.returnValue = 'You have unsaved carpool edits for TroopWebHost. Are you sure you want to leave?';
+        e.returnValue = 'You have unsaved carpool edits for the website. Are you sure you want to leave?';
       }
     });
 
@@ -4891,7 +4951,7 @@
 
     async function autoAdoptFreshServerData() {
       try {
-        updateSyncBadge('saving', 'Updating from TroopWebHost...');
+        updateSyncBadge('saving', 'Updating from Website...');
         const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
         if (!res.ok) return;
         const freshData = await res.json();
@@ -4910,7 +4970,7 @@
 
         localDraft = buildBaselineDraft();
         renderPage();
-        updateSyncBadge('success', '✓ Updated with live TroopWebHost changes');
+        updateSyncBadge('success', '✓ Updated with live Website changes');
       } catch (err) {
         console.warn('Auto-adopt fresh data failed:', err);
       }
@@ -4932,11 +4992,11 @@
 
     async function refreshFromTWH() {
       dismissDisparityBanner();
-      updateSyncBadge('saving', '🔄 Refreshing from TroopWebHost...');
+      updateSyncBadge('saving', '🔄 Refreshing from Website...');
 
       try {
         const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
-        if (!res.ok) throw new Error('Failed to fetch fresh data from TroopWebHost');
+        if (!res.ok) throw new Error('Failed to fetch fresh data from Website');
         const freshData = await res.json();
 
         carpoolBaseline = freshData;
@@ -4959,7 +5019,7 @@
         lastSignature = computeDriverSignature(carpoolBaseline.drivers, false);
         lastNormalizedSignature = computeDriverSignature(carpoolBaseline.drivers, true);
 
-        // Always rebuild cleanly from fresh TroopWebHost baseline
+        // Always rebuild cleanly from fresh Website baseline
         localDraft = buildBaselineDraft();
         pendingDriversToSync.clear();
         undoStack = [];
@@ -4970,9 +5030,9 @@
         if (db) db.style.display = 'none';
 
         renderPage();
-        updateSyncBadge('success', '✓ Refreshed with TroopWebHost');
+        updateSyncBadge('success', '✓ Refreshed with Website');
       } catch (err) {
-        console.error('Error refreshing from TroopWebHost:', err);
+        console.error('Error refreshing from Website:', err);
         updateSyncBadge('error', 'Refresh Failed');
       }
     }
