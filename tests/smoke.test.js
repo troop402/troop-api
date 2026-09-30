@@ -1257,6 +1257,51 @@ describe('Driver comment parsing unit test', () => {
     assert.equal(alice.assignedDriver, 'Watkins, Trent');
     assert.equal(alice.rideStatus, 'confirmed');
   });
+
+  it('buildNameDictionary generates deterministic First L compact names without periods and handles compound surnames and disambiguation', async () => {
+    const { buildNameDictionary } = await import('../server.js');
+
+    const members = [
+      { name: 'Haney, Aubrey P' },
+      { name: 'Di Pasqualucci, Morgan' },
+      { name: 'Carrico, Sarah' },
+      { name: 'Chen, Sarah' },
+      { name: 'Parsons, Julia' },
+      { name: 'Renno, Thomas', isAdult: true },
+    ];
+
+    const dict = buildNameDictionary(members);
+
+    // Aubrey P Haney -> Aubrey H (no period, middle initial ignored)
+    const aubrey = dict.get('Haney, Aubrey P');
+    assert.ok(aubrey);
+    assert.equal(aubrey.compactName, 'Aubrey H');
+    assert.equal(aubrey.displayName, 'Aubrey Haney');
+
+    // Morgan Di Pasqualucci -> Morgan D (single initial D, compound surname)
+    const morgan = dict.get('Di Pasqualucci, Morgan');
+    assert.ok(morgan);
+    assert.equal(morgan.compactName, 'Morgan D');
+    assert.equal(morgan.displayName, 'Morgan Di Pasqualucci');
+
+    // Julia Parsons -> Julia P (unique)
+    const julia = dict.get('Parsons, Julia');
+    assert.ok(julia);
+    assert.equal(julia.compactName, 'Julia P');
+
+    // Sarah Carrico and Sarah Chen -> collision on "Sarah C" -> disambiguate to full names
+    const sarahCarrico = dict.get('Carrico, Sarah');
+    const sarahChen = dict.get('Chen, Sarah');
+    assert.ok(sarahCarrico);
+    assert.ok(sarahChen);
+    assert.equal(sarahCarrico.compactName, 'Sarah Carrico');
+    assert.equal(sarahChen.compactName, 'Sarah Chen');
+
+    // Thomas Renno has 'Tom' in tokens
+    const tom = dict.get('Renno, Thomas');
+    assert.ok(tom);
+    assert.ok(tom.tokens.includes('Tom'));
+  });
 });
 
 describe('Carpool Excel export unit test', () => {

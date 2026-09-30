@@ -771,7 +771,202 @@ function isLastNameMatch(candidateStr, actualLast) {
   return false;
 }
 
-function matchAttendeesInText(text, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries = [], rosterAdultEntries = []) {
+/**
+ * Normalizes and splits a member name into clean first name, clean surname,
+ * single-character initial, and display name.
+ * Handles "Last, First [Middle]" and "First [Middle] Last" (including compound surnames like Di Pasqualucci).
+ */
+function parseNameComponents(nameStr) {
+  if (!nameStr || typeof nameStr !== 'string') return null;
+  let raw = nameStr.trim();
+  if (!raw || raw.startsWith('⚠️')) return null;
+
+  // Remove leading "Scout " or "Scouts " if present
+  raw = raw.replace(/^scouts?\s*:\s*/i, '').replace(/^scouts?\s+/i, '').trim();
+
+  let first = '';
+  let last = '';
+  let middle = '';
+
+  if (raw.includes(',')) {
+    const [lastPart, ...firstParts] = raw.split(',');
+    last = lastPart.trim();
+    const firstTokens = firstParts.join(' ').trim().split(/\s+/).filter(Boolean);
+    first = firstTokens[0] || '';
+    if (firstTokens.length > 1) {
+      middle = firstTokens.slice(1).join(' ');
+    }
+  } else {
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length >= 3 && /^(?:di|de|van|von|la|le|del|dos)$/i.test(parts[parts.length - 2])) {
+      last = parts.slice(parts.length - 2).join(' ');
+      first = parts[0] || '';
+      if (parts.length > 3) {
+        middle = parts.slice(1, parts.length - 2).join(' ');
+      }
+    } else if (parts.length > 1) {
+      last = parts.pop() || '';
+      first = parts[0] || '';
+      if (parts.length > 1) {
+        middle = parts.slice(1).join(' ');
+      }
+    } else {
+      first = parts[0] || '';
+    }
+  }
+
+  // Capitalize first name token
+  const cleanFirst = first ? (first[0].toUpperCase() + first.slice(1).toLowerCase()) : '';
+
+  // Clean surname and compute single-letter surname initial (without period)
+  // Compound surnames like "Di Pasqualucci" take the first letter "D"
+  let cleanLast = last.trim();
+  let surnameInitial = '';
+  if (cleanLast) {
+    const match = cleanLast.match(/[a-zA-Z]/);
+    surnameInitial = match ? match[0].toUpperCase() : cleanLast[0].toUpperCase();
+  }
+
+  const displayName = cleanLast ? `${cleanFirst} ${cleanLast}` : cleanFirst;
+
+  return {
+    raw,
+    cleanFirst,
+    cleanLast,
+    surnameInitial,
+    displayName,
+    middle,
+  };
+}
+
+/**
+ * Builds a deterministic dictionary of member names across the troop roster/attendees.
+ * Outputs:
+ * - compactName: "First L" (no period in initial, compound surnames abbreviated to "D")
+ * - If collision exists for `${First} ${L}`, disambiguates to Full Name "First Last"
+ * - tokens: comprehensive list of name representations for clean note stripping
+ */
+function buildNameDictionary(persons = []) {
+  const records = [];
+  const seenRaw = new Set();
+
+  for (const item of persons) {
+    if (!item) continue;
+    const nameStr = typeof item === 'string' ? item : (item.name || item.Participant || '');
+    if (!nameStr || nameStr.startsWith('⚠️')) continue;
+    const lowerKey = nameStr.toLowerCase().trim();
+    if (seenRaw.has(lowerKey)) continue;
+    seenRaw.add(lowerKey);
+
+    const parsed = parseNameComponents(nameStr);
+    if (!parsed || !parsed.cleanFirst) continue;
+
+    const isAdult = typeof item === 'object' ? Boolean(item.isAdult || item.leadership) : false;
+    records.push({
+      originalName: nameStr.trim(),
+      parsed,
+      isAdult,
+    });
+  }
+
+  // Collision map based on key: `${cleanFirst.toLowerCase()} ${surnameInitial.toLowerCase()}`
+  const initialCollisionMap = new Map();
+  for (const r of records) {
+    if (!r.parsed.surnameInitial) continue;
+    const key = `${r.parsed.cleanFirst.toLowerCase()} ${r.parsed.surnameInitial.toLowerCase()}`;
+    const list = initialCollisionMap.get(key) || [];
+    list.push(r);
+    initialCollisionMap.set(key, list);
+  }
+
+  const dictionary = new Map();
+  const plainObj = {};
+
+  for (const r of records) {
+    const { cleanFirst, cleanLast, surnameInitial, displayName } = r.parsed;
+    const raw = r.originalName;
+    let compactName = cleanFirst;
+
+    if (surnameInitial) {
+      const key = `${cleanFirst.toLowerCase()} ${surnameInitial.toLowerCase()}`;
+      const group = initialCollisionMap.get(key) || [];
+      // Only 2 representations:
+      // Either "First L" (no period) or "First Last" (full name if collision)
+      if (group.length > 1) {
+        compactName = displayName;
+      } else {
+        compactName = `${cleanFirst} ${surnameInitial}`;
+      }
+    }
+
+    // Comprehensive token set for driver comment & note stripping
+    const tokens = [];
+    if (displayName) tokens.push(displayName);
+    if (raw && raw !== displayName) tokens.push(raw);
+    if (cleanFirst && cleanLast) {
+      tokens.push(`${cleanFirst} ${cleanLast}`);
+      tokens.push(`${cleanLast}, ${cleanFirst}`);
+      tokens.push(`${cleanLast} ${cleanFirst}`);
+    }
+    if (compactName && !tokens.includes(compactName)) tokens.push(compactName);
+    if (surnameInitial) tokens.push(`${cleanFirst} ${surnameInitial}.`);
+    if (cleanFirst && cleanFirst.length > 1 && !tokens.includes(cleanFirst)) {
+      tokens.push(cleanFirst);
+    }
+
+    // Common adult nicknames
+    if (cleanFirst.toLowerCase() === 'thomas') {
+      tokens.push('Tom');
+      tokens.push('Tom ' + cleanLast);
+    }
+    if (cleanFirst.toLowerCase() === 'william') {
+      tokens.push('Bill', 'Will', 'Bill ' + cleanLast, 'Will ' + cleanLast);
+    }
+    if (cleanFirst.toLowerCase() === 'robert') {
+      tokens.push('Bob', 'Rob', 'Bob ' + cleanLast, 'Rob ' + cleanLast);
+    }
+    if (cleanFirst.toLowerCase() === 'richard') {
+      tokens.push('Rick', 'Dick', 'Rick ' + cleanLast, 'Dick ' + cleanLast);
+    }
+    if (cleanFirst.toLowerCase() === 'james') {
+      tokens.push('Jim', 'Jim ' + cleanLast);
+    }
+
+    // Handle compound surname variations (e.g. Di Pasqualucci vs Di Pasqulucci)
+    if (/^di\s+pasqu/i.test(cleanLast)) {
+      tokens.push(`${cleanFirst} Di Pasqulucci`);
+      tokens.push(`Di Pasqulucci, ${cleanFirst}`);
+    }
+
+    const uniqueTokens = Array.from(new Set(tokens.filter(Boolean))).sort((a, b) => b.length - a.length);
+
+    const entry = {
+      originalName: raw,
+      displayName,
+      compactName,
+      first: cleanFirst,
+      last: cleanLast,
+      initial: surnameInitial,
+      isAdult: r.isAdult,
+      tokens: uniqueTokens,
+    };
+
+    dictionary.set(raw, entry);
+    dictionary.set(raw.toLowerCase(), entry);
+    if (displayName) dictionary.set(displayName.toLowerCase(), entry);
+    if (compactName) dictionary.set(compactName.toLowerCase(), entry);
+
+    plainObj[raw] = entry;
+    plainObj[raw.toLowerCase()] = entry;
+    if (displayName) plainObj[displayName.toLowerCase()] = entry;
+    if (compactName) plainObj[compactName.toLowerCase()] = entry;
+  }
+
+  dictionary.toPlainObject = () => plainObj;
+  return dictionary;
+}
+
+function matchAttendeesInText(text, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries = [], rosterAdultEntries = [], nameDictionary = null) {
   if (!text || typeof text !== 'string') {
     return { matchedScouts: [], matchedAdults: [], ambiguousNotes: [] };
   }
@@ -1437,15 +1632,55 @@ function matchAttendeesInText(text, driverFirst, driverLast, scoutEntries, adult
 
   // Unified list of all claimed riders in comment order
   const matchedRiders = [
-    ...matchedScouts.map((s) => ({ name: s.name, originalName: s.originalName, type: 'scout', status: s.status, notAttending: Boolean(s.notAttending), textIndex: s.textIndex ?? 999 })),
-    ...matchedAdultObjects.map((a) => ({ name: a.name, type: 'adult', notAttending: Boolean(a.notAttending), textIndex: a.textIndex ?? 999 })),
-    ...ambiguousNotes.map((an) => ({ name: `⚠️ Ambiguous: "${an.token}"`, type: 'ambiguous', token: an.token, candidates: an.candidates, note: an.note, textIndex: an.textIndex ?? 999 })),
+    ...matchedScouts.map((s) => {
+      const entry = nameDictionary ? (nameDictionary.get(s.originalName) || nameDictionary.get(s.name) || nameDictionary.get((s.name || '').toLowerCase())) : null;
+      return {
+        name: s.name,
+        originalName: s.originalName,
+        type: 'scout',
+        status: s.status,
+        notAttending: Boolean(s.notAttending),
+        textIndex: s.textIndex ?? 999,
+        compactName: entry ? entry.compactName : (s.displayName || s.name),
+        displayName: entry ? entry.displayName : (s.displayName || s.name),
+        tokens: entry ? entry.tokens : [s.name],
+      };
+    }),
+    ...matchedAdultObjects.map((a) => {
+      const entry = nameDictionary ? (nameDictionary.get(a.name) || nameDictionary.get((a.name || '').toLowerCase())) : null;
+      return {
+        name: a.name,
+        type: 'adult',
+        notAttending: Boolean(a.notAttending),
+        textIndex: a.textIndex ?? 999,
+        compactName: entry ? entry.compactName : a.name,
+        displayName: entry ? entry.displayName : a.name,
+        tokens: entry ? entry.tokens : [a.name],
+      };
+    }),
+    ...ambiguousNotes.map((an) => ({
+      name: `⚠️ Ambiguous: "${an.token}"`,
+      type: 'ambiguous',
+      token: an.token,
+      candidates: an.candidates,
+      note: an.note,
+      textIndex: an.textIndex ?? 999,
+      compactName: an.token,
+      displayName: an.token,
+      tokens: [an.token],
+    })),
   ].sort((a, b) => a.textIndex - b.textIndex);
 
   return { matchedScouts, matchedAdults, ambiguousNotes, matchedRiders };
 }
 
-function parseDriverComments(drivers, scouts, adults, rosterMembers = []) {
+function parseDriverComments(drivers, scouts, adults, rosterMembers = [], existingNameDictionary = null) {
+  const nameDictionary = existingNameDictionary || buildNameDictionary([
+    ...(rosterMembers || []),
+    ...(scouts || []),
+    ...(adults || []),
+    ...(drivers || []),
+  ]);
   const scoutEntries = scouts.map((s) => {
     const parts = s.name.split(',').map((p) => p.trim());
     const first = parts.length > 1 ? parts[1].split(' ')[0] : parts[0].split(' ')[0];
@@ -1582,7 +1817,7 @@ function parseDriverComments(drivers, scouts, adults, rosterMembers = []) {
         bothText = rawBoth;
         const dotSplit = rawBoth.match(/^(.*?\.)\s+([^.]*.*)$/);
         if (dotSplit) {
-          const testMatch = matchAttendeesInText(dotSplit[2], driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries);
+          const testMatch = matchAttendeesInText(dotSplit[2], driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries, nameDictionary);
           if (testMatch.matchedScouts.length === 0 && testMatch.matchedAdults.length === 0 && testMatch.ambiguousNotes.length === 0) {
             if (!cleanNote) cleanNote = dotSplit[2].trim();
             else cleanNote = `${cleanNote}. ${dotSplit[2].trim()}`;
@@ -1600,7 +1835,7 @@ function parseDriverComments(drivers, scouts, adults, rosterMembers = []) {
         fromText = rawFrom;
         const dotSplit = rawFrom.match(/^(.*?\.)\s+([^.]*.*)$/);
         if (dotSplit) {
-          const testMatch = matchAttendeesInText(dotSplit[2], driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries);
+          const testMatch = matchAttendeesInText(dotSplit[2], driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries, nameDictionary);
           if (testMatch.matchedScouts.length === 0 && testMatch.matchedAdults.length === 0 && testMatch.ambiguousNotes.length === 0) {
             cleanNote = cleanNote ? `${cleanNote}. ${dotSplit[2].trim()}` : dotSplit[2].trim();
           }
@@ -1618,7 +1853,7 @@ function parseDriverComments(drivers, scouts, adults, rosterMembers = []) {
         if (!fromBlockMatch) {
           const dotSplit = rawTo.match(/^(.*?\.)\s+([^.]*.*)$/);
           if (dotSplit) {
-            const testMatch = matchAttendeesInText(dotSplit[2], driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries);
+            const testMatch = matchAttendeesInText(dotSplit[2], driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries, nameDictionary);
             if (testMatch.matchedScouts.length === 0 && testMatch.matchedAdults.length === 0 && testMatch.ambiguousNotes.length === 0) {
               cleanNote = cleanNote ? `${cleanNote}. ${dotSplit[2].trim()}` : dotSplit[2].trim();
             }
@@ -1636,8 +1871,8 @@ function parseDriverComments(drivers, scouts, adults, rosterMembers = []) {
       const fullToText = [bothText, toText].filter(Boolean).join(', ');
       const fullFromText = [bothText, fromText].filter(Boolean).join(', ');
 
-      const toMatch = matchAttendeesInText(fullToText, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries);
-      const fromMatch = matchAttendeesInText(fullFromText, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries);
+      const toMatch = matchAttendeesInText(fullToText, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries, nameDictionary);
+      const fromMatch = matchAttendeesInText(fullFromText, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries, nameDictionary);
 
       claimedScoutsTo = toMatch.matchedScouts;
       claimedAdultsTo = toMatch.matchedAdults;
@@ -1712,7 +1947,7 @@ function parseDriverComments(drivers, scouts, adults, rosterMembers = []) {
       });
     } else {
       // Standard / unified parser
-      const match = matchAttendeesInText(comment, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries);
+      const match = matchAttendeesInText(comment, driverFirst, driverLast, scoutEntries, adultEntries, firstNameFrequency, rosterScoutEntries, rosterAdultEntries, nameDictionary);
       matchedScouts = match.matchedScouts;
       matchedAdults = match.matchedAdults;
       ambiguousNotes = match.ambiguousNotes;
@@ -1930,8 +2165,12 @@ function parseDriverComments(drivers, scouts, adults, rosterMembers = []) {
       rideNote = `Mentioned without last name by ${ambiguousDrivers.join(', ')}`;
     }
 
+    const nameEntry = nameDictionary ? (nameDictionary.get(s.name) || nameDictionary.get((s.name || '').toLowerCase())) : null;
+
     return {
       ...s,
+      compactName: nameEntry ? nameEntry.compactName : s.name,
+      displayName: nameEntry ? nameEntry.displayName : (s.displayName || s.name),
       assignedDriver,
       assignedDriverTo,
       assignedDriverFrom,
@@ -1953,6 +2192,8 @@ function parseDriverComments(drivers, scouts, adults, rosterMembers = []) {
     assignedScoutsCount: assignedAttendingScoutsCount,
     clarificationsNeeded: allClarifications,
     duplicateRiderClaims,
+    nameMap: nameDictionary ? nameDictionary.toPlainObject() : {},
+    nameDictionary,
   };
 }
 
@@ -2125,6 +2366,13 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
       };
     });
 
+    const nameDictionary = buildNameDictionary([
+      ...(rosterMembers || []),
+      ...baseScouts,
+      ...adults,
+      ...baseDrivers,
+    ]);
+
     const {
       enrichedDrivers: drivers,
       enrichedScouts: scouts,
@@ -2132,7 +2380,8 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
       assignedScoutsCount,
       clarificationsNeeded,
       duplicateRiderClaims,
-    } = parseDriverComments(baseDrivers, baseScouts, adults, rosterMembers);
+      nameMap,
+    } = parseDriverComments(baseDrivers, baseScouts, adults, rosterMembers, nameDictionary);
 
     const totalAttendingScouts = scouts.filter((s) => s.attending !== 'N').length;
     const totalAttendingAdults = adults.length;
@@ -2210,6 +2459,7 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
       drivers,
       adults,
       scouts,
+      nameMap: nameMap || nameDictionary.toPlainObject(),
       cachedAt: new Date().toISOString(),
     };
 
@@ -2785,6 +3035,7 @@ export {
   buildTabularWorkbook,
   normalizeCommentForComparison,
   areCommentsFunctionallyEquivalent,
+  buildNameDictionary,
 };
 
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
