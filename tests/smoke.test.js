@@ -845,6 +845,87 @@ describe('Driver comment parsing unit test', () => {
     assert.equal(result.clarificationsNeeded.length, 0);
   });
 
+  it('matches Maddy as a nickname alias for Maddie in driver comments (Steve Spiker comment)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Spiker, Steve',
+        attending: 'N',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'Taking Lucy, Maddy Spiker plus my fam no spare seats',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Spiker, Maddie', patrol: 'Dragon' },
+      { name: 'Ayers, Lucy', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Spiker, Steve', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+
+    // Both Lucy Ayers and Maddie Spiker should be claimed
+    assert.equal(driver.claimedScouts.length, 2);
+    const claimedNames = driver.claimedScouts.map((s) => s.name);
+    assert.ok(claimedNames.includes('Lucy Ayers'));
+    assert.ok(claimedNames.includes('Maddie Spiker'));
+    assert.equal(result.clarificationsNeeded.length, 0);
+  });
+
+  it('detects duplicate rider claims when multiple drivers claim the same scout on a trip leg (Penny Campos)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Driver, Alice',
+        attending: 'Y',
+        seats: 3,
+        drivingToFrom: 'Both',
+        comment: 'Taking Penny Campos',
+      },
+      {
+        name: 'Driver, Bob',
+        attending: 'Y',
+        seats: 3,
+        drivingToFrom: 'Both',
+        comment: 'Taking Penny Campos',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Campos, Penny', patrol: 'Dragon' },
+    ];
+
+    const adults = [
+      { name: 'Driver, Alice', leadership: 'Adult' },
+      { name: 'Driver, Bob', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+
+    // Duplicate should be consolidated per scout combining TO and FROM legs
+    assert.ok(result.duplicateRiderClaims);
+    assert.equal(result.duplicateRiderClaims.length, 1); // Consolidated across both legs
+    const claim = result.duplicateRiderClaims[0];
+    assert.equal(claim.scoutName, 'Campos, Penny');
+    assert.equal(claim.direction, 'Both');
+    assert.deepEqual(claim.drivers, ['Driver, Alice', 'Driver, Bob']);
+    assert.deepEqual(claim.driversTo, ['Driver, Alice', 'Driver, Bob']);
+    assert.deepEqual(claim.driversFrom, ['Driver, Alice', 'Driver, Bob']);
+
+    // Scout status should indicate duplicate
+    const penny = result.enrichedScouts.find((s) => s.name === 'Campos, Penny');
+    assert.ok(penny);
+    assert.equal(penny.rideStatus, 'duplicate');
+    assert.equal(penny.isDuplicate, true);
+  });
+
   it('strictly preserves the original comment order of riders instead of sorting alphabetically', async () => {
     const { parseDriverComments } = await import('../server.js');
 
@@ -900,6 +981,281 @@ describe('Driver comment parsing unit test', () => {
     assert.equal(brad.claimedRidersTo[0].type, 'adult');
     assert.equal(brad.claimedRidersTo[1].name, 'Owen Ayers');
     assert.equal(brad.claimedRidersTo[1].type, 'scout');
+  });
+
+  it('correctly matches compound surname with minor typo and discrete TO/FROM split without ambiguity (David Carrico & Morgan Di Pasqualucci)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Carrico, David',
+        attending: 'Y',
+        seats: 5,
+        drivingToFrom: 'Both',
+        comment: 'Returning sunday evening. TO: Sarah Carrico, Morgan Di Pasqulucci, Wendy Dong. FROM (Sunday): Open.',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Carrico, Sarah', patrol: 'Dragon' },
+      { name: 'Di Pasqualucci, Morgan', patrol: 'Falcon' },
+      { name: 'Murray, Morgan', patrol: 'Dragon' },
+      { name: 'Dong, Wendy', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Carrico, David', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+
+    assert.equal(driver.cleanNote, 'Returning sunday evening');
+    assert.equal(driver.claimedScoutsTo.length, 3);
+    assert.equal(driver.claimedScoutsFrom.length, 0);
+
+    const toNames = driver.claimedScoutsTo.map((s) => s.name);
+    assert.ok(toNames.includes('Sarah Carrico'));
+    assert.ok(toNames.includes('Morgan Di Pasqualucci'));
+    assert.ok(toNames.includes('Wendy Dong'));
+
+    // Zero ambiguity / clarifications needed
+    assert.equal(result.clarificationsNeeded.length, 0);
+
+    // Scout direction check
+    const morgan = result.enrichedScouts.find((s) => s.name === 'Di Pasqualucci, Morgan');
+    assert.equal(morgan.rideDirection, 'To');
+    assert.equal(morgan.assignedDriverTo, 'Carrico, David');
+    assert.equal(morgan.assignedDriverFrom, null);
+    assert.equal(morgan.assignedDriver, 'Carrico, David');
+
+    const sarah = result.enrichedScouts.find((s) => s.name === 'Carrico, Sarah');
+    assert.equal(sarah.rideDirection, 'To');
+    assert.equal(sarah.assignedDriverTo, 'Carrico, David');
+    assert.equal(sarah.assignedDriverFrom, null);
+  });
+
+  it('correctly matches scout who shares first name with driver in full name comment (Olivia Nelson & Olivia Eng)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Nelson, Olivia',
+        attending: 'Y',
+        seats: 2,
+        drivingToFrom: 'Both',
+        comment: 'Driving myself, Matilda Nelson and Olivia Eng (TBD on space for others)',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Nelson, Matilda', patrol: 'Dragon' },
+      { name: 'Eng, Olivia', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Nelson, Olivia', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+
+    assert.equal(driver.claimedScouts.length, 2);
+    const claimed = driver.claimedScouts.map((s) => s.name);
+    assert.ok(claimed.includes('Matilda Nelson'));
+    assert.ok(claimed.includes('Olivia Eng'));
+    assert.equal(result.clarificationsNeeded.length, 0);
+
+    const oliviaScout = result.enrichedScouts.find((s) => s.name === 'Eng, Olivia');
+    assert.equal(oliviaScout.assignedDriver, 'Nelson, Olivia');
+    assert.equal(oliviaScout.rideStatus, 'confirmed');
+
+    const matildaScout = result.enrichedScouts.find((s) => s.name === 'Nelson, Matilda');
+    assert.equal(matildaScout.assignedDriver, 'Nelson, Olivia');
+  });
+
+  it('handles Scott Fukayama comment by matching confirmed scouts and flagging nickname surname as ambiguous (Ren Routt -> Adeline Routt)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Fukayama, Scott',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'Driving myself, Saya, and Ibuki Trickey, Ren Routt',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Fukayama, Saya', patrol: 'Dragon' },
+      { name: 'Trickey, Ibuki', patrol: 'Falcon' },
+      { name: 'Routt, Adeline', patrol: 'Dragon' },
+    ];
+
+    const adults = [
+      { name: 'Fukayama, Scott', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+
+    // Saya Fukayama & Ibuki Trickey confirmed
+    assert.equal(driver.claimedScouts.length, 2);
+    const names = driver.claimedScouts.map((s) => s.name);
+    assert.ok(names.includes('Saya Fukayama'));
+    assert.ok(names.includes('Ibuki Trickey'));
+
+    // Ren Routt flagged as ambiguous
+    assert.equal(driver.ambiguousNotes.length, 1);
+    const amb = driver.ambiguousNotes[0];
+    assert.equal(amb.token, 'Ren Routt');
+    assert.ok(amb.candidates.includes('Adeline Routt'));
+
+    // Original comment order preserved in claimedRidersTo
+    assert.equal(driver.claimedRidersTo.length, 3);
+    assert.equal(driver.claimedRidersTo[0].name, 'Saya Fukayama');
+    assert.equal(driver.claimedRidersTo[1].name, 'Ibuki Trickey');
+    assert.equal(driver.claimedRidersTo[2].token, 'Ren Routt');
+  });
+
+  it('parses Stephen Robinson comment as unified with driver self-token and explicit 0 available', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Robinson, Stephen',
+        attending: 'Y',
+        seats: 2,
+        drivingToFrom: 'Both',
+        comment: 'TO and FROM (2 seats, driver and Mila, rest for family, 0 available)',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Robinson, Mila', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Robinson, Stephen', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+
+    // Mila Robinson confirmed for both legs
+    assert.equal(driver.claimedScouts.length, 1);
+    assert.equal(driver.claimedScouts[0].name, 'Mila Robinson');
+    assert.equal(driver.claimedScoutsTo.length, 1);
+    assert.equal(driver.claimedScoutsFrom.length, 1);
+
+    // Capacity and open seats
+    assert.equal(driver.toSeats, 1);
+    assert.equal(driver.fromSeats, 1);
+    assert.equal(driver.openSeats, 0);
+
+    const mila = result.enrichedScouts.find((s) => s.name === 'Robinson, Mila');
+    assert.equal(mila.assignedDriver, 'Robinson, Stephen');
+    assert.ok(['confirmed', 'unique_first', 'family_match'].includes(mila.rideStatus));
+  });
+
+  it('parses Heather Tzortzis comment with non-attending roster members (Chris & Alina Tzortzis)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Tzortzis, Heather',
+        attending: 'Y',
+        seats: 3,
+        drivingToFrom: 'Both',
+        comment: 'Heather, Chris & Alina',
+      },
+    ];
+
+    // Neither Chris nor Alina is in the event attendees
+    const scouts = [
+      { name: 'Annis, Allison', patrol: 'Falcon' },
+    ];
+
+    const adults = [
+      { name: 'Tzortzis, Heather', leadership: 'Scoutmaster' },
+    ];
+
+    const rosterMembers = [
+      { name: 'Tzortzis, Heather', isAdult: true, patrol: '' },
+      { name: 'Tzortzis, Chris', isAdult: true, patrol: '' },
+      { name: 'Tzortzis, Alina', isAdult: false, patrol: 'Falcon' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults, rosterMembers);
+    const driver = result.enrichedDrivers[0];
+
+    // Chris Tzortzis matched as adult rider
+    assert.equal(driver.claimedAdults.length, 1);
+    assert.equal(driver.claimedAdults[0], 'Chris Tzortzis');
+
+    // Alina Tzortzis matched as non-attending scout rider
+    assert.equal(driver.claimedScouts.length, 1);
+    assert.equal(driver.claimedScouts[0].name, 'Alina Tzortzis');
+    assert.equal(driver.claimedScouts[0].notAttending, true);
+
+    // Enriched scouts should include Alina tagged as Not Attending
+    const alina = result.enrichedScouts.find((s) => s.name === 'Tzortzis, Alina');
+    assert.ok(alina);
+    assert.equal(alina.attending, 'N');
+    assert.equal(alina.assignedDriver, 'Tzortzis, Heather');
+    assert.equal(alina.rideNote, 'Not Attending');
+  });
+
+  it('parses Trent Watkins comment preserving Alice Henderson and flagging repeated Madison as ambiguous', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Watkins, Trent',
+        attending: 'Y',
+        seats: 5,
+        drivingToFrom: 'Both',
+        comment: 'BOTH (4): Madison W.. Madison, Alice Henderson',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Watkins, Madison', patrol: 'Dragon' },
+      { name: 'Henderson, Alice', patrol: 'Falcon' },
+      { name: 'Curran, Maddie', patrol: 'Gator' },
+    ];
+
+    const adults = [
+      { name: 'Watkins, Trent', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const driver = result.enrichedDrivers[0];
+
+    assert.equal(driver.toSeats, 4);
+    assert.equal(driver.fromSeats, 4);
+
+    // Both Madison Watkins and Alice Henderson confirmed
+    assert.equal(driver.claimedScoutsTo.length, 2);
+    const toNames = driver.claimedScoutsTo.map((s) => s.name);
+    assert.ok(toNames.includes('Madison Watkins'));
+    assert.ok(toNames.includes('Alice Henderson'));
+
+    // Repeated Madison flagged as ambiguous
+    assert.equal(driver.ambiguousNotes.length, 1);
+    assert.equal(driver.ambiguousNotes[0].token, 'Madison');
+    assert.ok(driver.ambiguousNotes[0].candidates.includes('Madison Watkins'));
+
+    // Order in claimedRidersTo strictly preserved
+    assert.equal(driver.claimedRidersTo.length, 3);
+    assert.equal(driver.claimedRidersTo[0].name, 'Madison Watkins');
+    assert.equal(driver.claimedRidersTo[1].token, 'Madison');
+    assert.equal(driver.claimedRidersTo[2].name, 'Alice Henderson');
+
+    const alice = result.enrichedScouts.find((s) => s.name === 'Henderson, Alice');
+    assert.equal(alice.assignedDriver, 'Watkins, Trent');
+    assert.equal(alice.rideStatus, 'confirmed');
   });
 });
 
