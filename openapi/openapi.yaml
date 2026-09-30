@@ -489,6 +489,19 @@ paths:
                                 type: string
                             note:
                               type: string
+                      duplicateRiderClaims:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            scoutName:
+                              type: string
+                            direction:
+                              type: string
+                            drivers:
+                              type: array
+                              items:
+                                type: string
                   drivers:
                     type: array
                     items:

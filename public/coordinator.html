@@ -491,31 +491,43 @@
       vertical-align: middle;
     }
 
-    table.coord-grid tr:hover td { background-color: #f8fafc; }
+    table.coord-grid tr {
+      background-color: #ffffff;
+      transition: background-color 0.12s ease;
+    }
+    table.coord-grid tr:hover td {
+      background-color: rgba(0, 0, 0, 0.045) !important;
+    }
 
     /* Seat Stepper */
     .seat-stepper {
       display: inline-flex;
-      flex-direction: column;
+      flex-direction: row;
       align-items: center;
-      gap: 1px;
+      justify-content: center;
+      gap: 3px;
       background: #f8fafc;
       border: 1px solid #cbd5e1;
       border-radius: 4px;
-      padding: 1px;
+      padding: 2px 3px;
+    }
+    .seat-stepper-btns {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 1px;
     }
     .btn-step {
       background: white;
       border: 1px solid #cbd5e1;
       border-radius: 2px;
-      width: 18px;
-      height: 14px;
+      width: 14px;
+      height: 10px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
       cursor: pointer;
-      font-size: 0.72rem;
+      font-size: 0.65rem;
       line-height: 1;
       color: #334155;
       padding: 0;
@@ -525,8 +537,8 @@
       min-width: 16px;
       text-align: center;
       font-weight: 800;
-      font-size: 0.78rem;
-      line-height: 1.1;
+      font-size: 0.82rem;
+      line-height: 1;
       color: #0f172a;
     }
 
@@ -542,6 +554,95 @@
       transition: background 0.15s;
     }
     .btn-note:hover { background: #f1f5f9; }
+
+    /* Driver Info Column & Inline Notes */
+    .driver-info-cell {
+      width: 340px;
+      max-width: 380px;
+      min-width: 280px;
+      white-space: normal !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    table.coord-grid th.driver-info-th {
+      width: 340px;
+      max-width: 380px;
+      min-width: 280px;
+      white-space: normal;
+    }
+    .driver-inline-note {
+      font-size: 0.74rem;
+      color: #475569;
+      margin-top: 3px;
+      cursor: pointer;
+      line-height: 1.3;
+      white-space: normal !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .driver-inline-note:hover {
+      text-decoration: underline;
+      color: var(--primary);
+    }
+    .driver-inline-note-empty {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      margin-top: 3px;
+      cursor: pointer;
+      font-style: italic;
+    }
+    .driver-inline-note-empty:hover {
+      color: var(--primary);
+      text-decoration: underline;
+    }
+
+    .badge-not-attending {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+      font-size: 0.64rem;
+      font-weight: 700;
+      border-radius: 3px;
+      padding: 0.08rem 0.35rem;
+      display: inline-block;
+      margin-top: 2px;
+      text-transform: none;
+    }
+
+    .badge-safety-gap {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      font-size: 0.64rem;
+      font-weight: 700;
+      border-radius: 3px;
+      padding: 0.08rem 0.35rem;
+      display: inline-block;
+      margin-top: 2px;
+      text-transform: none;
+    }
+
+    .badge-dup {
+      background: #d97706;
+      color: white;
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    .slot-duplicate {
+      border-color: #d97706 !important;
+      background: #fffbeb !important;
+    }
 
     /* Slots */
     .slot {
@@ -582,6 +683,17 @@
     .slot-ambiguous:hover {
       background: #fef3c7;
       border-color: #d97706;
+    }
+
+    .slot-not-attending {
+      background: #fffbeb !important;
+      border: 1px solid #f59e0b !important;
+      color: #b45309 !important;
+      font-weight: 600;
+    }
+    .slot-not-attending:hover {
+      background: #fef3c7 !important;
+      border-color: #d97706 !important;
     }
 
     .btn-resolve {
@@ -645,6 +757,78 @@
     }
     .btn-remove:hover { opacity: 1; }
 
+    /* Row Action Stack & Save Button */
+    .driver-actions-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+    }
+    .btn-row-save {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      color: #94a3b8;
+      cursor: not-allowed;
+      font-size: 0.82rem;
+      line-height: 1;
+      padding: 2px 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.35;
+      transition: all 0.2s ease;
+    }
+    .btn-row-save.format-opt {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      color: #0284c7;
+      opacity: 0.85;
+      cursor: pointer;
+      box-shadow: none;
+    }
+    .btn-row-save.format-opt:hover {
+      background: #e0f2fe;
+      border-color: #7dd3fc;
+      color: #0369a1;
+      transform: scale(1.08);
+      opacity: 1;
+    }
+    .btn-row-save.dirty {
+      background: #fef08a;
+      border: 1px solid #eab308;
+      color: #854d0e;
+      cursor: pointer;
+      opacity: 1;
+      box-shadow: 0 0 6px rgba(234, 179, 8, 0.45);
+      animation: savePulse 1.4s infinite ease-in-out;
+    }
+    .btn-row-save.dirty:hover {
+      background: #fde047;
+      border-color: #ca8a04;
+      color: #713f12;
+      transform: scale(1.12);
+    }
+    @keyframes savePulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.55);
+        transform: scale(1);
+      }
+      50% {
+        box-shadow: 0 0 0 4px rgba(234, 179, 8, 0);
+        transform: scale(1.08);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(234, 179, 8, 0);
+        transform: scale(1);
+      }
+    }
+    tr.driver-row-dirty {
+      background-color: #fefce8 !important;
+      border-left: 4px solid #f59e0b !important;
+    }
+
     /* Unassigned / Waitlist Section at Bottom */
     .waitlist-grid {
       display: grid;
@@ -677,12 +861,11 @@
 
     .badge {
       display: inline-block;
-      padding: 0.15rem 0.45rem;
-      font-size: 0.7rem;
+      padding: 0.12rem 0.4rem;
+      font-size: 0.67rem;
       font-weight: 700;
       border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.02em;
     }
     .badge-both { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
     .badge-to { background: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
@@ -932,14 +1115,14 @@
         </div>
       </div>
 
-      <!-- Urgent Alert: Ambiguous Driver Notes -->
+      <!-- Urgent Alert: Driver Clarifications Needed -->
       <div id="ambiguityAlertBanner" class="no-print" style="display:none; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:0.75rem 1rem; margin-bottom:1rem; color:#92400e;">
         <div style="font-weight:700; font-size:0.95rem; display:flex; align-items:center; gap:0.4rem; margin-bottom:0.25rem;">
-          <span>⚠️ Driver Note Clarifications Needed</span>
+          <span>⚠️ Driver Clarifications Needed</span>
           <span class="badge" style="background:#f59e0b; color:white; font-size:0.75rem;" id="ambiguityBadge">0</span>
         </div>
         <div style="font-size:0.82rem; margin-bottom:0.5rem;">
-          The following drivers wrote first names in their comments that match multiple attending scouts. Click any item to resolve:
+          The following driver comments and rider assignments require clarification (ambiguous names, riders not attending, or duplicate rider claims):
         </div>
         <div id="ambiguityList" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
       </div>
@@ -1200,15 +1383,15 @@
     </div>
   </div>
 
-  <!-- Modal: View/Edit Driver Note -->
+  <!-- Modal: View/Edit Driver Note & Confirm TWH Save -->
   <div id="noteModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'noteModal')">
-    <div class="modal-dialog" style="max-width: 540px;">
+    <div class="modal-dialog" style="max-width: 550px;">
       <div class="modal-header">
-        <h3 id="noteModalTitle">Driver Note</h3>
-        <button class="modal-close" onclick="closeModal('noteModal')">&times;</button>
+        <h3 id="noteModalTitle">Review &amp; Save to Website</h3>
+        <button class="modal-close" onclick="closeNoteModal()">&times;</button>
       </div>
       <div class="modal-body">
-        <form onsubmit="submitEditDriverNote(event)">
+        <form onsubmit="submitSaveDriverToTWH(event)">
           <!-- Live in TroopWebHost Box -->
           <div style="margin-bottom: 0.85rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
@@ -1230,7 +1413,7 @@
           <div style="margin-bottom: 1rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
               <div style="font-size:0.75rem; font-weight:700; color:#0369a1; text-transform:uppercase;">
-                Proposed Coordinator Comment:
+                Proposed Coordinator Comment (Both Legs):
               </div>
               <span id="noteCharCount" style="font-size:0.75rem; font-weight:700; color:#059669;">0 / 100 chars</span>
             </div>
@@ -1240,11 +1423,35 @@
             </div>
           </div>
 
-          <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border); padding-top:1rem;">
-            <button type="button" class="btn" onclick="closeModal('noteModal')">Cancel</button>
-            <button type="submit" id="noteSaveBtn" class="btn btn-primary">Save Note</button>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:1rem; flex-wrap:wrap; gap:0.5rem;">
+            <div class="dropdown-wrapper" id="driverUndoDropdownWrapper" style="position: relative; display: inline-flex;">
+              <button type="button" id="driverUndoBtn" class="btn" onclick="toggleDriverUndoMenu(event)" style="font-size:0.8rem; padding:0.35rem 0.65rem;" title="Undo edits for this driver">↩️ Undo Edits ▾</button>
+              <div id="driverUndoMenu" class="dropdown-menu" style="left:0; bottom:100%; top:auto; margin-bottom:4px; min-width:280px; display:none;"></div>
+            </div>
+            <button type="submit" id="noteSaveBtn" class="btn btn-primary" style="background:#0284c7; border-color:#0284c7;">💾 Save to Website</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Unsaved Edits Reminder -->
+  <div id="unsavedReminderModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'unsavedReminderModal')">
+    <div class="modal-dialog" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 style="color:#b45309; display:flex; align-items:center; gap:0.4rem;">
+          ⚠️ Unsaved Carpool Edits
+        </h3>
+        <button class="modal-close" onclick="dismissUnsavedReminder()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.88rem; color:var(--text); margin-bottom:0.75rem; line-height:1.5;">
+          You have pending changes that have not yet been synchronized to TroopWebHost. Click <strong>Review &amp; Save</strong> on any driver to push their combined TO &amp; FROM comments to the website:
+        </p>
+        <div id="unsavedReminderDriversList" style="max-height: 240px; overflow-y: auto; margin-bottom: 0.75rem;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border); padding-top:0.75rem;">
+          <button type="button" class="btn" onclick="dismissUnsavedReminder()">Remind Me Later</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1515,54 +1722,115 @@
       return trimmed;
     }
 
+    function escapeRegex(s) {
+      return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
     // Helper: Extract non-rider custom notes from driver comments
-    function extractDriverNote(comment, riders) {
+    function extractDriverNote(comment, riders = [], driverName = '') {
       if (!comment || typeof comment !== 'string') return '';
       let str = comment.trim();
       if (!str) return '';
 
-      // 1. Structured discrete format: TO (...): ... FROM (...): ... [Note]
+      // 1. Structured discrete format: TO (...): ... FROM (...): ...
       const discreteMatches = str.match(/(?:TO|FROM|Both)(?:\s*only)?(?:\s*\([^)]*\))?\s*:\s*[^.]+\.?/gi);
-      let remainder = str;
       if (discreteMatches && discreteMatches.length > 0) {
-        discreteMatches.forEach(m => { remainder = remainder.replace(m, ' '); });
+        discreteMatches.forEach(m => { str = str.replace(m, ' '); });
       }
 
-      // 2. Structured unified format: Taking: [names]. [Note] or Both (...): [names]. [Note]
-      const takingMatch = remainder.match(/^(?:Taking|Both(?:\s*\([^)]*\))?):\s*([^.]+)\.?(.*)$/i);
+      // 2. Structured unified format prefix: Taking: [names]. or Both (...): [names].
+      const takingMatch = str.match(/^(?:Taking|Both(?:\s*\([^)]*\))?):\s*([^.]+)\.?(.*)$/i);
       if (takingMatch) {
-        remainder = (takingMatch[2] || '').trim();
+        str = (takingMatch[2] || '').trim();
       }
 
-      // 3. Sentence-level analysis for freeform driver notes and chatter
-      const sentences = remainder.split(/(?<=[.!?])\s+/);
-      const nonRiderSentences = [];
-      const riderTokens = new Set();
-      (riders || []).forEach(r => {
-        if (!r || !r.name) return;
-        const parts = r.name.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean);
-        parts.forEach(p => riderTokens.add(p));
-      });
+      // 3. Remove driver self-references:
+      // "driving myself", "driving self", "myself", "self", "driver"
+      str = str.replace(/\b(?:driving|drives|drive|taking|takes|take)?\s*(?:with\s+)?(?:myself|self|driver)\b/gi, ' ');
 
-      const boilerplate = new Set([
-        'to', 'from', 'taking', 'takes', 'take', 'driving', 'drives', 'drive', 'with', 'and', 'seats',
-        'seat', 'room', 'space', 'more', 'spots', 'spot', 'both', 'ways', 'way', 'only',
-        'car', 'rides', 'ride', 'riding', 'for', 'scouts', 'scout', 'open', 'myself', 'self',
-        'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
-        'available', 'avaliable', 'return', 'trip', 'inbound', 'outbound', 'none', 'full', 'no'
-      ]);
-
-      for (const s of sentences) {
-        const sClean = s.replace(/^(?:TO|FROM|Both)(?:\s*only)?(?:\s*\([^)]*\))?\s*:\s*/i, '').trim();
-        const sNorm = sClean.toLowerCase().replace(/[^a-z0-9]/g, ' ');
-        const words = sNorm.split(/\s+/).filter(w => w.length > 2);
-        const meaningfulWords = words.filter(w => !boilerplate.has(w) && !riderTokens.has(w));
-        if (meaningfulWords.length > 0) {
-          nonRiderSentences.push(sClean);
+      // If driverName is supplied, also check driver's first name as self-reference
+      // e.g. Driver "Clayshulte, Alison" writing "Alison, Anya, Mila..."
+      if (driverName) {
+        let driverFirst = '';
+        if (driverName.includes(',')) {
+          const parts = driverName.split(',');
+          driverFirst = (parts[1] || '').trim().split(/\s+/)[0];
+        } else {
+          driverFirst = driverName.trim().split(/\s+/)[0];
+        }
+        if (driverFirst && driverFirst.length > 1) {
+          const dFirstRegex = new RegExp(`\\b${escapeRegex(driverFirst)}\\b`, 'gi');
+          str = str.replace(dFirstRegex, ' ');
         }
       }
 
-      return nonRiderSentences.join(' ').replace(/^[.\s,;:]+|[.\s,;:]+$/g, '').trim();
+      // 4. Remove boilerplate intro phrases: "driving", "taking", "with", "scouts" before names
+      str = str.replace(/\b(?:driving|drives|drive|taking|takes|take)\s+(?:with\s+)?/gi, ' ');
+      str = str.replace(/\b(?:scouts?|passengers?|riders?)\s*:\s*/gi, ' ');
+      str = str.replace(/\bscouts\s+(?=[A-Z])/gi, ' '); // e.g. "Scouts Penny Campos" -> "Penny Campos"
+
+      // 5. Build list of rider name patterns to remove
+      const namesToRemove = [];
+      (riders || []).forEach(r => {
+        if (!r) return;
+        const raw = typeof r === 'string' ? r : (r.name || '');
+        if (!raw || raw.startsWith('⚠️')) return; // do not remove ambiguous tokens
+
+        let first = '';
+        let last = '';
+        if (raw.includes(',')) {
+          const [l, ...f] = raw.split(',');
+          last = l.trim();
+          first = f.join(' ').trim();
+        } else {
+          const parts = raw.trim().split(/\s+/);
+          last = parts.pop() || '';
+          first = parts.join(' ').trim();
+        }
+
+        if (first && last) {
+          namesToRemove.push(`${first} ${last}`);
+          namesToRemove.push(`${last}, ${first}`);
+          namesToRemove.push(`${last} ${first}`);
+        }
+        if (first && first.length > 1) {
+          namesToRemove.push(first);
+        }
+      });
+
+      // Sort names by length descending so longer full names are replaced before single first names
+      namesToRemove.sort((a, b) => b.length - a.length);
+
+      const seenPatterns = new Set();
+      for (const name of namesToRemove) {
+        const key = name.toLowerCase();
+        if (seenPatterns.has(key)) continue;
+        seenPatterns.add(key);
+
+        const regex = new RegExp(`\\b${escapeRegex(name)}\\b`, 'gi');
+        str = str.replace(regex, ' ');
+      }
+
+      // 6. Clean up residual connector words and punctuation
+      str = str
+        .replace(/\(\s*\)/g, ' ')
+        .replace(/\[\s*\]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/(?:,\s*)+(?:and|&|\+)?\s*(?:,\s*)+/gi, ', ')
+        .replace(/(?:,\s*)+/g, ', ')
+        .replace(/\b(?:and|&|\+)\b(?:\s*,\s*|\s+and\b|\s*&|\s*\+)+/gi, ' ')
+        .replace(/^[,\s;&+.]+|[,\s;&+]+$/g, '')
+        .replace(/^[,\s;&+.]+|[,\s;&+]+$/g, '')
+        .trim();
+
+      // If only punctuation or orphaned connectors remain, clear it
+      if (/^(?:and|with|&|\+|[.,;:\s])+$/i.test(str)) {
+        return '';
+      }
+
+      str = str.replace(/^(?:and|with|&|\+)\s+/i, '').trim();
+
+      return str;
     }
 
     function isDriverTrulyDirty(driverName, targetDraft = localDraft, baseline = carpoolBaseline) {
@@ -1574,6 +1842,12 @@
       const toDriver = (targetDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
       const fromDriver = (targetDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
 
+      // Check if driver was removed or added to legs locally
+      const wasInTo = baseDriver.drivingToFrom === 'Both' || baseDriver.drivingToFrom === 'To' || !baseDriver.drivingToFrom;
+      const wasInFrom = baseDriver.drivingToFrom === 'Both' || baseDriver.drivingToFrom === 'From';
+      if (Boolean(toDriver) !== wasInTo) return true;
+      if (Boolean(fromDriver) !== wasInFrom) return true;
+
       // Compare seats
       const defaultSeats = baseDriver.seats > 0 ? Math.max(0, baseDriver.seats - 1) : 0;
       const baseToSeats = (baseDriver.toSeats !== undefined && baseDriver.toSeats !== null) ? baseDriver.toSeats : defaultSeats;
@@ -1582,12 +1856,22 @@
       if (toDriver && (toDriver.seats || 0) !== baseToSeats) return true;
       if (fromDriver && (fromDriver.seats || 0) !== baseFromSeats) return true;
 
-      // Compare synthesized comment vs baseline comment
-      const proposedComment = synthesizeDriverComment(driverName, targetDraft);
-      const liveComment = baseDriver.comment || '';
-      if (!areCommentsFunctionallyEquivalent(liveComment, proposedComment)) {
-        return true;
-      }
+      // Compare clean baseline driver built from baseline
+      const baseDraft = buildBaselineDraft();
+      const baseTo = (baseDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const baseFrom = (baseDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+
+      const baseNote = (baseTo?.customNote || baseFrom?.customNote || '').trim();
+      const curNote = (toDriver?.customNote || fromDriver?.customNote || '').trim();
+      if (baseNote !== curNote) return true;
+
+      const toRidersStr = (toDriver?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
+      const baseToRidersStr = (baseTo?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
+      if (toRidersStr !== baseToRidersStr) return true;
+
+      const fromRidersStr = (fromDriver?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
+      const baseFromRidersStr = (baseFrom?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
+      if (fromRidersStr !== baseFromRidersStr) return true;
 
       return false;
     }
@@ -1820,6 +2104,7 @@
             toRiders.push({
               name: formatLastFirst(r.name),
               type: r.type,
+              notAttending: Boolean(r.notAttending),
               token: r.token,
               candidates: r.candidates,
               note: r.note,
@@ -1829,11 +2114,11 @@
           const allTo = [];
           (d.claimedScoutsTo || d.claimedScouts || []).forEach(sc => {
             const scName = typeof sc === 'string' ? sc : sc.name;
-            allTo.push({ name: formatLastFirst(scName), type: 'scout', textIndex: sc.textIndex ?? 999 });
+            allTo.push({ name: formatLastFirst(scName), type: 'scout', notAttending: Boolean(sc.notAttending), textIndex: sc.textIndex ?? 999 });
           });
           (d.claimedAdultsTo || d.claimedAdults || []).forEach(ad => {
             const adName = typeof ad === 'string' ? ad : (ad.name || ad);
-            allTo.push({ name: formatLastFirst(adName), type: 'adult', textIndex: (typeof ad === 'object' && ad.textIndex !== undefined) ? ad.textIndex : 999 });
+            allTo.push({ name: formatLastFirst(adName), type: 'adult', notAttending: Boolean(ad.notAttending), textIndex: (typeof ad === 'object' && ad.textIndex !== undefined) ? ad.textIndex : 999 });
           });
           (d.ambiguousNotes || []).forEach(amb => {
             allTo.push({
@@ -1856,6 +2141,7 @@
             fromRiders.push({
               name: formatLastFirst(r.name),
               type: r.type,
+              notAttending: Boolean(r.notAttending),
               token: r.token,
               candidates: r.candidates,
               note: r.note,
@@ -1865,11 +2151,11 @@
           const allFrom = [];
           (d.claimedScoutsFrom || d.claimedScouts || []).forEach(sc => {
             const scName = typeof sc === 'string' ? sc : sc.name;
-            allFrom.push({ name: formatLastFirst(scName), type: 'scout', textIndex: sc.textIndex ?? 999 });
+            allFrom.push({ name: formatLastFirst(scName), type: 'scout', notAttending: Boolean(sc.notAttending), textIndex: sc.textIndex ?? 999 });
           });
           (d.claimedAdultsFrom || d.claimedAdults || []).forEach(ad => {
             const adName = typeof ad === 'string' ? ad : (ad.name || ad);
-            allFrom.push({ name: formatLastFirst(adName), type: 'adult', textIndex: (typeof ad === 'object' && ad.textIndex !== undefined) ? ad.textIndex : 999 });
+            allFrom.push({ name: formatLastFirst(adName), type: 'adult', notAttending: Boolean(ad.notAttending), textIndex: (typeof ad === 'object' && ad.textIndex !== undefined) ? ad.textIndex : 999 });
           });
           (d.ambiguousNotes || []).forEach(amb => {
             allFrom.push({
@@ -1891,7 +2177,7 @@
           const normDriver = normalizeName(d.name);
 
           // TO direction check
-          const assignedTo = s.assignedDriverTo || s.assignedDriver;
+          const assignedTo = s.assignedDriverTo || (s.rideDirection !== 'From' ? s.assignedDriver : null);
           if (assignedTo && normalizeName(assignedTo) === normDriver) {
             if (!toRiders.some(r => normalizeName(r.name) === normalizeName(formattedScout))) {
               toRiders.push({ name: formattedScout, type: 'scout' });
@@ -1899,7 +2185,7 @@
           }
 
           // FROM direction check
-          const assignedFrom = s.assignedDriverFrom || s.assignedDriver;
+          const assignedFrom = s.assignedDriverFrom || (s.rideDirection !== 'To' ? s.assignedDriver : null);
           if (assignedFrom && normalizeName(assignedFrom) === normDriver) {
             if (!fromRiders.some(r => normalizeName(r.name) === normalizeName(formattedScout))) {
               fromRiders.push({ name: formattedScout, type: 'scout' });
@@ -1907,14 +2193,12 @@
           }
         });
 
-        const rawNote = d.cleanNote !== undefined ? d.cleanNote : (d.comment || '');
-        const customNote = extractDriverNote(rawNote, [...toRiders, ...fromRiders]);
-
+        const extractedNote = extractDriverNote(d.comment || '', [...toRiders, ...fromRiders], d.name);
         const baseDriverObj = {
           name: formatLastFirst(d.name),
           phone: d.phone || '',
           comment: d.comment || '',
-          customNote: customNote,
+          customNote: extractedNote,
           baselineComment: d.comment || '',
           drivingToFrom: d.drivingToFrom || 'Both',
           isCompliant: d.isCompliant !== false,
@@ -1946,6 +2230,71 @@
       };
     }
 
+    function markDriverDirty(driverName) {
+      if (!driverName) return;
+      pendingDriversToSync.add(driverName);
+      saveDraft();
+      scheduleUnsavedReminder();
+    }
+
+    let unsavedReminderTimer = null;
+    let unsavedModalDismissed = false;
+
+    function scheduleUnsavedReminder() {
+      if (unsavedReminderTimer) return;
+      unsavedReminderTimer = setTimeout(() => {
+        unsavedReminderTimer = null;
+        if (pendingDriversToSync.size > 0 && !unsavedModalDismissed) {
+          showUnsavedEditsReminder();
+        }
+      }, 60000); // 60 seconds
+    }
+
+    function clearUnsavedReminder() {
+      if (unsavedReminderTimer) {
+        clearTimeout(unsavedReminderTimer);
+        unsavedReminderTimer = null;
+      }
+      unsavedModalDismissed = false;
+      closeModal('unsavedReminderModal');
+    }
+
+    function showUnsavedEditsReminder() {
+      const modal = document.getElementById('unsavedReminderModal');
+      const listEl = document.getElementById('unsavedReminderDriversList');
+      if (!modal || !listEl) return;
+
+      const dirtyNames = Array.from(pendingDriversToSync);
+      if (dirtyNames.length === 0) return;
+
+      listEl.innerHTML = dirtyNames.map(dName => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.5rem 0.75rem; margin-bottom:0.4rem;">
+          <div>
+            <strong>🚗 ${escapeHtml(toDisplayName(dName))}</strong>
+            <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">
+              Proposed: <code style="font-size:0.75rem; color:#0369a1;">${escapeHtml(synthesizeDriverComment(dName) || '(Empty comment)')}</code>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" style="padding:0.25rem 0.6rem; font-size:0.78rem; background:#0284c7; border-color:#0284c7;" onclick="closeModal('unsavedReminderModal'); openDriverSaveModal('${escapeHtml(dName)}')">
+            Review &amp; Save &rarr;
+          </button>
+        </div>
+      `).join('');
+
+      openModal('unsavedReminderModal');
+    }
+
+    function dismissUnsavedReminder() {
+      unsavedModalDismissed = true;
+      closeModal('unsavedReminderModal');
+      setTimeout(() => {
+        unsavedModalDismissed = false;
+        if (pendingDriversToSync.size > 0) {
+          scheduleUnsavedReminder();
+        }
+      }, 120000);
+    }
+
     function saveDraft() {
       if (!localDraft) return;
 
@@ -1963,6 +2312,8 @@
         localDraft.isCustom = false;
         const db = document.getElementById('draftBanner');
         if (db) db.style.display = 'none';
+        clearUnsavedReminder();
+        updateSyncBadge('idle', '✓ Website in sync');
         renderPage();
         return;
       }
@@ -1977,8 +2328,18 @@
         };
         localStorage.setItem(draftStorageKey, JSON.stringify(payload));
       } catch (e) {}
+
       const db = document.getElementById('draftBanner');
-      if (db) db.style.display = 'inline-flex';
+      if (db) {
+        db.style.display = 'inline-flex';
+        const count = pendingDriversToSync.size;
+        db.innerHTML = `💾 ${count} driver${count === 1 ? '' : 's'} with unsaved edits (click 💾 on driver row to save)`;
+        db.title = 'Unsaved local edits. Click the Save button on highlighted driver rows to push changes to TroopWebHost.';
+      }
+
+      const count = pendingDriversToSync.size;
+      updateSyncBadge('pending', `🕒 ${count} driver${count === 1 ? '' : 's'} with unsaved edits`);
+      scheduleUnsavedReminder();
       renderPage();
     }
 
@@ -2099,18 +2460,113 @@
           }
         });
 
+        const notAttendingClaimsMap = new Map();
+        ['TO', 'FROM'].forEach(dir => {
+          const drivers = dir === 'TO' ? (localDraft.toDrivers || []) : (localDraft.fromDrivers || []);
+          drivers.forEach(d => {
+            (d.riders || []).forEach(r => {
+              if (r && r.type !== 'ambiguous') {
+                const scoutObj = r.type === 'scout' ? (carpoolBaseline.scouts || []).find(sc => normalizeName(sc.name) === normalizeName(r.name)) : null;
+                const isNotAttending = Boolean(r.notAttending || (scoutObj && scoutObj.attending === 'N'));
+                if (isNotAttending) {
+                  const key = `${normalizeName(d.name)}:${normalizeName(r.name)}`;
+                  if (!notAttendingClaimsMap.has(key)) {
+                    notAttendingClaimsMap.set(key, {
+                      driverName: d.name,
+                      riderName: r.name,
+                      type: r.type,
+                    });
+                  }
+                }
+              }
+            });
+          });
+        });
+
+        // Duplicate Rider Claims (Consolidated across TO and FROM legs)
+        const scoutDupMap = new Map();
+        ['TO', 'FROM'].forEach(dir => {
+          const drivers = dir === 'TO' ? (localDraft.toDrivers || []) : (localDraft.fromDrivers || []);
+          const legMap = new Map();
+          drivers.forEach(d => {
+            (d.riders || []).forEach(r => {
+              if (r && r.type === 'scout' && r.name) {
+                const norm = normalizeName(r.name);
+                const list = legMap.get(norm) || [];
+                if (!list.includes(d.name)) list.push(d.name);
+                legMap.set(norm, list);
+              }
+            });
+          });
+
+          legMap.forEach((driversList, norm) => {
+            if (driversList.length > 1) {
+              const cur = scoutDupMap.get(norm) || {
+                norm,
+                scoutName: norm,
+                toDrivers: [],
+                fromDrivers: [],
+              };
+              if (dir === 'TO') cur.toDrivers = driversList;
+              if (dir === 'FROM') cur.fromDrivers = driversList;
+              scoutDupMap.set(norm, cur);
+            }
+          });
+        });
+
+        // Resolve display name for scout
+        const allScouts = carpoolBaseline.scouts || [];
+        const dupItems = Array.from(scoutDupMap.values()).map(item => {
+          const found = allScouts.find(s => normalizeName(s.name) === item.norm);
+          return {
+            ...item,
+            scoutName: found ? found.name : item.norm,
+          };
+        });
+
         const ambiguousItems = Array.from(ambiguousGroupsMap.values());
-        ambiguityBadge.textContent = ambiguousItems.length;
-        if (ambiguousItems.length > 0) {
+        const notAttendingItems = Array.from(notAttendingClaimsMap.values());
+        const totalClarifications = ambiguousItems.length + notAttendingItems.length + dupItems.length;
+        ambiguityBadge.textContent = totalClarifications;
+        if (totalClarifications > 0) {
           ambiguityBanner.style.display = 'block';
-          ambiguityList.innerHTML = ambiguousItems.map(item => {
+          const ambHtml = ambiguousItems.map(item => {
             const occCount = item.occurrences.length;
             if (occCount > 0) {
               return `<button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem; background:#fff; border-color:#fde68a; color:#92400e; font-weight:600;" onclick="openResolveAmbiguityModalByKey('${escapeHtml(item.key)}')">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: "${escapeHtml(item.token)}" &rarr;</button>`;
             } else {
               return `<span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.3rem 0.6rem; font-size:0.75rem;">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: "${escapeHtml(item.token)}"</span>`;
             }
-          }).join('');
+          });
+
+          const notAttendingHtml = notAttendingItems.map(item => {
+            return `<span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.3rem 0.6rem; font-size:0.75rem;" title="${escapeHtml(formatLastFirst(item.riderName))} is claimed by ${escapeHtml(toDisplayName(item.driverName))} but is not registered for the campout in TroopWebHost">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: ${escapeHtml(formatLastFirst(item.riderName))} (Not Attending)</span>`;
+          });
+
+          const dupHtml = dupItems.map(item => {
+            let legText = '';
+            if (item.toDrivers.length > 1 && item.fromDrivers.length > 1) {
+              const toStr = item.toDrivers.slice().sort().join(',');
+              const fromStr = item.fromDrivers.slice().sort().join(',');
+              if (toStr === fromStr) {
+                legText = `riding with ${item.toDrivers.map(d => escapeHtml(toDisplayName(d))).join(' and ')}`;
+              } else {
+                legText = `TO: riding with ${item.toDrivers.map(d => escapeHtml(toDisplayName(d))).join(' and ')}; FROM: riding with ${item.fromDrivers.map(d => escapeHtml(toDisplayName(d))).join(' and ')}`;
+              }
+            } else if (item.toDrivers.length > 1) {
+              legText = `TO: riding with ${item.toDrivers.map(d => escapeHtml(toDisplayName(d))).join(' and ')}`;
+            } else {
+              legText = `FROM: riding with ${item.fromDrivers.map(d => escapeHtml(toDisplayName(d))).join(' and ')}`;
+            }
+
+            return `
+              <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.3rem 0.6rem; font-size:0.75rem;">
+                ⚠️ <strong>${escapeHtml(formatLastFirst(item.scoutName))}</strong> (${legText})
+              </span>
+            `;
+          });
+
+          ambiguityList.innerHTML = [...ambHtml, ...notAttendingHtml, ...dupHtml].join('');
         } else {
           ambiguityBanner.style.display = 'none';
         }
@@ -2127,8 +2583,8 @@
           safetyBanner.style.display = 'block';
           safetyList.innerHTML = nonCompliantDrivers.map(d => {
             const missing = [];
-            if ((d.sytStatus || '').toLowerCase() !== 'current') missing.push(`SYT: ${d.sytStatus || 'Missing'}`);
-            if ((d.stateTraining || '').toLowerCase() !== 'current') missing.push(`State AB506: ${d.stateTraining || 'Missing'}`);
+            if ((d.sytStatus || '').toLowerCase() !== 'current') missing.push(`SYT: ${d.sytStatus || 'None'}`);
+            if ((d.stateTraining || '').toLowerCase() !== 'current') missing.push(`AB506: ${d.stateTraining || 'None'}`);
             const missingStr = missing.length > 0 ? ` (${missing.join(', ')})` : '';
             return `<span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca; padding:0.3rem 0.6rem; font-size:0.75rem;">⚠️ <strong>${escapeHtml(toDisplayName(d.name))}</strong>${escapeHtml(missingStr)}</span>`;
           }).join('');
@@ -2187,10 +2643,11 @@
         subEl.innerHTML = subHtml;
       }
 
-      // Determine max seat columns across drivers (minimum 7)
+      // Determine max seat columns across drivers (minimum 7, or expanded if driver has more riders than seats)
       let maxCols = 7;
       drivers.forEach(d => {
         if (d.seats > maxCols) maxCols = d.seats;
+        if (d.riders && d.riders.length > maxCols) maxCols = d.riders.length;
       });
 
       // Check which seat columns have any rider content across all drivers in this leg
@@ -2199,13 +2656,23 @@
         colHasRider[s] = drivers.some(d => d.riders && d.riders[s]);
       }
 
+      // Count scout occurrences for duplicate detection on this leg
+      const scoutCounts = new Map();
+      drivers.forEach(d => {
+        (d.riders || []).forEach(r => {
+          if (r && r.type === 'scout' && r.name) {
+            const norm = normalizeName(r.name);
+            scoutCounts.set(norm, (scoutCounts.get(norm) || 0) + 1);
+          }
+        });
+      });
+
       // Render thead
       let thHtml = `
         <tr>
-          <th class="left-align" style="width:160px;">Driver Name</th>
-          <th style="width:98px;">Cell#</th>
+          <th class="left-align driver-info-th">Driver Info</th>
+          <th style="width:88px; min-width:85px; text-align:center;">Cell#</th>
           <th style="width:46px;" title="Available passenger seats for scouts">Seats</th>
-          <th style="width:36px;">Note</th>
       `;
       for (let s = 0; s < maxCols; s++) {
         const hasRider = colHasRider[s];
@@ -2213,12 +2680,12 @@
         const colStyle = hasRider ? 'min-width:110px;' : 'min-width:92px; width:92px;';
         thHtml += `<th style="${colStyle}">Seat ${s + 1}</th>`;
       }
-      thHtml += `<th style="width:32px; padding:0.2rem;" class="no-print"></th></tr>`;
+      thHtml += `<th style="width:38px; min-width:38px; padding:0.2rem;" class="no-print"></th></tr>`;
       thead.innerHTML = thHtml;
 
       // Render tbody
       if (drivers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${maxCols + 5}" style="text-align:center; padding:1.5rem;" class="muted">No drivers registered for this trip leg.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${maxCols + 4}" style="text-align:center; padding:1.5rem;" class="muted">No drivers registered for this trip leg.</td></tr>`;
         return;
       }
 
@@ -2228,8 +2695,15 @@
         const riders = d.riders || [];
         const maxSeats = d.seats || 0;
         const isOneWay = (d.drivingToFrom || '').toLowerCase() !== 'both';
+        const isSeatErroneous = maxSeats <= 0 || riders.length > maxSeats;
+        const hasUserEdits = Array.from(pendingDriversToSync).some(name => normalizeName(name) === normalizeName(d.name));
+        const isFormatDiscrepant = !hasUserEdits && !areCommentsFunctionallyEquivalent(d.comment || '', synthesizeDriverComment(d.name));
 
-        if (!d.isCompliant) {
+        if (hasUserEdits) {
+          tr.classList.add('driver-row-dirty');
+          tr.style.backgroundColor = '#fefce8';
+          tr.style.borderLeft = '4px solid #f59e0b';
+        } else if (!d.isCompliant) {
           tr.style.backgroundColor = '#fffbeb';
           if (isOneWay) {
             tr.style.borderLeft = '4px solid #8b5cf6';
@@ -2239,25 +2713,53 @@
           tr.style.borderLeft = '4px solid #8b5cf6';
         }
 
-        let phoneHtml = d.phone ? `<a href="tel:${escapeHtml(d.phone)}" class="clickable-contact">📞 ${escapeHtml(d.phone)}</a>` : '<span class="muted">-</span>';
-        let safetyTag = !d.isCompliant ? '<br><span style="color:#b91c1c; font-size:0.7rem; font-weight:700;">⚠️ Safety Gaps</span>' : '';
-        let oneWayTag = isOneWay ? `<br><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.68rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span>` : '';
+        let phoneHtml = d.phone
+          ? `<a href="tel:${escapeHtml(d.phone)}" class="clickable-contact">${escapeHtml(d.phone)}</a>`
+          : '<span class="muted">-</span>';
 
-        const hasNote = Boolean((d.customNote && d.customNote.trim()) || (d.comment && d.comment.trim()));
-        const noteTip = hasNote ? (d.customNote || d.comment) : 'Add note / special instructions';
-        let noteBtnHtml = `<button type="button" class="btn-note" title="${escapeHtml(noteTip)}" onclick="viewDriverNote('${escapeHtml(d.name)}')">${hasNote ? '💬' : '📝'}</button>`;
+        let safetyTags = [];
+        if (!d.isCompliant) {
+          if ((d.sytStatus || '').toLowerCase() !== 'current') {
+            safetyTags.push(`<span class="badge badge-safety-gap" title="Youth Protection / SYT Status: ${escapeHtml(d.sytStatus || 'None')}">⚠️ SYT: ${escapeHtml(d.sytStatus || 'None')}</span>`);
+          }
+          if ((d.stateTraining || '').toLowerCase() !== 'current') {
+            safetyTags.push(`<span class="badge badge-safety-gap" title="California AB506 / Live Scan Training: ${escapeHtml(d.stateTraining || 'None')}">⚠️ AB506: ${escapeHtml(d.stateTraining || 'None')}</span>`);
+          }
+        }
+        let safetyTagHtml = safetyTags.join(' ');
+
+        let oneWayTag = isOneWay ? `<span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.64rem; font-weight:700; padding:0.08rem 0.35rem;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span>` : '';
+        let notAttendingTag = (d.attending && d.attending !== 'Y') ? '<span class="badge badge-not-attending" title="Driver is registered to drive but not attending the event—verify return leg availability">⚠️ Not Attending</span>' : '';
+
+        const rawNote = ((d.baselineComment && d.baselineComment.trim()) || (d.comment && d.comment.trim()) || (d.customNote && d.customNote.trim()) || '').trim();
+        const noteHtml = rawNote
+          ? `<div class="driver-inline-note" onclick="viewDriverNote('${escapeHtml(d.name)}')" title="Click to view/edit note">Note: ${escapeHtml(rawNote)}</div>`
+          : `<div class="driver-inline-note-empty no-print" onclick="viewDriverNote('${escapeHtml(d.name)}')">+ Add note</div>`;
+
+        const tagsHtml = [oneWayTag, notAttendingTag, safetyTagHtml].filter(Boolean).join(' ');
+
+        const seatCellBg = isSeatErroneous ? 'background-color:#fef9c3;' : '';
+        const stepperStyle = isSeatErroneous ? 'style="border-color:#eab308; background:#fef08a;"' : '';
+        const seatNumStyle = isSeatErroneous ? 'style="color:#854d0e; font-weight:700;"' : '';
+        const seatTitle = isSeatErroneous
+          ? (maxSeats <= 0 ? 'Warning: Driver has 0 seats configured' : `Warning: Driver has ${riders.length} claimed riders but only ${maxSeats} seat${maxSeats === 1 ? '' : 's'}`)
+          : '';
 
         let cellsHtml = `
-          <td><strong>${escapeHtml(d.name)}</strong>${oneWayTag}${safetyTag}</td>
-          <td style="text-align:center;">${phoneHtml}</td>
-          <td style="text-align:center;">
-            <div class="seat-stepper">
-              <button type="button" class="btn-step no-print" title="Increase seats" onclick="changeDriverSeats('${dir}', ${driverIdx}, 1)">+</button>
-              <span class="seat-num">${maxSeats}</span>
-              <button type="button" class="btn-step no-print" title="Decrease seats" onclick="changeDriverSeats('${dir}', ${driverIdx}, -1)">−</button>
+          <td class="driver-info-cell">
+            <div><strong>${escapeHtml(d.name)}</strong>${tagsHtml ? ` ${tagsHtml}` : ''}</div>
+            ${noteHtml}
+          </td>
+          <td style="text-align:center; white-space:nowrap;">${phoneHtml}</td>
+          <td style="text-align:center; ${seatCellBg}" ${seatTitle ? `title="${escapeHtml(seatTitle)}"` : ''}>
+            <div class="seat-stepper" ${stepperStyle}>
+              <span class="seat-num" ${seatNumStyle}>${maxSeats}</span>
+              <div class="seat-stepper-btns no-print">
+                <button type="button" class="btn-step" title="Increase seats" onclick="changeDriverSeats('${dir}', ${driverIdx}, 1)">+</button>
+                <button type="button" class="btn-step" title="Decrease seats" onclick="changeDriverSeats('${dir}', ${driverIdx}, -1)">−</button>
+              </div>
             </div>
           </td>
-          <td style="text-align:center;">${noteBtnHtml}</td>
         `;
 
         // Render seat slots up to maxCols
@@ -2268,6 +2770,9 @@
           if (rider) {
             const isAdult = rider.type === 'adult';
             const isAmbiguous = rider.type === 'ambiguous';
+            const isDup = !isAdult && !isAmbiguous && (scoutCounts.get(normalizeName(rider.name)) > 1);
+            const scoutObj = !isAdult && !isAmbiguous ? (carpoolBaseline.scouts || []).find(sc => normalizeName(sc.name) === normalizeName(rider.name)) : null;
+            const isNotAttending = Boolean(rider.notAttending || (scoutObj && scoutObj.attending === 'N'));
 
             if (isAmbiguous) {
               cellsHtml += `
@@ -2280,10 +2785,16 @@
                 </td>
               `;
             } else {
+              const dupTitle = isDup ? `⚠️ Duplicate: ${escapeHtml(rider.name)} is claimed by multiple drivers on this leg!` : '';
+              const notAttendingTitle = isNotAttending ? `⚠️ Not Attending: ${escapeHtml(rider.name)} is claimed by this driver but is not registered for the campout in TroopWebHost` : '';
+              const slotTitle = [dupTitle, notAttendingTitle].filter(Boolean).join(' | ');
+
               cellsHtml += `
                 <td>
-                  <div class="slot slot-filled ${isAdult ? 'adult' : ''}">
-                    <span>${escapeHtml(rider.name)}</span>
+                  <div class="slot slot-filled ${isAdult ? 'adult' : ''} ${isDup ? 'slot-duplicate' : ''} ${isNotAttending ? 'slot-not-attending' : ''}" ${slotTitle ? `title="${escapeHtml(slotTitle)}"` : ''}>
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(rider.name)}</span>
+                    ${isDup ? `<span class="badge-dup" title="Claimed by multiple drivers on this trip leg">DUP</span>` : ''}
+                    ${isNotAttending ? `<span style="margin-left:0.25rem; font-size:0.75rem; cursor:help; vertical-align:middle;" title="⚠️ Not Attending: ${escapeHtml(rider.name)} is not registered for the campout in TroopWebHost">⚠️</span>` : ''}
                     <button class="btn-remove no-print" title="Remove rider" onclick="removeRider('${dir}', ${driverIdx}, ${s})">&times;</button>
                   </div>
                 </td>
@@ -2309,9 +2820,21 @@
           }
         }
 
+        let saveBtnHtml = '';
+        if (hasUserEdits) {
+          saveBtnHtml = `<button type="button" class="btn-row-save dirty" title="⚠️ Unsaved edits! Click to review and save to TroopWebHost" onclick="openDriverSaveModal('${escapeHtml(d.name)}')">💾</button>`;
+        } else if (isFormatDiscrepant) {
+          saveBtnHtml = `<button type="button" class="btn-row-save format-opt" title="Format optimization available: Click to review and format comment on TroopWebHost" onclick="openDriverSaveModal('${escapeHtml(d.name)}')">💾</button>`;
+        } else {
+          saveBtnHtml = `<button type="button" class="btn-row-save" disabled title="No unsaved changes (Driver is in sync with TroopWebHost)">💾</button>`;
+        }
+
         cellsHtml += `
-          <td style="text-align:center; padding:0.2rem;" class="no-print">
-            <button class="btn-remove" title="Remove driver" onclick="removeDriver('${dir}', ${driverIdx})">🗑️</button>
+          <td style="text-align:center; padding:0.15rem; width:38px; min-width:38px;" class="no-print">
+            <div class="driver-actions-stack">
+              ${saveBtnHtml}
+              <button type="button" class="btn-remove" title="Remove driver" onclick="removeDriver('${dir}', ${driverIdx})">🗑️</button>
+            </div>
           </td>
         `;
 
@@ -2322,7 +2845,7 @@
 
     function renderWaitlist() {
       const container = document.getElementById('waitlistContainer');
-      const allScouts = carpoolBaseline.scouts || [];
+      const allScouts = (carpoolBaseline.scouts || []).filter(s => s.attending !== 'N');
 
       const assignedToSet = getAssignedScoutNormalizedSet('TO');
       const assignedFromSet = getAssignedScoutNormalizedSet('FROM');
@@ -2377,7 +2900,7 @@
     }
 
     function updateKpis() {
-      const allScouts = carpoolBaseline.scouts || [];
+      const allScouts = (carpoolBaseline.scouts || []).filter(s => s.attending !== 'N');
       const totalScouts = allScouts.length;
 
       const assignedToSet = getAssignedScoutNormalizedSet('TO');
@@ -2717,8 +3240,7 @@
       }
 
       resolvingContext = null;
-      saveDraft();
-      queueDriverSync(driverName);
+      markDriverDirty(driverName);
     }
 
     async function clearAmbiguousSlot() {
@@ -2759,8 +3281,7 @@
       }
 
       resolvingContext = null;
-      saveDraft();
-      queueDriverSync(driverName);
+      markDriverDirty(driverName);
     }
 
     function openAssignModalFromResolve() {
@@ -2891,8 +3412,7 @@
       }
 
       pendingAssignment = null;
-      saveDraft();
-      queueDriverSync(driverName);
+      markDriverDirty(driverName);
     }
 
     async function removeRider(dir, driverIdx, slotIndex) {
@@ -2931,8 +3451,7 @@
         driver.riders.splice(slotIndex, 1);
       }
 
-      saveDraft();
-      queueDriverSync(driver.name);
+      markDriverDirty(driver.name);
     }
 
     function changeDriverSeats(dir, driverIdx, delta) {
@@ -2956,8 +3475,7 @@
       }
 
       driver.seats = newSeats;
-      saveDraft();
-      queueDriverSync(driver.name);
+      markDriverDirty(driver.name);
     }
 
     function removeDriver(dir, driverIdx) {
@@ -2968,8 +3486,7 @@
       if (confirm(`Remove driver ${driver.name} from ${dir} carpool? Any assigned riders will return to the unassigned pool.`)) {
         pushUndoState(`Remove driver ${toDisplayName(driver.name)} from ${dir}`, driver.name);
         drivers.splice(driverIdx, 1);
-        saveDraft();
-        queueDriverSync(driver.name);
+        markDriverDirty(driver.name);
       }
     }
 
@@ -2994,7 +3511,7 @@
         phone,
         seats,
         comment,
-        customNote: comment,
+        customNote: extractDriverNote(comment, []),
         baselineComment: '',
         drivingToFrom: leg,
         isCompliant: true,
@@ -3010,21 +3527,27 @@
       }
 
       closeModal('addDriverModal');
-      saveDraft();
-      queueDriverSync(name);
+      markDriverDirty(name);
     }
 
-    // View / Edit Note Logic
-    function viewDriverNote(driverName) {
+    // View / Edit Note & TWH Save Logic
+    let modalInitialNote = null;
+
+    function openDriverSaveModal(driverName) {
       activeNoteDriverName = driverName;
+      closeDriverUndoMenu();
       const norm = normalizeName(driverName);
       const driver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm) ||
                      (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
       const baseD = (carpoolBaseline?.drivers || []).find(bd => normalizeName(bd.name) === norm);
       const liveComment = (baseD ? baseD.comment : null) ?? (driver?.baselineComment || '');
       const note = driver ? (driver.customNote !== undefined ? driver.customNote : '') : '';
+      modalInitialNote = note;
 
-      document.getElementById('noteModalTitle').textContent = `Driver Note: ${toDisplayName(driverName)}`;
+      const modalTitle = document.getElementById('noteModalTitle');
+      if (modalTitle) {
+        modalTitle.textContent = `Review & Save: ${toDisplayName(driverName)}`;
+      }
 
       const liveBox = document.getElementById('noteLiveCommentBox');
       const liveLen = document.getElementById('noteLiveCharCount');
@@ -3040,7 +3563,32 @@
       if (input) input.value = note;
 
       updateNoteModalCounter();
+      renderDriverUndoDropdown();
       openModal('noteModal');
+    }
+
+    function viewDriverNote(driverName) {
+      openDriverSaveModal(driverName);
+    }
+
+    function closeNoteModal() {
+      if (activeNoteDriverName) {
+        const input = document.getElementById('editNoteInput');
+        const currentVal = (input ? input.value : '').trim();
+        if (modalInitialNote !== null && currentVal !== modalInitialNote) {
+          const norm = normalizeName(activeNoteDriverName);
+          const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+          const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+          pushUndoState(`Edit note for ${toDisplayName(activeNoteDriverName)}`, activeNoteDriverName);
+          if (toDriver) toDriver.customNote = currentVal;
+          if (fromDriver) fromDriver.customNote = currentVal;
+          markDriverDirty(activeNoteDriverName);
+        }
+        activeNoteDriverName = null;
+      }
+      modalInitialNote = null;
+      closeDriverUndoMenu();
+      closeModal('noteModal');
     }
 
     function updateNoteModalCounter() {
@@ -3086,30 +3634,250 @@
       }
     }
 
-    function submitEditDriverNote(e) {
-      e.preventDefault();
+    async function submitSaveDriverToTWH(e) {
+      if (e) e.preventDefault();
       if (!activeNoteDriverName) return;
+
       const newNote = (document.getElementById('editNoteInput').value || '').trim();
       const logistics = getTripLogisticsClause(activeNoteDriverName);
       const combined = logistics ? (newNote ? `${logistics} ${newNote}` : logistics) : newNote;
       if (combined.length > 100) {
+        alert('Cannot save: Combined comment exceeds 100 characters.');
         return;
       }
 
-      const norm = normalizeName(activeNoteDriverName);
+      const driverToSave = activeNoteDriverName;
+      const norm = normalizeName(driverToSave);
       const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
       const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
 
-      pushUndoState(`Edit note for ${toDisplayName(activeNoteDriverName)}`, activeNoteDriverName);
+      pushUndoState(`Save driver ${toDisplayName(driverToSave)} to TroopWebHost`, driverToSave);
 
       if (toDriver) toDriver.customNote = newNote;
       if (fromDriver) fromDriver.customNote = newNote;
 
-      const driverToSave = activeNoteDriverName;
+      modalInitialNote = null;
+      closeDriverUndoMenu();
       closeModal('noteModal');
-      saveDraft();
-      queueDriverSync(driverToSave, { immediate: true });
       activeNoteDriverName = null;
+
+      showSavingOverlay(`Saving ${toDisplayName(driverToSave)} to TroopWebHost...`);
+      try {
+        await persistDriverChange(driverToSave);
+        // Remove from pending dirty drivers
+        for (const name of Array.from(pendingDriversToSync)) {
+          if (normalizeName(name) === norm) {
+            pendingDriversToSync.delete(name);
+          }
+        }
+        saveDraft();
+        renderPage();
+      } finally {
+        hideSavingOverlay();
+      }
+    }
+
+    function saveNoteDraftOnly() {
+      closeNoteModal();
+    }
+
+    function toggleDriverUndoMenu(e) {
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('driverUndoMenu');
+      if (!menu) return;
+      if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+      } else {
+        renderDriverUndoDropdown();
+        menu.style.display = 'block';
+      }
+    }
+
+    function closeDriverUndoMenu() {
+      const menu = document.getElementById('driverUndoMenu');
+      if (menu) menu.style.display = 'none';
+    }
+
+    function renderDriverUndoDropdown() {
+      const menu = document.getElementById('driverUndoMenu');
+      if (!menu) return;
+      if (!activeNoteDriverName) {
+        menu.innerHTML = `<div style="padding:0.5rem; font-size:0.78rem; color:var(--text-muted); font-style:italic;">No active driver selected.</div>`;
+        return;
+      }
+
+      const driverName = activeNoteDriverName;
+      const norm = normalizeName(driverName);
+      const hasUserEdits = Array.from(pendingDriversToSync).some(d => normalizeName(d) === norm);
+
+      const driverUndos = [];
+      for (let i = undoStack.length - 1; i >= 0; i--) {
+        const item = undoStack[i];
+        if (item.affectedDriverName && normalizeName(item.affectedDriverName) === norm) {
+          driverUndos.push({ item, originalIndex: i });
+        }
+      }
+
+      let html = '';
+
+      html += `
+        <div style="padding:0.35rem 0.75rem 0.35rem; font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">
+          Undo Edits: ${escapeHtml(toDisplayName(driverName))}
+        </div>
+      `;
+
+      if (driverUndos.length === 0 && !hasUserEdits) {
+        html += `
+          <div style="padding:0.4rem 0.75rem 0.5rem; font-size:0.78rem; color:var(--text-muted); font-style:italic;">
+            No actions to undo (Matches website baseline)
+          </div>
+        `;
+      } else {
+        if (driverUndos.length > 0) {
+          driverUndos.slice(0, 5).forEach((u, idx) => {
+            if (idx === 0) {
+              html += `
+                <button type="button" class="dropdown-item" onclick="undoActionForDriver('${escapeHtml(driverName)}', ${u.originalIndex}); closeDriverUndoMenu();" style="display:flex; align-items:center; gap:0.4rem; padding:0.4rem 0.75rem; text-align:left; width:100%; border:none; background:none; cursor:pointer;" title="Undo: ${escapeHtml(u.item.description)}">
+                  <span style="font-weight:700; color:var(--primary); white-space:nowrap;">↩️ Undo:</span>
+                  <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:210px; font-size:0.78rem; color:#1e293b;">${escapeHtml(u.item.description)}</span>
+                </button>
+              `;
+            } else {
+              html += `
+                <div style="padding:0.25rem 0.75rem; font-size:0.78rem; color:#64748b; display:flex; align-items:center; gap:0.4rem;">
+                  <span style="color:var(--text-muted); font-size:0.72rem; min-width:14px;">${idx + 1}.</span>
+                  <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:230px;" title="${escapeHtml(u.item.description)}">${escapeHtml(u.item.description)}</span>
+                </div>
+              `;
+            }
+          });
+          html += `<div style="height:1px; background:var(--border); margin:0.35rem 0;"></div>`;
+        }
+
+        // Sequential Revert option
+        if (hasUserEdits) {
+          html += `
+            <button type="button" class="dropdown-item" onclick="revertDriverToBaseline('${escapeHtml(driverName)}'); closeDriverUndoMenu();" style="display:flex; align-items:center; gap:0.4rem; padding:0.4rem 0.75rem; text-align:left; width:100%; border:none; background:none; cursor:pointer;" title="Revert this driver to original website state">
+              <span style="font-weight:700; color:#b91c1c; white-space:nowrap;">↺ Revert Driver:</span>
+              <span style="font-size:0.78rem; color:#dc2626;">Reset to Website Baseline</span>
+            </button>
+          `;
+        } else {
+          html += `
+            <div style="padding:0.35rem 0.75rem; font-size:0.78rem; color:#94a3b8; font-style:italic;">
+              ↺ Revert Driver: (Already at website baseline)
+            </div>
+          `;
+        }
+      }
+
+      menu.innerHTML = html;
+    }
+
+    function revertDriverToBaseline(driverName) {
+      if (!driverName) return;
+      const norm = normalizeName(driverName);
+      const baselineDraft = buildBaselineDraft();
+      const baseTo = (baselineDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const baseFrom = (baselineDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+
+      pushUndoState(`Revert ${toDisplayName(driverName)} to website baseline`, driverName);
+
+      if (baseTo) {
+        const idx = (localDraft.toDrivers || []).findIndex(d => normalizeName(d.name) === norm);
+        if (idx >= 0) localDraft.toDrivers[idx] = JSON.parse(JSON.stringify(baseTo));
+        else localDraft.toDrivers.push(JSON.parse(JSON.stringify(baseTo)));
+      } else {
+        localDraft.toDrivers = (localDraft.toDrivers || []).filter(d => normalizeName(d.name) !== norm);
+      }
+
+      if (baseFrom) {
+        const idx = (localDraft.fromDrivers || []).findIndex(d => normalizeName(d.name) === norm);
+        if (idx >= 0) localDraft.fromDrivers[idx] = JSON.parse(JSON.stringify(baseFrom));
+        else localDraft.fromDrivers.push(JSON.parse(JSON.stringify(baseFrom)));
+      } else {
+        localDraft.fromDrivers = (localDraft.fromDrivers || []).filter(d => normalizeName(d.name) !== norm);
+      }
+
+      // Remove driver from pendingDriversToSync
+      for (const name of Array.from(pendingDriversToSync)) {
+        if (normalizeName(name) === norm) {
+          pendingDriversToSync.delete(name);
+        }
+      }
+
+      saveDraft();
+      renderPage();
+
+      if (activeNoteDriverName && normalizeName(activeNoteDriverName) === norm) {
+        const input = document.getElementById('editNoteInput');
+        const restoredNote = baseTo ? (baseTo.customNote || '') : (baseFrom ? (baseFrom.customNote || '') : '');
+        if (input) input.value = restoredNote;
+        modalInitialNote = restoredNote;
+        updateNoteModalCounter();
+        renderDriverUndoDropdown();
+      }
+    }
+
+    function undoActionForDriver(driverName, stackIndex) {
+      if (!driverName) return;
+      const norm = normalizeName(driverName);
+
+      let targetIdx = stackIndex;
+      if (targetIdx === undefined || targetIdx === null) {
+        for (let i = undoStack.length - 1; i >= 0; i--) {
+          if (undoStack[i].affectedDriverName && normalizeName(undoStack[i].affectedDriverName) === norm) {
+            targetIdx = i;
+            break;
+          }
+        }
+      }
+
+      if (targetIdx === undefined || targetIdx === null || !undoStack[targetIdx]) return;
+
+      const stateToRestore = undoStack[targetIdx];
+      undoStack.splice(targetIdx, 1);
+
+      const prevTo = (stateToRestore.draft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const prevFrom = (stateToRestore.draft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+
+      if (prevTo) {
+        const idx = (localDraft.toDrivers || []).findIndex(d => normalizeName(d.name) === norm);
+        if (idx >= 0) localDraft.toDrivers[idx] = JSON.parse(JSON.stringify(prevTo));
+        else localDraft.toDrivers.push(JSON.parse(JSON.stringify(prevTo)));
+      } else {
+        localDraft.toDrivers = (localDraft.toDrivers || []).filter(d => normalizeName(d.name) !== norm);
+      }
+
+      if (prevFrom) {
+        const idx = (localDraft.fromDrivers || []).findIndex(d => normalizeName(d.name) === norm);
+        if (idx >= 0) localDraft.fromDrivers[idx] = JSON.parse(JSON.stringify(prevFrom));
+        else localDraft.fromDrivers.push(JSON.parse(JSON.stringify(prevFrom)));
+      } else {
+        localDraft.fromDrivers = (localDraft.fromDrivers || []).filter(d => normalizeName(d.name) !== norm);
+      }
+
+      // Check if driver is still dirty
+      if (!isDriverTrulyDirty(driverName)) {
+        for (const name of Array.from(pendingDriversToSync)) {
+          if (normalizeName(name) === norm) {
+            pendingDriversToSync.delete(name);
+          }
+        }
+      }
+
+      saveDraft();
+      saveUndoHistory();
+      renderPage();
+
+      if (activeNoteDriverName && normalizeName(activeNoteDriverName) === norm) {
+        const input = document.getElementById('editNoteInput');
+        const restoredNote = prevTo ? (prevTo.customNote || '') : (prevFrom ? (prevFrom.customNote || '') : '');
+        if (input) input.value = restoredNote;
+        modalInitialNote = restoredNote;
+        updateNoteModalCounter();
+        renderDriverUndoDropdown();
+      }
     }
 
     // Comment Synthesizer
@@ -3311,10 +4079,9 @@
 
     function queueDriverSync(driverName, options = {}) {
       if (!driverName) return;
-      pendingDriversToSync.add(driverName);
-      saveDraft();
-
       if (options.immediate) {
+        pendingDriversToSync.add(driverName);
+        saveDraft();
         if (pendingSaveTimer) {
           clearTimeout(pendingSaveTimer);
           pendingSaveTimer = null;
@@ -3322,17 +4089,7 @@
         flushPendingSyncs();
         return;
       }
-
-      // Slower edit syncs: wait 3 seconds for further edits to settle
-      updateSyncBadge('pending', '🕒 Changes pending (saving in 3s)...');
-
-      if (pendingSaveTimer) {
-        clearTimeout(pendingSaveTimer);
-      }
-      pendingSaveTimer = setTimeout(() => {
-        pendingSaveTimer = null;
-        flushPendingSyncs();
-      }, 3000);
+      markDriverDirty(driverName);
     }
 
     async function flushPendingSyncs() {
@@ -3476,9 +4233,18 @@
             bd.comment = updatedComment;
             if (passengerSeats !== undefined) bd.seats = passengerSeats;
             if (drivingToFrom !== undefined) bd.drivingToFrom = drivingToFrom;
+            if (toDriver) bd.toSeats = toDriver.seats;
+            if (fromDriver) bd.fromSeats = fromDriver.seats;
           }
           lastSignature = computeDriverSignature(carpoolBaseline.drivers, false);
           lastNormalizedSignature = computeDriverSignature(carpoolBaseline.drivers, true);
+        }
+
+        // Remove from pending dirty drivers
+        for (const name of Array.from(pendingDriversToSync)) {
+          if (normalizeName(name) === norm) {
+            pendingDriversToSync.delete(name);
+          }
         }
 
         // Update carpool baseline cache in localStorage
@@ -3770,12 +4536,12 @@
       if (toDriver) {
         toDriver.baselineComment = liveComment;
         toDriver.comment = liveComment;
-        toDriver.customNote = extractDriverNote(liveComment, toDriver.riders);
+        toDriver.customNote = extractDriverNote(liveComment, toDriver.riders, toDriver.name);
       }
       if (fromDriver) {
         fromDriver.baselineComment = liveComment;
         fromDriver.comment = liveComment;
-        fromDriver.customNote = extractDriverNote(liveComment, fromDriver.riders);
+        fromDriver.customNote = extractDriverNote(liveComment, fromDriver.riders, fromDriver.name);
       }
 
       saveDraft();
@@ -3864,11 +4630,21 @@
       saveUndoHistory();
 
       if (state.affectedDriverName) {
-        queueDriverSync(state.affectedDriverName);
-      } else {
-        updateSyncBadge('idle', `↩️ Undone: ${state.description}`);
+        if (isDriverTrulyDirty(state.affectedDriverName)) {
+          pendingDriversToSync.add(state.affectedDriverName);
+        } else {
+          for (const name of Array.from(pendingDriversToSync)) {
+            if (normalizeName(name) === normalizeName(state.affectedDriverName)) {
+              pendingDriversToSync.delete(name);
+            }
+          }
+        }
       }
+      saveDraft();
+      saveUndoHistory();
+      updateSyncBadge('idle', `↩️ Undone: ${state.description}`);
       closeUndoMenu();
+      renderPage();
     }
 
     async function redoAction() {
@@ -3880,15 +4656,23 @@
         affectedDriverName: state.affectedDriverName,
       });
       localDraft = state.draft;
-      saveDraft();
-      saveUndoHistory();
 
       if (state.affectedDriverName) {
-        queueDriverSync(state.affectedDriverName);
-      } else {
-        updateSyncBadge('idle', `↪️ Redone: ${state.description}`);
+        if (isDriverTrulyDirty(state.affectedDriverName)) {
+          pendingDriversToSync.add(state.affectedDriverName);
+        } else {
+          for (const name of Array.from(pendingDriversToSync)) {
+            if (normalizeName(name) === normalizeName(state.affectedDriverName)) {
+              pendingDriversToSync.delete(name);
+            }
+          }
+        }
       }
+      saveDraft();
+      saveUndoHistory();
+      updateSyncBadge('idle', `↪️ Redone: ${state.description}`);
       closeUndoMenu();
+      renderPage();
     }
 
     function renderUndoDropdown() {
@@ -3941,6 +4725,23 @@
         });
       }
 
+      // Sequential Baseline Revert Option
+      html += `<div style="height:1px; background:var(--border); margin:0.35rem 0;"></div>`;
+      if (pendingDriversToSync.size > 0 || undoStack.length > 0) {
+        html += `
+          <button type="button" class="dropdown-item" onclick="resetToBaseline(); closeUndoMenu();" style="display:flex; align-items:center; gap:0.4rem; padding:0.4rem 0.75rem; text-align:left; width:100%; border:none; background:none; cursor:pointer;" title="Reset all changes to TroopWebHost baseline">
+            <span style="font-weight:700; color:#b91c1c; white-space:nowrap;">↺ Revert All:</span>
+            <span style="font-size:0.78rem; color:#dc2626;">Reset Worksheet to Website Baseline</span>
+          </button>
+        `;
+      } else {
+        html += `
+          <div style="padding:0.35rem 0.75rem; font-size:0.78rem; color:#94a3b8; font-style:italic;">
+            ↺ Revert All: (Already at website baseline)
+          </div>
+        `;
+      }
+
       menu.innerHTML = html;
     }
 
@@ -3967,6 +4768,10 @@
       if (wrapper && !wrapper.contains(e.target)) {
         closeUndoMenu();
       }
+      const driverWrapper = document.getElementById('driverUndoDropdownWrapper');
+      if (driverWrapper && !driverWrapper.contains(e.target)) {
+        closeDriverUndoMenu();
+      }
     });
 
     function updateUndoRedoButtons() {
@@ -3987,8 +4792,27 @@
       renderUndoDropdown();
     }
 
-    // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Cmd+Shift+Z)
+    // Global Keyboard Shortcuts (Escape, Ctrl+Z, Ctrl+Y, Cmd+Shift+Z)
     window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const noteModal = document.getElementById('noteModal');
+        if (noteModal && noteModal.style.display === 'flex') {
+          closeNoteModal();
+          return;
+        }
+        const openModals = ['assignModal', 'resolveModal', 'addDriverModal', 'locationModal', 'trimCommentModal', 'conflictModal', 'staleDraftModal', 'tabularExportModal', 'unsavedReminderModal'];
+        for (const mId of openModals) {
+          const m = document.getElementById(mId);
+          if (m && m.style.display === 'flex') {
+            closeModal(mId);
+            return;
+          }
+        }
+        closeUndoMenu();
+        closeDriverUndoMenu();
+        return;
+      }
+
       const tag = (e.target.tagName || '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
 
@@ -4030,7 +4854,7 @@
     window.addEventListener('beforeunload', (e) => {
       if (pendingDriversToSync.size > 0 || isSyncInProgress) {
         e.preventDefault();
-        e.returnValue = 'You have pending changes being saved to TroopWebHost. Are you sure you want to leave?';
+        e.returnValue = 'You have unsaved carpool edits for TroopWebHost. Are you sure you want to leave?';
       }
     });
 
@@ -4160,7 +4984,11 @@
 
     function handleModalOverlayClick(e, modalId) {
       if (e.target.id === modalId) {
-        closeModal(modalId);
+        if (modalId === 'noteModal') {
+          closeNoteModal();
+        } else {
+          closeModal(modalId);
+        }
       }
     }
 
