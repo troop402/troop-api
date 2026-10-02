@@ -199,18 +199,30 @@
       user-select: none;
     }
 
-    /* Disparity banner */
+    /* Disparity Toast Banner (Fixed/Floating) */
     .disparity-banner {
       display: none;
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 10000;
       align-items: center;
-      justify-content: space-between;
-      padding: 0.65rem 1rem;
-      background: #fffbeb;
-      border: 1px solid #fde68a;
-      border-radius: 6px;
-      margin-bottom: 1.25rem;
+      gap: 1rem;
+      padding: 0.85rem 1.15rem;
+      background: #ffffff;
+      border: 1px solid #f59e0b;
+      border-left: 4px solid #f59e0b;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
       font-size: 0.85rem;
-      color: #92400e;
+      color: #1e293b;
+      max-width: 480px;
+      animation: slideInToast 0.25s ease-out;
+    }
+
+    @keyframes slideInToast {
+      from { transform: translateY(16px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
 
     /* Sync Status Badge */
@@ -279,10 +291,56 @@
     .sync-error .sync-dot {
       background: #ef4444;
     }
+    .sync-pending {
+      color: #92400e;
+      border-color: #fde68a;
+      background: #fefce8;
+    }
+    .sync-pending .sync-dot {
+      background: #d97706;
+      animation: pulse-dot 0.7s infinite alternate ease-in-out;
+    }
 
     @keyframes pulse-dot {
       from { opacity: 0.4; transform: scale(0.85); }
       to { opacity: 1; transform: scale(1.2); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Visual Saving Overlay */
+    .saving-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(2px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.2s ease;
+    }
+    .saving-card {
+      background: white;
+      padding: 1.25rem 2rem;
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #1e293b;
+    }
+    .saving-spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #cbd5e1;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
     }
 
     /* KPI Summary Row */
@@ -302,8 +360,9 @@
       flex-direction: column;
       justify-content: space-between;
       min-height: 62px;
-      width: 152px;
-      flex: 0 0 auto;
+      min-width: 148px;
+      flex: 1 1 148px;
+      max-width: 190px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.02);
     }
     .kpi-title {
@@ -433,31 +492,43 @@
       vertical-align: middle;
     }
 
-    table.coord-grid tr:hover td { background-color: #f8fafc; }
+    table.coord-grid tr {
+      background-color: #ffffff;
+      transition: background-color 0.12s ease;
+    }
+    table.coord-grid tr:hover td {
+      background-color: rgba(0, 0, 0, 0.045) !important;
+    }
 
     /* Seat Stepper */
     .seat-stepper {
       display: inline-flex;
-      flex-direction: column;
+      flex-direction: row;
       align-items: center;
-      gap: 1px;
+      justify-content: center;
+      gap: 3px;
       background: #f8fafc;
       border: 1px solid #cbd5e1;
       border-radius: 4px;
-      padding: 1px;
+      padding: 2px 3px;
+    }
+    .seat-stepper-btns {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 1px;
     }
     .btn-step {
       background: white;
       border: 1px solid #cbd5e1;
       border-radius: 2px;
-      width: 18px;
-      height: 14px;
+      width: 14px;
+      height: 10px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
       cursor: pointer;
-      font-size: 0.72rem;
+      font-size: 0.65rem;
       line-height: 1;
       color: #334155;
       padding: 0;
@@ -467,8 +538,8 @@
       min-width: 16px;
       text-align: center;
       font-weight: 800;
-      font-size: 0.78rem;
-      line-height: 1.1;
+      font-size: 0.82rem;
+      line-height: 1;
       color: #0f172a;
     }
 
@@ -484,6 +555,95 @@
       transition: background 0.15s;
     }
     .btn-note:hover { background: #f1f5f9; }
+
+    /* Driver Info Column & Inline Notes */
+    .driver-info-cell {
+      width: 340px;
+      max-width: 380px;
+      min-width: 280px;
+      white-space: normal !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    table.coord-grid th.driver-info-th {
+      width: 340px;
+      max-width: 380px;
+      min-width: 280px;
+      white-space: normal;
+    }
+    .driver-inline-note {
+      font-size: 0.74rem;
+      color: #475569;
+      margin-top: 3px;
+      cursor: pointer;
+      line-height: 1.3;
+      white-space: normal !important;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .driver-inline-note:hover {
+      text-decoration: underline;
+      color: var(--primary);
+    }
+    .driver-inline-note-empty {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      margin-top: 3px;
+      cursor: pointer;
+      font-style: italic;
+    }
+    .driver-inline-note-empty:hover {
+      color: var(--primary);
+      text-decoration: underline;
+    }
+
+    .badge-not-attending {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+      font-size: 0.64rem;
+      font-weight: 700;
+      border-radius: 3px;
+      padding: 0.08rem 0.35rem;
+      display: inline-block;
+      margin-top: 2px;
+      text-transform: none;
+    }
+
+    .badge-safety-gap {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      font-size: 0.64rem;
+      font-weight: 700;
+      border-radius: 3px;
+      padding: 0.08rem 0.35rem;
+      display: inline-block;
+      margin-top: 2px;
+      text-transform: none;
+    }
+
+    .badge-dup {
+      background: #d97706;
+      color: white;
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    .slot-duplicate {
+      border-color: #d97706 !important;
+      background: #fffbeb !important;
+    }
 
     /* Slots */
     .slot {
@@ -524,6 +684,17 @@
     .slot-ambiguous:hover {
       background: #fef3c7;
       border-color: #d97706;
+    }
+
+    .slot-not-attending {
+      background: #fffbeb !important;
+      border: 1px solid #f59e0b !important;
+      color: #b45309 !important;
+      font-weight: 600;
+    }
+    .slot-not-attending:hover {
+      background: #fef3c7 !important;
+      border-color: #d97706 !important;
     }
 
     .btn-resolve {
@@ -587,6 +758,78 @@
     }
     .btn-remove:hover { opacity: 1; }
 
+    /* Row Action Stack & Save Button */
+    .driver-actions-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+    }
+    .btn-row-save {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      color: #94a3b8;
+      cursor: not-allowed;
+      font-size: 0.82rem;
+      line-height: 1;
+      padding: 2px 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.35;
+      transition: all 0.2s ease;
+    }
+    .btn-row-save.format-opt {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      color: #0284c7;
+      opacity: 0.85;
+      cursor: pointer;
+      box-shadow: none;
+    }
+    .btn-row-save.format-opt:hover {
+      background: #e0f2fe;
+      border-color: #7dd3fc;
+      color: #0369a1;
+      transform: scale(1.08);
+      opacity: 1;
+    }
+    .btn-row-save.dirty {
+      background: #fef08a;
+      border: 1px solid #eab308;
+      color: #854d0e;
+      cursor: pointer;
+      opacity: 1;
+      box-shadow: 0 0 6px rgba(234, 179, 8, 0.45);
+      animation: savePulse 1.4s infinite ease-in-out;
+    }
+    .btn-row-save.dirty:hover {
+      background: #fde047;
+      border-color: #ca8a04;
+      color: #713f12;
+      transform: scale(1.12);
+    }
+    @keyframes savePulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.55);
+        transform: scale(1);
+      }
+      50% {
+        box-shadow: 0 0 0 4px rgba(234, 179, 8, 0);
+        transform: scale(1.08);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(234, 179, 8, 0);
+        transform: scale(1);
+      }
+    }
+    tr.driver-row-dirty {
+      background-color: #fefce8 !important;
+      border-left: 4px solid #f59e0b !important;
+    }
+
     /* Unassigned / Waitlist Section at Bottom */
     .waitlist-grid {
       display: grid;
@@ -619,12 +862,11 @@
 
     .badge {
       display: inline-block;
-      padding: 0.15rem 0.45rem;
-      font-size: 0.7rem;
+      padding: 0.12rem 0.4rem;
+      font-size: 0.67rem;
       font-weight: 700;
       border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.02em;
     }
     .badge-both { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
     .badge-to { background: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
@@ -894,10 +1136,6 @@
             <span id="draftBanner" class="draft-badge" title="Edits are automatically saved in your browser and synced to Website">
               💾 Edits automatically synced to Website.
             </span>
-            <div id="coordSessionStatus" style="display:none; align-items:center; gap:0.4rem; font-size:0.78rem; font-weight:700; color:#065f46; background:#d1fae5; border:1px solid #a7f3d0; padding:0.25rem 0.6rem; border-radius:999px;">
-              <span>🔒 Unlocked (<span id="coordSessionTimer">5:00</span>)</span>
-              <button type="button" onclick="lockCoordinatorSession()" style="background:none; border:none; color:#065f46; cursor:pointer; text-decoration:underline; font-size:0.75rem; font-weight:700; margin-left:0.2rem;">Lock</button>
-            </div>
           </div>
         </div>
         <div class="actions no-print" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;">
@@ -909,6 +1147,7 @@
           </div>
           <!-- Navigation -->
           <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+            <button type="button" id="refreshBtn" class="btn" onclick="refreshFromTWH()" title="Check and refresh live sign-ups from Website">🔄 Refresh</button>
             <a id="viewCarpoolLink" href="#" class="btn">🚗 Carpool View</a>
             <a id="twhSignupLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View or edit sign-ups on Website">🌐 Website Sign-Ups ↗</a>
             <a id="twhEventLink" href="#" target="_blank" rel="noopener" class="btn" style="display:none;" title="View event details on Website">📅 Website Event ↗</a>
@@ -916,25 +1155,31 @@
         </div>
       </header>
 
-      <!-- Disparity Notification Banner (shown if TWH changes while away) -->
+      <!-- Disparity Notification Toast (floating, shown if TWH changes while away) -->
       <div id="disparityBanner" class="disparity-banner">
-        <div>
-          <span>⚠️ <strong>TroopWebHost Updated:</strong> Driver sign-ups or comments were modified in TroopWebHost while you were away.</span>
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span style="font-size:1.2rem; line-height:1;">⚠️</span>
+          <div>
+            <div style="font-weight:700; color:#b45309;">Website Updated</div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:1px;">
+              Driver sign-ups or comments were modified on the website.
+            </div>
+          </div>
         </div>
         <div style="display:flex; gap:0.5rem; align-items:center;">
-          <button class="btn btn-primary" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="refreshFromTWH()">Review &amp; Refresh</button>
-          <button class="btn" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="dismissDisparityBanner()">Dismiss</button>
+          <button class="btn btn-primary" style="padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600;" onclick="refreshFromTWH()">Refresh Now</button>
+          <button style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer; padding:0.2rem 0.4rem; line-height:1;" onclick="dismissDisparityBanner()" title="Dismiss">&times;</button>
         </div>
       </div>
 
-      <!-- Urgent Alert: Ambiguous Driver Notes -->
+      <!-- Urgent Alert: Driver Clarifications Needed -->
       <div id="ambiguityAlertBanner" class="no-print" style="display:none; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:0.75rem 1rem; margin-bottom:1rem; color:#92400e;">
         <div style="font-weight:700; font-size:0.95rem; display:flex; align-items:center; gap:0.4rem; margin-bottom:0.25rem;">
-          <span>⚠️ Driver Note Clarifications Needed</span>
+          <span>⚠️ Driver Clarifications Needed</span>
           <span class="badge" style="background:#f59e0b; color:white; font-size:0.75rem;" id="ambiguityBadge">0</span>
         </div>
         <div style="font-size:0.82rem; margin-bottom:0.5rem;">
-          The following drivers wrote first names in their comments that match multiple attending scouts. Click any item to resolve:
+          The following driver comments and rider assignments require clarification (ambiguous names, riders not attending, or duplicate rider claims):
         </div>
         <div id="ambiguityList" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
       </div>
@@ -953,11 +1198,21 @@
 
       <!-- KPI Summary Row -->
       <div class="kpi-row no-print">
-        <!-- 1: Total Scouts -->
+        <!-- 1: Total Attending (Scouts / Adults) -->
         <div class="kpi-card">
-          <span class="kpi-title">Total Scouts</span>
-          <span class="kpi-val" id="kpiScouts">0</span>
-          <span class="kpi-sub">Attending event</span>
+          <span class="kpi-title">Total Attending</span>
+          <div class="kpi-split">
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">Scouts</span>
+              <span class="kpi-split-val" id="kpiScouts">0</span>
+            </div>
+            <div class="kpi-split-divider"></div>
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">Adults</span>
+              <span class="kpi-split-val" id="kpiAdults">0</span>
+            </div>
+          </div>
+          <span class="kpi-sub" id="kpiAttendingSub">Attending event</span>
         </div>
 
         <!-- 2: Total Drivers -->
@@ -967,24 +1222,24 @@
           <span class="kpi-sub">Registered drivers</span>
         </div>
 
-        <!-- 3: Assigned Seats -->
+        <!-- 3: Total Seats -->
         <div class="kpi-card">
-          <span class="kpi-title">Assigned Seats</span>
+          <span class="kpi-title">Total Seats</span>
           <div class="kpi-split">
             <div class="kpi-split-item">
               <span class="kpi-split-label">TO</span>
-              <span class="kpi-split-val" id="kpiAssignedTo">0</span>
+              <span class="kpi-split-val" id="kpiTotalSeatsTo">0</span>
             </div>
             <div class="kpi-split-divider"></div>
             <div class="kpi-split-item">
               <span class="kpi-split-label">FROM</span>
-              <span class="kpi-split-val" id="kpiAssignedFrom">0</span>
+              <span class="kpi-split-val" id="kpiTotalSeatsFrom">0</span>
             </div>
           </div>
-          <span class="kpi-sub">Scouts in cars</span>
+          <span class="kpi-sub">Vehicle capacity</span>
         </div>
 
-        <!-- 4: Open Seats -->
+        <!-- 3: Open Seats -->
         <div class="kpi-card" id="kpiOpenCard">
           <span class="kpi-title">Open Seats</span>
           <div class="kpi-split">
@@ -1001,9 +1256,9 @@
           <span class="kpi-sub">Available in cars</span>
         </div>
 
-        <!-- 5: Needs Ride -->
+        <!-- 4: Waitlist -->
         <div class="kpi-card" id="kpiNeedsRideCard">
-          <span class="kpi-title">Needs Ride</span>
+          <span class="kpi-title">Waitlist</span>
           <div class="kpi-split">
             <div class="kpi-split-item">
               <span class="kpi-split-label">TO</span>
@@ -1018,7 +1273,7 @@
           <span class="kpi-sub" id="kpiNeedsTotalSub">0 scouts total</span>
         </div>
 
-        <!-- 6: Extra Seats Needed -->
+        <!-- 5: Extra Seats Needed -->
         <div class="kpi-card" id="kpiExtraCard">
           <span class="kpi-title" title="Additional passenger seats needed to accommodate all attending scouts">Extra Seats Needed</span>
           <div class="kpi-split">
@@ -1110,6 +1365,23 @@
     </div>
   </div>
 
+  <!-- Modal: Trip Leg Sync Prompt -->
+  <div id="legSyncPromptModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'legSyncPromptModal')">
+    <div class="modal-dialog" style="max-width: 460px;">
+      <div class="modal-header">
+        <h3 id="legSyncPromptTitle" style="display:flex; align-items:center; gap:0.4rem;">🔄 Update Other Trip Leg?</h3>
+        <button class="modal-close" onclick="closeModal('legSyncPromptModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="legSyncPromptDesc" style="font-size:0.875rem; color:var(--text); margin-bottom:1.25rem; line-height:1.5;"></p>
+        <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+          <button type="button" class="btn" id="legSyncSingleBtn" style="background:#f1f5f9; color:var(--text); border:1px solid #cbd5e1;">This Leg Only</button>
+          <button type="button" class="btn btn-primary" id="legSyncBothBtn">Apply to Both Legs</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Edit Location & Map -->
   <div id="locationModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'locationModal')">
     <div class="modal-dialog" style="max-width: 460px;">
@@ -1178,31 +1450,108 @@
     </div>
   </div>
 
-  <!-- Modal: View/Edit Driver Note -->
+  <!-- Modal: View/Edit Driver Note & Confirm TWH Save -->
   <div id="noteModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'noteModal')">
-    <div class="modal-dialog" style="max-width: 500px;">
+    <div class="modal-dialog" style="max-width: 550px;">
       <div class="modal-header">
-        <h3 id="noteModalTitle">Driver Note</h3>
-        <button class="modal-close" onclick="closeModal('noteModal')">&times;</button>
+        <h3 id="noteModalTitle">Review &amp; Save to Website</h3>
+        <button class="modal-close" onclick="closeNoteModal()">&times;</button>
       </div>
       <div class="modal-body">
-        <form onsubmit="submitEditDriverNote(event)">
-          <div id="noteLogisticsInfo" style="font-size:0.75rem; color:#475569; background:#f1f5f9; padding:0.4rem 0.6rem; border-radius:4px; margin-bottom:0.75rem; word-break:break-word;"></div>
-          <div class="form-group">
-            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.25rem;">
-              <label for="editNoteInput" style="margin-bottom:0; font-weight:600;">Special Instructions / Constraints</label>
-              <span id="noteCharCount" style="font-size:0.75rem; font-weight:600; color:#059669;">0 / 100</span>
+        <form onsubmit="submitSaveDriverToTWH(event)">
+          <!-- Live on Website Box -->
+          <div style="margin-bottom: 0.85rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+              <div style="font-size:0.75rem; font-weight:700; color:#047857; text-transform:uppercase;">
+                Live on Website Right Now:
+              </div>
+              <span id="noteLiveCharCount" style="font-size:0.75rem; color:#065f46; font-weight:600;">0 / 100 chars</span>
             </div>
-            <textarea id="editNoteInput" rows="3" style="width:100%; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.88rem; font-family:inherit; resize:vertical;" placeholder="e.g. Leaving early at 8am, bike rack on car" oninput="updateNoteModalCounter()"></textarea>
-            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">
-              Combined trip logistics + note must not exceed TroopWebHost's 100-character limit.
+            <div id="noteLiveCommentBox" style="padding:0.6rem 0.85rem; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:6px; font-size:0.85rem; color:#065f46; font-family:monospace; word-break:break-word; min-height:2.2rem;"></div>
+          </div>
+
+          <!-- Special Instructions / Constraints (Single-line input) -->
+          <div class="form-group" style="margin-bottom: 0.85rem;">
+            <label for="editNoteInput" style="margin-bottom:0.35rem; font-weight:600; font-size:0.85rem; color:#334155;">Special Instructions / Constraints</label>
+            <input type="text" id="editNoteInput" style="width:100%; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.88rem; font-family:inherit;" placeholder="e.g. Leaving early at 8am, bike rack on car" oninput="updateNoteModalCounter()">
+          </div>
+
+          <!-- Proposed Coordinator Comment Box -->
+          <div style="margin-bottom: 1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+              <div style="font-size:0.75rem; font-weight:700; color:#0369a1; text-transform:uppercase;">
+                Proposed Coordinator Comment (Both Legs):
+              </div>
+              <span id="noteCharCount" style="font-size:0.75rem; font-weight:700; color:#059669;">0 / 100 chars</span>
+            </div>
+            <div id="noteProposedOutputBox" style="padding:0.6rem 0.85rem; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; font-size:0.85rem; color:#075985; font-family:monospace; word-break:break-word; min-height:2.2rem;"></div>
+            <div id="noteLimitHint" style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">
+              Combined trip logistics + note must not exceed the website's 100-character limit.
             </div>
           </div>
-          <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem;">
-            <button type="button" class="btn" onclick="closeModal('noteModal')">Cancel</button>
-            <button type="submit" id="noteSaveBtn" class="btn btn-primary">Save Note</button>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:1rem; flex-wrap:wrap; gap:0.5rem;">
+            <div class="dropdown-wrapper" id="driverUndoDropdownWrapper" style="position: relative; display: inline-flex;">
+              <button type="button" id="driverUndoBtn" class="btn" onclick="toggleDriverUndoMenu(event)" style="font-size:0.8rem; padding:0.35rem 0.65rem;" title="Undo edits for this driver">↩️ Undo Edits ▾</button>
+              <div id="driverUndoMenu" class="dropdown-menu" style="left:0; bottom:100%; top:auto; margin-bottom:4px; min-width:280px; display:none;"></div>
+            </div>
+            <button type="submit" id="noteSaveBtn" class="btn btn-primary" style="background:#0284c7; border-color:#0284c7;">💾 Save to Website</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Unsaved Edits Reminder -->
+  <div id="unsavedReminderModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'unsavedReminderModal')">
+    <div class="modal-dialog" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 style="color:#b45309; display:flex; align-items:center; gap:0.4rem;">
+          ⚠️ Unsaved Carpool Edits
+        </h3>
+        <button class="modal-close" onclick="dismissUnsavedReminder()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.88rem; color:var(--text); margin-bottom:0.75rem; line-height:1.5;">
+          You have pending changes that have not yet been synchronized to the website. Click <strong>Review &amp; Save</strong> on any driver to push their combined TO &amp; FROM comments to the website:
+        </p>
+        <div id="unsavedReminderDriversList" style="max-height: 240px; overflow-y: auto; margin-bottom: 0.75rem;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border); padding-top:0.75rem;">
+          <button type="button" class="btn" onclick="dismissUnsavedReminder()">Remind Me Later</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Stale Draft Conflict Resolution -->
+  <div id="staleDraftModal" class="modal-overlay" onclick="handleModalOverlayClick(event, 'staleDraftModal')">
+    <div class="modal-dialog" style="max-width: 620px;">
+      <div class="modal-header">
+        <h3 style="color:#b45309; display:flex; align-items:center; gap:0.4rem;">
+          ⚠️ Stale Uncommitted Edits Detected
+        </h3>
+        <button class="modal-close" onclick="closeModal('staleDraftModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.88rem; color:var(--text); margin-bottom:0.75rem; line-height:1.5;">
+          You have uncommitted edits saved in this browser from <strong id="staleDraftAge" style="color:#b45309;"></strong> that were not synchronized to the website.
+        </p>
+        <p style="font-size:0.83rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.4;">
+          Website data has since evolved. Because these edits are old, we cannot assume they are still accurate. Please choose how to resolve this discrepancy:
+        </p>
+
+        <div id="staleDraftDriversList" style="max-height: 280px; overflow-y: auto; margin-bottom:1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+          <!-- Dynamically populated driver conflict cards -->
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.6rem; border-top:1px solid var(--border); padding-top:1rem; flex-wrap:wrap;">
+          <button type="button" class="btn btn-primary" onclick="resolveStaleDraftDiscard()" style="background:#059669; border-color:#059669;">
+            ✓ Discard Stale Edits &amp; Use Live Website (Recommended)
+          </button>
+          <button type="button" class="btn" onclick="resolveStaleDraftOverwrite()" style="color:#b45309; border-color:#f59e0b;">
+            ⚠️ Overwrite Website with Stale Edits
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -1218,13 +1567,13 @@
       </div>
       <div class="modal-body">
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.5;">
-          Another user or parent modified this driver's sign-up directly in TroopWebHost while you were editing. How would you like to resolve this?
+          Another user or parent modified this driver's sign-up directly on the website while you were editing. How would you like to resolve this?
         </p>
 
         <div style="margin-bottom:0.85rem;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
             <div style="font-size:0.75rem; font-weight:700; color:#047857; text-transform:uppercase;">
-              Live in TroopWebHost Right Now:
+              Live on Website Right Now:
             </div>
             <span id="conflictLiveCommentLen" style="font-size:0.75rem; color:#065f46; font-weight:600;"></span>
           </div>
@@ -1244,7 +1593,7 @@
         <div id="conflictOverLimitWarning" style="display:none; margin-bottom:1rem; padding:0.6rem 0.8rem; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:0.82rem; color:#991b1b; line-height:1.4;"></div>
 
         <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border); padding-top:1rem;">
-          <button type="button" class="btn" onclick="resolveConflictKeepLive()">Keep TroopWebHost Comment</button>
+          <button type="button" class="btn" onclick="resolveConflictKeepLive()">Keep Website Comment</button>
           <button type="button" class="btn btn-primary" onclick="resolveConflictForceOverwrite()">Overwrite with My Changes</button>
         </div>
       </div>
@@ -1262,7 +1611,7 @@
       </div>
       <div class="modal-body">
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.5;">
-          TroopWebHost strictly enforces a <strong>100-character maximum</strong> per sign-up comment. The combined riders, seat counts, and special note exceed this limit. Please adjust or trim the note below.
+          The website strictly enforces a <strong>100-character maximum</strong> per sign-up comment. The combined riders, seat counts, and special note exceed this limit. Please adjust or trim the note below.
         </p>
 
         <div style="margin-bottom:0.85rem;">
@@ -1286,7 +1635,7 @@
         <div style="margin-bottom:1rem;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
             <div style="font-size:0.75rem; font-weight:700; color:#334155; text-transform:uppercase;">
-              Total TroopWebHost Comment Preview:
+              Total Website Comment Preview:
             </div>
             <span id="trimCharCounter" style="font-size:0.78rem; font-weight:700;"></span>
           </div>
@@ -1295,7 +1644,7 @@
 
         <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border); padding-top:1rem;">
           <button type="button" class="btn" onclick="closeModal('trimCommentModal')">Cancel</button>
-          <button type="button" id="trimSaveBtn" class="btn btn-primary" onclick="submitTrimComment()">Save &amp; Sync to TWH</button>
+          <button type="button" id="trimSaveBtn" class="btn btn-primary" onclick="submitTrimComment()">Save &amp; Sync to Website</button>
         </div>
       </div>
     </div>
@@ -1369,12 +1718,22 @@
         </div>
       </div>
     </div>
+  <!-- Saving Overlay (Brief grey screen with spinning save icon) -->
+  <div id="savingOverlay" class="saving-overlay" style="display:none;">
+    <div class="saving-card">
+      <div class="saving-spinner"></div>
+      <div id="savingOverlayText">Saving changes to Website...</div>
     </div>
   </div>
 
   <script>
     const params = new URLSearchParams(window.location.search);
     const eventId = params.get('id');
+
+    // Storage keys conforming to Contract 10.6
+    const carpoolStorageKey = `twh_event_carpool_${eventId}`;
+    const draftStorageKey = `twh_coord_draft_${eventId}`;
+    const legacyDraftKey = `troop402_coord_v1_${eventId}`;
 
     let carpoolBaseline = null;
     let localDraft = null;
@@ -1389,6 +1748,7 @@
 
     // TroopWebHost synchronization & conflict tracking
     let lastSignature = null;
+    let lastNormalizedSignature = null;
     let lastBlurTime = 0;
     let lastFocusCheckTime = 0;
     let activeConflict = null;
@@ -1417,36 +1777,21 @@
       return headers;
     }
 
-    let sessionTimerInterval = null;
-    function startCoordinatorSessionTimer(expiresAt) {
-      if (sessionTimerInterval) clearInterval(sessionTimerInterval);
-      const timerEl = document.getElementById('coordSessionTimer');
-      const statusEl = document.getElementById('coordSessionStatus');
-      if (statusEl) statusEl.style.display = 'inline-flex';
-
-      function updateTimer() {
-        const remainingMs = expiresAt - Date.now();
-        if (remainingMs <= 0) {
-          clearInterval(sessionTimerInterval);
-          lockCoordinatorSession('Session expired (5m). Please enter coordinator password again to continue.');
-          return;
-        }
-        const totalSec = Math.floor(remainingMs / 1000);
-        const mins = Math.floor(totalSec / 60);
-        const secs = totalSec % 60;
-        if (timerEl) timerEl.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    let sessionExpiryTimeout = null;
+    function scheduleSessionExpiry(expiresAt) {
+      if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
+      const remainingMs = expiresAt - Date.now();
+      if (remainingMs > 0) {
+        sessionExpiryTimeout = setTimeout(() => {
+          lockCoordinatorSession('Coordinator session expired. Please enter password again to continue.');
+        }, remainingMs);
       }
-
-      updateTimer();
-      sessionTimerInterval = setInterval(updateTimer, 1000);
     }
 
     function lockCoordinatorSession(reasonMsg = '') {
-      if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+      if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
       sessionStorage.removeItem('twh_coordinator_token');
       sessionStorage.removeItem('twh_coordinator_expires_at');
-      const statusEl = document.getElementById('coordSessionStatus');
-      if (statusEl) statusEl.style.display = 'none';
 
       const overlay = document.getElementById('coordinatorLockOverlay');
       const errEl = document.getElementById('coordLoginError');
@@ -1480,7 +1825,7 @@
       if (errEl) errEl.style.display = 'none';
 
       try {
-        const res = await fetch('/api/auth/coordinator-login', {
+        const res = await fetch('/api/auth/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ password }),
@@ -1496,7 +1841,7 @@
 
         const overlay = document.getElementById('coordinatorLockOverlay');
         if (overlay) overlay.style.display = 'none';
-        startCoordinatorSessionTimer(data.expiresAt);
+        scheduleSessionExpiry(data.expiresAt);
 
         // Resume loading coordinator
         initCoordinator();
@@ -1521,7 +1866,7 @@
       }
       const overlay = document.getElementById('coordinatorLockOverlay');
       if (overlay) overlay.style.display = 'none';
-      startCoordinatorSessionTimer(expiresAt);
+      scheduleSessionExpiry(expiresAt);
       return true;
     }
 
@@ -1574,6 +1919,13 @@
       if (trimmed.includes(',')) return trimmed;
       const parts = trimmed.split(/\s+/);
       if (parts.length <= 1) return trimmed;
+
+      if (parts.length >= 3 && /^(?:di|de|van|von|la|le|del|dos)$/i.test(parts[parts.length - 2])) {
+        const last = parts.slice(parts.length - 2).join(' ');
+        const first = parts.slice(0, parts.length - 2).join(' ');
+        return `${last}, ${first}`;
+      }
+
       const last = parts.pop();
       const first = parts.join(' ');
       return `${last}, ${first}`;
@@ -1590,57 +1942,210 @@
       return trimmed;
     }
 
+    function escapeRegex(s) {
+      return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
     // Helper: Extract non-rider custom notes from driver comments
-    function extractDriverNote(comment, riders) {
+    function extractDriverNote(comment, riders = [], driverName = '') {
       if (!comment || typeof comment !== 'string') return '';
       let str = comment.trim();
       if (!str) return '';
 
-      // 1. Structured discrete format: TO (...): ... FROM (...): ... [Note]
+      // 1. Structured discrete format: TO (...): ... FROM (...): ...
       const discreteMatches = str.match(/(?:TO|FROM|Both)(?:\s*only)?(?:\s*\([^)]*\))?\s*:\s*[^.]+\.?/gi);
       if (discreteMatches && discreteMatches.length > 0) {
-        let remainder = str;
-        discreteMatches.forEach(m => { remainder = remainder.replace(m, ' '); });
-        const cleaned = remainder.replace(/^[.\s,;:]+|[.\s,;:]+$/g, '').trim();
-        if (cleaned) return cleaned;
+        discreteMatches.forEach(m => { str = str.replace(m, ' '); });
       }
 
-      // 2. Structured unified format: Taking: [names]. [Note] or Both (...): [names]. [Note]
+      // 2. Structured unified format prefix: Taking: [names]. or Both (...): [names].
       const takingMatch = str.match(/^(?:Taking|Both(?:\s*\([^)]*\))?):\s*([^.]+)\.?(.*)$/i);
       if (takingMatch) {
-        const afterTaking = (takingMatch[2] || '').trim();
-        if (afterTaking) return afterTaking;
+        str = (takingMatch[2] || '').trim();
       }
 
-      // 3. Sentence-level analysis for freeform driver notes and chatter
-      const sentences = str.split(/(?<=[.!?])\s+/);
-      const nonRiderSentences = [];
-      const riderTokens = new Set();
+      // 3. Remove discrete leg prefixes like "TO and FROM" and capacity notes
+      str = str.replace(/\b(?:TO\s+and\s+FROM|TO\s*&\s*FROM)\b/gi, ' ');
+      str = str.replace(/\b\d+\s+seats?\b/gi, ' ');
+
+      // 4. Build comprehensive list of rider names AND tokens to remove FIRST
+      const namesToRemove = [];
+      const nameMap = carpoolBaseline?.nameMap || window.carpoolData?.nameMap;
+
       (riders || []).forEach(r => {
-        if (!r || !r.name) return;
-        const parts = r.name.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean);
-        parts.forEach(p => riderTokens.add(p));
+        if (!r) return;
+        // Ambiguous tokens should be removed from note because they are already placed into the rider clause!
+        if (r.type === 'ambiguous' && r.token) {
+          namesToRemove.push(r.token);
+          return;
+        }
+
+        // Direct tokens from server rider object
+        if (r.tokens && Array.isArray(r.tokens)) {
+          namesToRemove.push(...r.tokens);
+        }
+
+        const raw = typeof r === 'string' ? r : (r.name || '');
+        if (!raw || raw.startsWith('⚠️')) return;
+
+        // Tokens from server nameMap
+        if (nameMap) {
+          const entry = nameMap[raw] || nameMap[raw.toLowerCase()] || nameMap[toDisplayName(raw).toLowerCase()];
+          if (entry && entry.tokens) {
+            namesToRemove.push(...entry.tokens);
+          }
+        }
+
+        let first = '';
+        let last = '';
+        if (raw.includes(',')) {
+          const [l, ...f] = raw.split(',');
+          last = l.trim();
+          first = f.join(' ').trim();
+        } else {
+          const parts = raw.trim().split(/\s+/);
+          if (parts.length >= 3 && /^(?:di|de|van|von|la|le|del|dos)$/i.test(parts[parts.length - 2])) {
+            last = parts.slice(parts.length - 2).join(' ');
+            first = parts.slice(0, parts.length - 2).join(' ');
+          } else {
+            last = parts.pop() || '';
+            first = parts.join(' ').trim();
+          }
+        }
+
+        const firstNameOnly = first.split(/\s+/)[0] || first;
+
+        if (first && last) {
+          namesToRemove.push(`${first} ${last}`);
+          namesToRemove.push(`${last}, ${first}`);
+          namesToRemove.push(`${last} ${first}`);
+          if (firstNameOnly !== first) {
+            namesToRemove.push(`${firstNameOnly} ${last}`);
+            namesToRemove.push(`${last}, ${firstNameOnly}`);
+          }
+        }
+        if (first && first.length > 1) {
+          namesToRemove.push(first);
+        }
+        if (firstNameOnly && firstNameOnly.length > 1 && firstNameOnly !== first) {
+          namesToRemove.push(firstNameOnly);
+        }
+
+        // Common adult nicknames (e.g. Thomas -> Tom)
+        if (firstNameOnly.toLowerCase() === 'thomas') namesToRemove.push('Tom');
+        if (firstNameOnly.toLowerCase() === 'william') namesToRemove.push('Bill', 'Will');
+        if (firstNameOnly.toLowerCase() === 'robert') namesToRemove.push('Bob', 'Rob');
+        if (firstNameOnly.toLowerCase() === 'richard') namesToRemove.push('Rick', 'Dick');
+        if (firstNameOnly.toLowerCase() === 'james') namesToRemove.push('Jim');
       });
 
-      const boilerplate = new Set([
-        'to', 'from', 'taking', 'takes', 'take', 'driving', 'drives', 'drive', 'with', 'and', 'seats',
-        'seat', 'room', 'space', 'more', 'spots', 'spot', 'both', 'ways', 'way', 'only',
-        'car', 'rides', 'ride', 'riding', 'for', 'scouts', 'scout', 'open', 'myself', 'self',
-        'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
-        'available', 'avaliable', 'return', 'trip', 'inbound', 'outbound', 'none', 'full', 'no'
-      ]);
+      // Sort names by length descending so longer full names are replaced before single first names
+      namesToRemove.sort((a, b) => b.length - a.length);
 
-      for (const s of sentences) {
-        const sClean = s.replace(/^(?:TO|FROM|Both)(?:\s*only)?(?:\s*\([^)]*\))?\s*:\s*/i, '').trim();
-        const sNorm = sClean.toLowerCase().replace(/[^a-z0-9]/g, ' ');
-        const words = sNorm.split(/\s+/).filter(w => w.length > 2);
-        const meaningfulWords = words.filter(w => !boilerplate.has(w) && !riderTokens.has(w));
-        if (meaningfulWords.length > 0) {
-          nonRiderSentences.push(sClean);
+      const seenPatterns = new Set();
+      for (const name of namesToRemove) {
+        const key = name.toLowerCase();
+        if (seenPatterns.has(key)) continue;
+        seenPatterns.add(key);
+
+        // Support optional possessive (e.g. "Melia's" -> remove with 's)
+        const regex = new RegExp(`\\b${escapeRegex(name)}(?:['’]s)?\\b`, 'gi');
+        str = str.replace(regex, ' ');
+      }
+
+      // 5. Remove driver self-references AFTER full rider names are removed
+      str = str.replace(/\b(?:driving|drives|drive|taking|takes|take)?\s*(?:with\s+)?(?:myself|self|driver)\b/gi, ' ');
+
+      if (driverName) {
+        let driverFirst = '';
+        if (driverName.includes(',')) {
+          const parts = driverName.split(',');
+          driverFirst = (parts[1] || '').trim().split(/\s+/)[0];
+        } else {
+          driverFirst = driverName.trim().split(/\s+/)[0];
+        }
+        if (driverFirst && driverFirst.length > 1) {
+          const dFirstRegex = new RegExp(`\\b${escapeRegex(driverFirst)}\\b`, 'gi');
+          str = str.replace(dFirstRegex, ' ');
         }
       }
 
-      return nonRiderSentences.join(' ').replace(/^[.\s,;:]+|[.\s,;:]+$/g, '').trim();
+      // 6. Remove boilerplate intro phrases
+      str = str.replace(/\b(?:driving|drives|drive|taking|takes|take)\s+(?:with\s+)?/gi, ' ');
+      str = str.replace(/\b(?:scouts?|passengers?|riders?)\s*:\s*/gi, ' ');
+      str = str.replace(/\b(?:scouts?|passengers?|riders?)\b\s*/gi, ' ');
+
+      // 7. Clean up residual connector words, punctuation, and orphaned possessives
+      str = str
+        .replace(/(?:['’]s)\b/gi, ' ')
+        .replace(/\(\s*[,;\s]+\s*/g, '(')
+        .replace(/\s*[,;\s]+\s*\)/g, ')')
+        .replace(/\(\s*\)/g, ' ')
+        .replace(/\[\s*\]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/(?:,\s*)+(?:and|&|\+)?\s*(?:,\s*)+/gi, ', ')
+        .replace(/(?:,\s*)+/g, ', ')
+        .replace(/\b(?:and|&|\+)\b(?:\s*,\s*|\s+and\b|\s*&|\s*\+)+/gi, ' ')
+        .replace(/^[,\s;&+.]+|[,\s;&+]+$/g, '')
+        .trim();
+
+      // Unwrap redundant outer parentheses: e.g. "(rest for family, 0 available)" -> "rest for family, 0 available"
+      str = str.replace(/^\(([^()]+)\)$/, '$1').trim();
+
+      // If only punctuation or orphaned connectors or pure capacity remark remain, clear it
+      if (/^(?:and|with|&|\+|[.,;:\s]|including)+$/i.test(str)) {
+        return '';
+      }
+      if (/^\d+\s+including$/i.test(str)) {
+        return '';
+      }
+
+      str = str.replace(/^(?:and|with|&|\+)\s+/i, '').trim();
+
+      return str;
+    }
+
+    function isDriverTrulyDirty(driverName, targetDraft = localDraft, baseline = carpoolBaseline) {
+      if (!driverName || !targetDraft || !baseline) return false;
+      const norm = normalizeName(driverName);
+      const baseDriver = (baseline.drivers || []).find(d => normalizeName(d.name) === norm);
+      if (!baseDriver) return true; // Driver was added locally!
+
+      const toDriver = (targetDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const fromDriver = (targetDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+
+      // Check if driver was removed or added to legs locally
+      const wasInTo = baseDriver.drivingToFrom === 'Both' || baseDriver.drivingToFrom === 'To' || !baseDriver.drivingToFrom;
+      const wasInFrom = baseDriver.drivingToFrom === 'Both' || baseDriver.drivingToFrom === 'From';
+      if (Boolean(toDriver) !== wasInTo) return true;
+      if (Boolean(fromDriver) !== wasInFrom) return true;
+
+      // Compare seats
+      const defaultSeats = baseDriver.seats > 0 ? Math.max(0, baseDriver.seats - 1) : 0;
+      const baseToSeats = (baseDriver.toSeats !== undefined && baseDriver.toSeats !== null) ? baseDriver.toSeats : defaultSeats;
+      const baseFromSeats = (baseDriver.fromSeats !== undefined && baseDriver.fromSeats !== null) ? baseDriver.fromSeats : defaultSeats;
+
+      if (toDriver && (toDriver.seats || 0) !== baseToSeats) return true;
+      if (fromDriver && (fromDriver.seats || 0) !== baseFromSeats) return true;
+
+      // Compare clean baseline driver built from baseline
+      const baseDraft = buildBaselineDraft();
+      const baseTo = (baseDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const baseFrom = (baseDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+
+      const baseNote = (baseTo?.customNote || baseFrom?.customNote || '').trim();
+      const curNote = (toDriver?.customNote || fromDriver?.customNote || '').trim();
+      if (baseNote !== curNote) return true;
+
+      const toRidersStr = (toDriver?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
+      const baseToRidersStr = (baseTo?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
+      if (toRidersStr !== baseToRidersStr) return true;
+
+      const fromRidersStr = (fromDriver?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
+      const baseFromRidersStr = (baseFrom?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
+      if (fromRidersStr !== baseFromRidersStr) return true;
+
+      return false;
     }
 
     if (!eventId) {
@@ -1667,33 +2172,65 @@
       const sigStorageKey = `troop402_coord_sig_${eventId}`;
       let renderedFromCache = false;
 
-      // 1. Instant Render from LocalStorage if available
-      if (!forceRefresh) {
+      // Detect if user performed a browser reload (F5 / Cmd+R / reload button)
+      let isBrowserReload = false;
+      try {
+        const navEntries = performance.getEntriesByType('navigation');
+        if (navEntries.length > 0 && navEntries[0].type === 'reload') {
+          isBrowserReload = true;
+        }
+      } catch (e) {}
+
+      const shouldForceRefresh = forceRefresh || isBrowserReload;
+
+      // Always purge legacy stale draft keys from past sessions
+      try {
+        localStorage.removeItem(legacyDraftKey);
+      } catch (e) {}
+
+      // Inspect uncommitted draft if present in localStorage
+      let uncommittedDraftPayload = null;
+      try {
+        const rawDraft = localStorage.getItem(draftStorageKey);
+        if (rawDraft) {
+          const parsed = JSON.parse(rawDraft);
+          const dirtyList = Array.isArray(parsed?.dirtyDrivers) ? parsed.dirtyDrivers : [];
+          // Contract 10.7, 10.8 & 10.15: A draft is ONLY valid if it contains active dirty drivers.
+          // If dirtyDrivers is empty, it is NOT an uncommitted draft; purge it immediately!
+          if (dirtyList.length === 0) {
+            localStorage.removeItem(draftStorageKey);
+          } else if (parsed && (parsed.draft || parsed.toDrivers)) {
+            uncommittedDraftPayload = parsed.draft ? parsed : {
+              savedAt: 0,
+              baselineSignature: '',
+              dirtyDrivers: dirtyList,
+              draft: parsed,
+            };
+          }
+        }
+      } catch (e) {
+        console.warn('LocalStorage draft read error:', e);
+      }
+
+      // 1. Instant Render from LocalStorage if available (Contract 10.1: 0ms Render)
+      if (!shouldForceRefresh) {
         try {
           const cachedCarpool = localStorage.getItem(carpoolStorageKey);
           if (cachedCarpool) {
             const parsed = JSON.parse(cachedCarpool);
-            if (parsed && parsed.data) {
+            const hasModernRiders = (parsed?.data?.drivers || []).some(d => d.claimedRidersTo || d.claimedRidersFrom || !d.comment);
+            if (parsed && parsed.data && hasModernRiders) {
               carpoolBaseline = parsed.data;
               if (parsed.meta) carpoolBaseline.meta = parsed.meta;
-            }
-          }
-
-          const savedDraftJson = localStorage.getItem(draftStorageKey);
-          if (savedDraftJson && carpoolBaseline) {
-            try {
-              localDraft = JSON.parse(savedDraftJson);
-              const db = document.getElementById('draftBanner');
-              if (db) db.style.display = 'inline-flex';
+              if (uncommittedDraftPayload && uncommittedDraftPayload.draft && uncommittedDraftPayload.dirtyDrivers && uncommittedDraftPayload.dirtyDrivers.length > 0) {
+                localDraft = uncommittedDraftPayload.draft;
+              } else {
+                localDraft = buildBaselineDraft();
+              }
               loadUndoHistory();
               renderPage();
               renderedFromCache = true;
-            } catch {}
-          } else if (carpoolBaseline) {
-            localDraft = buildBaselineDraft();
-            loadUndoHistory();
-            renderPage();
-            renderedFromCache = true;
+            }
           }
         } catch (e) {
           console.warn('LocalStorage init error:', e);
@@ -1704,16 +2241,16 @@
 
       if (hasExistingRender) {
         showRefreshToast('Checking TroopWebHost for latest updates...', '🔄', true);
-        updateSyncBadge('saving', forceRefresh ? 'Refreshing from Website...' : 'Checking Website...');
+        updateSyncBadge('saving', shouldForceRefresh ? 'Refreshing from Website...' : 'Checking Website...');
       }
 
       // 2. Fetch fresh baseline from server in background (or foreground if no cache)
       try {
-        const res = await fetch(`/api/events/${eventId}/carpool${forceRefresh ? '?forceRefresh=true' : ''}`, {
+        const res = await fetch(`/api/events/${eventId}/carpool${shouldForceRefresh ? '?forceRefresh=true' : ''}`, {
           headers: getAuthHeaders(),
         });
 
-        if (res.status === 401) {
+        if (res.status === 401 || res.status === 403) {
           lockCoordinatorSession('Coordinator session expired. Please enter password again.');
           return;
         }
@@ -1743,50 +2280,92 @@
         } catch {}
 
         // Store initial TWH signature for disparity checks
-        const freshSignature = (carpoolBaseline.drivers || [])
-          .map(d => `${d.name}:${d.seats}:${d.drivingToFrom}:${d.comment}`)
-          .join('|');
+        const freshSignature = computeDriverSignature(carpoolBaseline.drivers, false);
+        const freshNormalizedSignature = computeDriverSignature(carpoolBaseline.drivers, true);
 
-        // Check if draft exists
-        const savedDraftJson = localStorage.getItem(draftStorageKey);
-        const savedSig = localStorage.getItem(sigStorageKey);
+        if (lastNormalizedSignature && freshNormalizedSignature && freshNormalizedSignature !== lastNormalizedSignature) {
+          showDisparityToast();
+        }
+        lastSignature = freshSignature;
+        lastNormalizedSignature = freshNormalizedSignature;
+        lastFocusCheckTime = Date.now();
 
-        if (savedDraftJson && !forceRefresh) {
-          try {
-            localDraft = JSON.parse(savedDraftJson);
-            const db = document.getElementById('draftBanner');
-            if (db) db.style.display = 'inline-flex';
-            // Upgrade draft: ensure baselineComment & customNote are present
-            [...(localDraft.toDrivers || []), ...(localDraft.fromDrivers || [])].forEach(d => {
-              if (d.baselineComment === undefined) {
-                const baseD = (carpoolBaseline.drivers || []).find(bd => normalizeName(bd.name) === normalizeName(d.name));
-                d.baselineComment = baseD ? (baseD.comment || '') : (d.comment || '');
+        // 3. Evaluate uncommitted draft vs live TroopWebHost data
+        if (uncommittedDraftPayload && uncommittedDraftPayload.dirtyDrivers) {
+          // Verify that dirty drivers are truly dirty against fresh baseline
+          uncommittedDraftPayload.dirtyDrivers = uncommittedDraftPayload.dirtyDrivers.filter(dName =>
+            isDriverTrulyDirty(dName, uncommittedDraftPayload.draft, carpoolBaseline)
+          );
+          if (uncommittedDraftPayload.dirtyDrivers.length === 0) {
+            try {
+              localStorage.removeItem(draftStorageKey);
+            } catch (e) {}
+            uncommittedDraftPayload = null;
+          }
+        }
+
+        if (uncommittedDraftPayload && uncommittedDraftPayload.dirtyDrivers && uncommittedDraftPayload.dirtyDrivers.length > 0) {
+          const savedAt = uncommittedDraftPayload.savedAt || 0;
+          const ageMs = Date.now() - savedAt;
+          const baselineSig = uncommittedDraftPayload.baselineSignature;
+
+          const isStale = savedAt === 0 || ageMs > 15 * 60 * 1000;
+          const hasDisparity = Boolean(baselineSig && baselineSig !== freshNormalizedSignature);
+
+          if (isStale || hasDisparity) {
+            // Uncommitted draft is stale (>15m) or server evolved underneath it!
+            // Escalate immediately to conflict resolution dialog
+            showStaleDraftConflictModal(uncommittedDraftPayload, carpoolBaseline);
+            return;
+          } else {
+            // Recent draft (<15m) with matching baseline signature:
+            // Contract 10.9 & 10.15: Fully reconstruct all clean drivers from fresh baseline,
+            // and ONLY overlay the specific dirty drivers!
+            const freshDraft = buildBaselineDraft();
+            const dirtySet = new Set(uncommittedDraftPayload.dirtyDrivers.map(d => normalizeName(d)));
+
+            freshDraft.toDrivers = freshDraft.toDrivers.map(cleanDriver => {
+              if (dirtySet.has(normalizeName(cleanDriver.name))) {
+                const dirtyMatch = (uncommittedDraftPayload.draft.toDrivers || []).find(d => normalizeName(d.name) === normalizeName(cleanDriver.name));
+                return dirtyMatch ? JSON.parse(JSON.stringify(dirtyMatch)) : cleanDriver;
               }
-              if (d.customNote === undefined) {
-                d.customNote = extractDriverNote(d.comment || '', d.riders || []);
-              }
+              return cleanDriver;
             });
 
-            // Disparity check between draft's baseline and fresh TWH
-            if (savedSig && freshSignature !== savedSig) {
-              const banner = document.getElementById('disparityBanner');
-              if (banner) banner.style.display = 'flex';
-              showRefreshToast('TroopWebHost has updates differing from your working draft', '⚠️', false, 5000);
-            } else {
-              showRefreshToast('Up to date with TroopWebHost', '✅', false, 3000);
+            freshDraft.fromDrivers = freshDraft.fromDrivers.map(cleanDriver => {
+              if (dirtySet.has(normalizeName(cleanDriver.name))) {
+                const dirtyMatch = (uncommittedDraftPayload.draft.fromDrivers || []).find(d => normalizeName(d.name) === normalizeName(cleanDriver.name));
+                return dirtyMatch ? JSON.parse(JSON.stringify(dirtyMatch)) : cleanDriver;
+              }
+              return cleanDriver;
+            });
+
+            localDraft = freshDraft;
+            localDraft.isCustom = true;
+            (uncommittedDraftPayload.dirtyDrivers || []).forEach(d => pendingDriversToSync.add(d));
+            const db = document.getElementById('draftBanner');
+            if (db) db.style.display = 'inline-flex';
+
+            if (pendingDriversToSync.size > 0) {
+              flushPendingSyncs();
             }
-          } catch {
-            localDraft = buildBaselineDraft();
-            localStorage.setItem(sigStorageKey, freshSignature);
           }
-        } else if (!hasExistingRender || forceRefresh) {
+        } else {
+          // No uncommitted dirty draft! Contract 10.7, 10.8 & 10.15: Cleanly adopt fresh baseline!
+          try {
+            localStorage.removeItem(draftStorageKey);
+          } catch (e) {}
           localDraft = buildBaselineDraft();
-          localStorage.setItem(sigStorageKey, freshSignature);
+          pendingDriversToSync.clear();
+          const db = document.getElementById('draftBanner');
+          if (db) db.style.display = 'none';
+
           if (renderedFromCache) {
             showRefreshToast('Loaded latest sign-ups from TroopWebHost', '✨', false, 4000);
           } else {
             hideRefreshToast();
           }
+        }
         }
 
         lastSignature = freshSignature;
@@ -1813,7 +2392,7 @@
     }
 
     function buildBaselineDraft() {
-      // Map initial drivers and their claimed riders
+      // Map initial drivers and their claimed riders in exact parsed comment order
       const toDrivers = [];
       const fromDrivers = [];
 
@@ -1823,44 +2402,79 @@
         const toSeats = (d.toSeats !== undefined && d.toSeats !== null) ? d.toSeats : defaultSeats;
         const fromSeats = (d.fromSeats !== undefined && d.fromSeats !== null) ? d.fromSeats : defaultSeats;
 
-        // Build TO riders
+        // Build TO riders (strictly preserving original parsed comment order)
         const toRiders = [];
-        const scoutsTo = d.claimedScoutsTo || d.claimedScouts || [];
-        const adultsTo = d.claimedAdultsTo || d.claimedAdults || [];
-        scoutsTo.forEach(sc => {
-          const scName = typeof sc === 'string' ? sc : sc.name;
-          toRiders.push({ name: formatLastFirst(scName), type: 'scout' });
-        });
-        adultsTo.forEach(ad => {
-          const adName = typeof ad === 'string' ? ad : ad.name;
-          toRiders.push({ name: formatLastFirst(adName), type: 'adult' });
-        });
+        if (d.claimedRidersTo && d.claimedRidersTo.length > 0) {
+          d.claimedRidersTo.forEach(r => {
+            toRiders.push({
+              name: formatLastFirst(r.name),
+              type: r.type,
+              notAttending: Boolean(r.notAttending),
+              token: r.token,
+              candidates: r.candidates,
+              note: r.note,
+            });
+          });
+        } else {
+          const allTo = [];
+          (d.claimedScoutsTo || d.claimedScouts || []).forEach(sc => {
+            const scName = typeof sc === 'string' ? sc : sc.name;
+            allTo.push({ name: formatLastFirst(scName), type: 'scout', notAttending: Boolean(sc.notAttending), textIndex: sc.textIndex ?? 999 });
+          });
+          (d.claimedAdultsTo || d.claimedAdults || []).forEach(ad => {
+            const adName = typeof ad === 'string' ? ad : (ad.name || ad);
+            allTo.push({ name: formatLastFirst(adName), type: 'adult', notAttending: Boolean(ad.notAttending), textIndex: (typeof ad === 'object' && ad.textIndex !== undefined) ? ad.textIndex : 999 });
+          });
+          (d.ambiguousNotes || []).forEach(amb => {
+            allTo.push({
+              name: `⚠️ Ambiguous: "${amb.token}"`,
+              type: 'ambiguous',
+              token: amb.token,
+              candidates: amb.candidates || [],
+              note: amb.note || '',
+              textIndex: amb.textIndex ?? 999,
+            });
+          });
+          allTo.sort((a, b) => a.textIndex - b.textIndex);
+          toRiders.push(...allTo);
+        }
 
-        // Build FROM riders
+        // Build FROM riders (strictly preserving original parsed comment order)
         const fromRiders = [];
-        const scoutsFrom = d.claimedScoutsFrom || d.claimedScouts || [];
-        const adultsFrom = d.claimedAdultsFrom || d.claimedAdults || [];
-        scoutsFrom.forEach(sc => {
-          const scName = typeof sc === 'string' ? sc : sc.name;
-          fromRiders.push({ name: formatLastFirst(scName), type: 'scout' });
-        });
-        adultsFrom.forEach(ad => {
-          const adName = typeof ad === 'string' ? ad : ad.name;
-          fromRiders.push({ name: formatLastFirst(adName), type: 'adult' });
-        });
-
-        // Ambiguous notes for both legs
-        (d.ambiguousNotes || []).forEach(amb => {
-          const ambObj = {
-            name: `⚠️ Ambiguous: "${amb.token}"`,
-            type: 'ambiguous',
-            token: amb.token,
-            candidates: amb.candidates || [],
-            note: amb.note || '',
-          };
-          toRiders.push(JSON.parse(JSON.stringify(ambObj)));
-          fromRiders.push(JSON.parse(JSON.stringify(ambObj)));
-        });
+        if (d.claimedRidersFrom && d.claimedRidersFrom.length > 0) {
+          d.claimedRidersFrom.forEach(r => {
+            fromRiders.push({
+              name: formatLastFirst(r.name),
+              type: r.type,
+              notAttending: Boolean(r.notAttending),
+              token: r.token,
+              candidates: r.candidates,
+              note: r.note,
+            });
+          });
+        } else {
+          const allFrom = [];
+          (d.claimedScoutsFrom || d.claimedScouts || []).forEach(sc => {
+            const scName = typeof sc === 'string' ? sc : sc.name;
+            allFrom.push({ name: formatLastFirst(scName), type: 'scout', notAttending: Boolean(sc.notAttending), textIndex: sc.textIndex ?? 999 });
+          });
+          (d.claimedAdultsFrom || d.claimedAdults || []).forEach(ad => {
+            const adName = typeof ad === 'string' ? ad : (ad.name || ad);
+            allFrom.push({ name: formatLastFirst(adName), type: 'adult', notAttending: Boolean(ad.notAttending), textIndex: (typeof ad === 'object' && ad.textIndex !== undefined) ? ad.textIndex : 999 });
+          });
+          (d.ambiguousNotes || []).forEach(amb => {
+            allFrom.push({
+              name: `⚠️ Ambiguous: "${amb.token}"`,
+              type: 'ambiguous',
+              token: amb.token,
+              candidates: amb.candidates || [],
+              note: amb.note || '',
+              textIndex: amb.textIndex ?? 999,
+            });
+          });
+          allFrom.sort((a, b) => a.textIndex - b.textIndex);
+          fromRiders.push(...allFrom);
+        }
 
         // Cross-check with scouts to guarantee any scout assigned to this driver is in riders
         (carpoolBaseline.scouts || []).forEach(s => {
@@ -1868,7 +2482,7 @@
           const normDriver = normalizeName(d.name);
 
           // TO direction check
-          const assignedTo = s.assignedDriverTo || s.assignedDriver;
+          const assignedTo = s.assignedDriverTo || (s.rideDirection !== 'From' ? s.assignedDriver : null);
           if (assignedTo && normalizeName(assignedTo) === normDriver) {
             if (!toRiders.some(r => normalizeName(r.name) === normalizeName(formattedScout))) {
               toRiders.push({ name: formattedScout, type: 'scout' });
@@ -1876,7 +2490,7 @@
           }
 
           // FROM direction check
-          const assignedFrom = s.assignedDriverFrom || s.assignedDriver;
+          const assignedFrom = s.assignedDriverFrom || (s.rideDirection !== 'To' ? s.assignedDriver : null);
           if (assignedFrom && normalizeName(assignedFrom) === normDriver) {
             if (!fromRiders.some(r => normalizeName(r.name) === normalizeName(formattedScout))) {
               fromRiders.push({ name: formattedScout, type: 'scout' });
@@ -1884,15 +2498,12 @@
           }
         });
 
-        const customNote = d.cleanNote !== undefined
-          ? d.cleanNote
-          : extractDriverNote(d.comment || '', [...toRiders, ...fromRiders]);
-
+        const extractedNote = extractDriverNote(d.comment || '', [...toRiders, ...fromRiders], d.name);
         const baseDriverObj = {
           name: formatLastFirst(d.name),
           phone: d.phone || '',
           comment: d.comment || '',
-          customNote: customNote,
+          customNote: extractedNote,
           baselineComment: d.comment || '',
           drivingToFrom: d.drivingToFrom || 'Both',
           isCompliant: d.isCompliant !== false,
@@ -1924,27 +2535,133 @@
       };
     }
 
+    function markDriverDirty(driverName) {
+      if (!driverName) return;
+      pendingDriversToSync.add(driverName);
+      saveDraft();
+      scheduleUnsavedReminder();
+    }
+
+    let unsavedReminderTimer = null;
+    let unsavedModalDismissed = false;
+
+    function scheduleUnsavedReminder() {
+      if (unsavedReminderTimer) return;
+      unsavedReminderTimer = setTimeout(() => {
+        unsavedReminderTimer = null;
+        if (pendingDriversToSync.size > 0 && !unsavedModalDismissed) {
+          showUnsavedEditsReminder();
+        }
+      }, 60000); // 60 seconds
+    }
+
+    function clearUnsavedReminder() {
+      if (unsavedReminderTimer) {
+        clearTimeout(unsavedReminderTimer);
+        unsavedReminderTimer = null;
+      }
+      unsavedModalDismissed = false;
+      closeModal('unsavedReminderModal');
+    }
+
+    function showUnsavedEditsReminder() {
+      const modal = document.getElementById('unsavedReminderModal');
+      const listEl = document.getElementById('unsavedReminderDriversList');
+      if (!modal || !listEl) return;
+
+      const dirtyNames = Array.from(pendingDriversToSync);
+      if (dirtyNames.length === 0) return;
+
+      listEl.innerHTML = dirtyNames.map(dName => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.5rem 0.75rem; margin-bottom:0.4rem;">
+          <div>
+            <strong>🚗 ${escapeHtml(toDisplayName(dName))}</strong>
+            <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">
+              Proposed: <code style="font-size:0.75rem; color:#0369a1;">${escapeHtml(synthesizeDriverComment(dName) || '(Empty comment)')}</code>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" style="padding:0.25rem 0.6rem; font-size:0.78rem; background:#0284c7; border-color:#0284c7;" onclick="closeModal('unsavedReminderModal'); openDriverSaveModal('${escapeHtml(dName)}')">
+            Review &amp; Save &rarr;
+          </button>
+        </div>
+      `).join('');
+
+      openModal('unsavedReminderModal');
+    }
+
+    function dismissUnsavedReminder() {
+      unsavedModalDismissed = true;
+      closeModal('unsavedReminderModal');
+      setTimeout(() => {
+        unsavedModalDismissed = false;
+        if (pendingDriversToSync.size > 0) {
+          scheduleUnsavedReminder();
+        }
+      }, 120000);
+    }
+
     function saveDraft() {
+      if (!localDraft) return;
+
+      // Filter pendingDriversToSync to truly dirty drivers
+      for (const dName of Array.from(pendingDriversToSync)) {
+        if (!isDriverTrulyDirty(dName)) {
+          pendingDriversToSync.delete(dName);
+        }
+      }
+
+      if (pendingDriversToSync.size === 0) {
+        try {
+          localStorage.removeItem(draftStorageKey);
+        } catch (e) {}
+        localDraft.isCustom = false;
+        const db = document.getElementById('draftBanner');
+        if (db) db.style.display = 'none';
+        clearUnsavedReminder();
+        updateSyncBadge('idle', '✓ Website in sync');
+        renderPage();
+        return;
+      }
+
       localDraft.isCustom = true;
-      const storageKey = `troop402_coord_v1_${eventId}`;
-      localStorage.setItem(storageKey, JSON.stringify(localDraft));
+      try {
+        const payload = {
+          savedAt: Date.now(),
+          baselineSignature: lastNormalizedSignature || '',
+          dirtyDrivers: Array.from(pendingDriversToSync),
+          draft: localDraft,
+        };
+        localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+      } catch (e) {}
+
       const db = document.getElementById('draftBanner');
-      if (db) db.style.display = 'inline-flex';
+      if (db) {
+        db.style.display = 'inline-flex';
+        const count = pendingDriversToSync.size;
+        db.innerHTML = `💾 ${count} driver${count === 1 ? '' : 's'} with unsaved edits (click 💾 on driver row to save)`;
+        db.title = 'Unsaved local edits. Click the Save button on highlighted driver rows to push changes to Website.';
+      }
+
+      const count = pendingDriversToSync.size;
+      updateSyncBadge('pending', `🕒 ${count} driver${count === 1 ? '' : 's'} with unsaved edits`);
+      scheduleUnsavedReminder();
       renderPage();
     }
 
     function resetToBaseline() {
-      if (confirm('Reset coordinator worksheet to TroopWebHost baseline? All local changes will be cleared.')) {
-        const draftKey = `troop402_coord_v1_${eventId}`;
-        const carpoolKey = `twh_event_carpool_${eventId}`;
-        localStorage.removeItem(draftKey);
-        localStorage.removeItem(carpoolKey);
+      if (confirm('Reset coordinator worksheet to Website baseline? All local changes will be cleared.')) {
+        try {
+          localStorage.removeItem(legacyDraftKey);
+          localStorage.removeItem(draftStorageKey);
+          localStorage.removeItem(carpoolStorageKey);
+        } catch (e) {}
         undoStack = [];
         redoStack = [];
         saveUndoHistory();
-        document.getElementById('draftBanner').style.display = 'none';
+        const db = document.getElementById('draftBanner');
+        if (db) db.style.display = 'none';
         updateSyncBadge('idle', 'Resetting to fresh baseline...');
-        initCoordinator();
+        initCoordinator(true);
       }
     }
 
@@ -2048,18 +2765,113 @@
           }
         });
 
+        const notAttendingClaimsMap = new Map();
+        ['TO', 'FROM'].forEach(dir => {
+          const drivers = dir === 'TO' ? (localDraft.toDrivers || []) : (localDraft.fromDrivers || []);
+          drivers.forEach(d => {
+            (d.riders || []).forEach(r => {
+              if (r && r.type !== 'ambiguous') {
+                const scoutObj = r.type === 'scout' ? (carpoolBaseline.scouts || []).find(sc => normalizeName(sc.name) === normalizeName(r.name)) : null;
+                const isNotAttending = Boolean(r.notAttending || (scoutObj && scoutObj.attending === 'N'));
+                if (isNotAttending) {
+                  const key = `${normalizeName(d.name)}:${normalizeName(r.name)}`;
+                  if (!notAttendingClaimsMap.has(key)) {
+                    notAttendingClaimsMap.set(key, {
+                      driverName: d.name,
+                      riderName: r.name,
+                      type: r.type,
+                    });
+                  }
+                }
+              }
+            });
+          });
+        });
+
+        // Duplicate Rider Claims (Consolidated across TO and FROM legs)
+        const scoutDupMap = new Map();
+        ['TO', 'FROM'].forEach(dir => {
+          const drivers = dir === 'TO' ? (localDraft.toDrivers || []) : (localDraft.fromDrivers || []);
+          const legMap = new Map();
+          drivers.forEach(d => {
+            (d.riders || []).forEach(r => {
+              if (r && r.type === 'scout' && r.name) {
+                const norm = normalizeName(r.name);
+                const list = legMap.get(norm) || [];
+                if (!list.includes(d.name)) list.push(d.name);
+                legMap.set(norm, list);
+              }
+            });
+          });
+
+          legMap.forEach((driversList, norm) => {
+            if (driversList.length > 1) {
+              const cur = scoutDupMap.get(norm) || {
+                norm,
+                scoutName: norm,
+                toDrivers: [],
+                fromDrivers: [],
+              };
+              if (dir === 'TO') cur.toDrivers = driversList;
+              if (dir === 'FROM') cur.fromDrivers = driversList;
+              scoutDupMap.set(norm, cur);
+            }
+          });
+        });
+
+        // Resolve display name for scout
+        const allScouts = carpoolBaseline.scouts || [];
+        const dupItems = Array.from(scoutDupMap.values()).map(item => {
+          const found = allScouts.find(s => normalizeName(s.name) === item.norm);
+          return {
+            ...item,
+            scoutName: found ? found.name : item.norm,
+          };
+        });
+
         const ambiguousItems = Array.from(ambiguousGroupsMap.values());
-        ambiguityBadge.textContent = ambiguousItems.length;
-        if (ambiguousItems.length > 0) {
+        const notAttendingItems = Array.from(notAttendingClaimsMap.values());
+        const totalClarifications = ambiguousItems.length + notAttendingItems.length + dupItems.length;
+        ambiguityBadge.textContent = totalClarifications;
+        if (totalClarifications > 0) {
           ambiguityBanner.style.display = 'block';
-          ambiguityList.innerHTML = ambiguousItems.map(item => {
+          const ambHtml = ambiguousItems.map(item => {
             const occCount = item.occurrences.length;
             if (occCount > 0) {
               return `<button type="button" class="btn" style="padding:0.25rem 0.55rem; font-size:0.75rem; background:#fff; border-color:#fde68a; color:#92400e; font-weight:600;" onclick="openResolveAmbiguityModalByKey('${escapeHtml(item.key)}')">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: "${escapeHtml(item.token)}" &rarr;</button>`;
             } else {
               return `<span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.3rem 0.6rem; font-size:0.75rem;">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: "${escapeHtml(item.token)}"</span>`;
             }
-          }).join('');
+          });
+
+          const notAttendingHtml = notAttendingItems.map(item => {
+            return `<span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.3rem 0.6rem; font-size:0.75rem;" title="${escapeHtml(formatLastFirst(item.riderName))} is claimed by ${escapeHtml(toDisplayName(item.driverName))} but is not registered for the campout on the website">⚠️ ${escapeHtml(toDisplayName(item.driverName))}: ${escapeHtml(formatLastFirst(item.riderName))} (Not Attending)</span>`;
+          });
+
+          const dupHtml = dupItems.map(item => {
+            let legText = '';
+            if (item.toDrivers.length > 1 && item.fromDrivers.length > 1) {
+              const toStr = item.toDrivers.slice().sort().join(',');
+              const fromStr = item.fromDrivers.slice().sort().join(',');
+              if (toStr === fromStr) {
+                legText = `riding with ${item.toDrivers.map(d => escapeHtml(toDisplayName(d))).join(' and ')}`;
+              } else {
+                legText = `TO: riding with ${item.toDrivers.map(d => escapeHtml(toDisplayName(d))).join(' and ')}; FROM: riding with ${item.fromDrivers.map(d => escapeHtml(toDisplayName(d))).join(' and ')}`;
+              }
+            } else if (item.toDrivers.length > 1) {
+              legText = `TO: riding with ${item.toDrivers.map(d => escapeHtml(toDisplayName(d))).join(' and ')}`;
+            } else {
+              legText = `FROM: riding with ${item.fromDrivers.map(d => escapeHtml(toDisplayName(d))).join(' and ')}`;
+            }
+
+            return `
+              <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.3rem 0.6rem; font-size:0.75rem;">
+                ⚠️ <strong>${escapeHtml(formatLastFirst(item.scoutName))}</strong> (${legText})
+              </span>
+            `;
+          });
+
+          ambiguityList.innerHTML = [...ambHtml, ...notAttendingHtml, ...dupHtml].join('');
         } else {
           ambiguityBanner.style.display = 'none';
         }
@@ -2076,8 +2888,8 @@
           safetyBanner.style.display = 'block';
           safetyList.innerHTML = nonCompliantDrivers.map(d => {
             const missing = [];
-            if ((d.sytStatus || '').toLowerCase() !== 'current') missing.push(`SYT: ${d.sytStatus || 'Missing'}`);
-            if ((d.stateTraining || '').toLowerCase() !== 'current') missing.push(`State AB506: ${d.stateTraining || 'Missing'}`);
+            if ((d.sytStatus || '').toLowerCase() !== 'current') missing.push(`SYT: ${d.sytStatus || 'None'}`);
+            if ((d.stateTraining || '').toLowerCase() !== 'current') missing.push(`AB506: ${d.stateTraining || 'None'}`);
             const missingStr = missing.length > 0 ? ` (${missing.join(', ')})` : '';
             return `<span class="badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca; padding:0.3rem 0.6rem; font-size:0.75rem;">⚠️ <strong>${escapeHtml(toDisplayName(d.name))}</strong>${escapeHtml(missingStr)}</span>`;
           }).join('');
@@ -2136,10 +2948,11 @@
         subEl.innerHTML = subHtml;
       }
 
-      // Determine max seat columns across drivers (minimum 7)
+      // Determine max seat columns across drivers (minimum 7, or expanded if driver has more riders than seats)
       let maxCols = 7;
       drivers.forEach(d => {
         if (d.seats > maxCols) maxCols = d.seats;
+        if (d.riders && d.riders.length > maxCols) maxCols = d.riders.length;
       });
 
       // Check which seat columns have any rider content across all drivers in this leg
@@ -2148,13 +2961,23 @@
         colHasRider[s] = drivers.some(d => d.riders && d.riders[s]);
       }
 
+      // Count scout occurrences for duplicate detection on this leg
+      const scoutCounts = new Map();
+      drivers.forEach(d => {
+        (d.riders || []).forEach(r => {
+          if (r && r.type === 'scout' && r.name) {
+            const norm = normalizeName(r.name);
+            scoutCounts.set(norm, (scoutCounts.get(norm) || 0) + 1);
+          }
+        });
+      });
+
       // Render thead
       let thHtml = `
         <tr>
-          <th class="left-align" style="width:160px;">Driver Name</th>
-          <th style="width:98px;">Cell#</th>
+          <th class="left-align driver-info-th">Driver Info</th>
+          <th style="width:88px; min-width:85px; text-align:center;">Cell#</th>
           <th style="width:46px;" title="Available passenger seats for scouts">Seats</th>
-          <th style="width:36px;">Note</th>
       `;
       for (let s = 0; s < maxCols; s++) {
         const hasRider = colHasRider[s];
@@ -2162,12 +2985,12 @@
         const colStyle = hasRider ? 'min-width:110px;' : 'min-width:92px; width:92px;';
         thHtml += `<th style="${colStyle}">Seat ${s + 1}</th>`;
       }
-      thHtml += `<th style="width:32px; padding:0.2rem;" class="no-print"></th></tr>`;
+      thHtml += `<th style="width:38px; min-width:38px; padding:0.2rem;" class="no-print"></th></tr>`;
       thead.innerHTML = thHtml;
 
       // Render tbody
       if (drivers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${maxCols + 5}" style="text-align:center; padding:1.5rem;" class="muted">No drivers registered for this trip leg.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${maxCols + 4}" style="text-align:center; padding:1.5rem;" class="muted">No drivers registered for this trip leg.</td></tr>`;
         return;
       }
 
@@ -2177,8 +3000,15 @@
         const riders = d.riders || [];
         const maxSeats = d.seats || 0;
         const isOneWay = (d.drivingToFrom || '').toLowerCase() !== 'both';
+        const isSeatErroneous = maxSeats <= 0 || riders.length > maxSeats;
+        const hasUserEdits = Array.from(pendingDriversToSync).some(name => normalizeName(name) === normalizeName(d.name));
+        const isFormatDiscrepant = !hasUserEdits && !areCommentsFunctionallyEquivalent(d.comment || '', synthesizeDriverComment(d.name));
 
-        if (!d.isCompliant) {
+        if (hasUserEdits) {
+          tr.classList.add('driver-row-dirty');
+          tr.style.backgroundColor = '#fefce8';
+          tr.style.borderLeft = '4px solid #f59e0b';
+        } else if (!d.isCompliant) {
           tr.style.backgroundColor = '#fffbeb';
           if (isOneWay) {
             tr.style.borderLeft = '4px solid #8b5cf6';
@@ -2188,25 +3018,53 @@
           tr.style.borderLeft = '4px solid #8b5cf6';
         }
 
-        let phoneHtml = d.phone ? `<a href="tel:${escapeHtml(d.phone)}" class="clickable-contact">📞 ${escapeHtml(d.phone)}</a>` : '<span class="muted">-</span>';
-        let safetyTag = !d.isCompliant ? '<br><span style="color:#b91c1c; font-size:0.7rem; font-weight:700;">⚠️ Safety Gaps</span>' : '';
-        let oneWayTag = isOneWay ? `<br><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.68rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span>` : '';
+        let phoneHtml = d.phone
+          ? `<a href="tel:${escapeHtml(d.phone)}" class="clickable-contact">${escapeHtml(d.phone)}</a>`
+          : '<span class="muted">-</span>';
 
-        const hasNote = Boolean((d.customNote && d.customNote.trim()) || (d.comment && d.comment.trim()));
-        const noteTip = hasNote ? (d.customNote || d.comment) : 'Add note / special instructions';
-        let noteBtnHtml = `<button type="button" class="btn-note" title="${escapeHtml(noteTip)}" onclick="viewDriverNote('${escapeHtml(d.name)}')">${hasNote ? '💬' : '📝'}</button>`;
+        let safetyTags = [];
+        if (!d.isCompliant) {
+          if ((d.sytStatus || '').toLowerCase() !== 'current') {
+            safetyTags.push(`<span class="badge badge-safety-gap" title="Youth Protection / SYT Status: ${escapeHtml(d.sytStatus || 'None')}">⚠️ SYT: ${escapeHtml(d.sytStatus || 'None')}</span>`);
+          }
+          if ((d.stateTraining || '').toLowerCase() !== 'current') {
+            safetyTags.push(`<span class="badge badge-safety-gap" title="California AB506 / Live Scan Training: ${escapeHtml(d.stateTraining || 'None')}">⚠️ AB506: ${escapeHtml(d.stateTraining || 'None')}</span>`);
+          }
+        }
+        let safetyTagHtml = safetyTags.join(' ');
+
+        let oneWayTag = isOneWay ? `<span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.64rem; font-weight:700; padding:0.08rem 0.35rem;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span>` : '';
+        let notAttendingTag = (d.attending && d.attending !== 'Y') ? '<span class="badge badge-not-attending" title="Driver is registered to drive but not attending the event—verify return leg availability">⚠️ Not Attending</span>' : '';
+
+        const rawNote = ((d.baselineComment && d.baselineComment.trim()) || (d.comment && d.comment.trim()) || (d.customNote && d.customNote.trim()) || '').trim();
+        const noteHtml = rawNote
+          ? `<div class="driver-inline-note" onclick="viewDriverNote('${escapeHtml(d.name)}')" title="Click to view/edit note">Note: ${escapeHtml(rawNote)}</div>`
+          : `<div class="driver-inline-note-empty no-print" onclick="viewDriverNote('${escapeHtml(d.name)}')">+ Add note</div>`;
+
+        const tagsHtml = [oneWayTag, notAttendingTag, safetyTagHtml].filter(Boolean).join(' ');
+
+        const seatCellBg = isSeatErroneous ? 'background-color:#fef9c3;' : '';
+        const stepperStyle = isSeatErroneous ? 'style="border-color:#eab308; background:#fef08a;"' : '';
+        const seatNumStyle = isSeatErroneous ? 'style="color:#854d0e; font-weight:700;"' : '';
+        const seatTitle = isSeatErroneous
+          ? (maxSeats <= 0 ? 'Warning: Driver has 0 seats configured' : `Warning: Driver has ${riders.length} claimed riders but only ${maxSeats} seat${maxSeats === 1 ? '' : 's'}`)
+          : '';
 
         let cellsHtml = `
-          <td><strong>${escapeHtml(d.name)}</strong>${oneWayTag}${safetyTag}</td>
-          <td style="text-align:center;">${phoneHtml}</td>
-          <td style="text-align:center;">
-            <div class="seat-stepper">
-              <button type="button" class="btn-step no-print" title="Increase seats" onclick="changeDriverSeats('${dir}', ${driverIdx}, 1)">+</button>
-              <span class="seat-num">${maxSeats}</span>
-              <button type="button" class="btn-step no-print" title="Decrease seats" onclick="changeDriverSeats('${dir}', ${driverIdx}, -1)">−</button>
+          <td class="driver-info-cell">
+            <div><strong>${escapeHtml(d.name)}</strong>${tagsHtml ? ` ${tagsHtml}` : ''}</div>
+            ${noteHtml}
+          </td>
+          <td style="text-align:center; white-space:nowrap;">${phoneHtml}</td>
+          <td style="text-align:center; ${seatCellBg}" ${seatTitle ? `title="${escapeHtml(seatTitle)}"` : ''}>
+            <div class="seat-stepper" ${stepperStyle}>
+              <span class="seat-num" ${seatNumStyle}>${maxSeats}</span>
+              <div class="seat-stepper-btns no-print">
+                <button type="button" class="btn-step" title="Increase seats" onclick="changeDriverSeats('${dir}', ${driverIdx}, 1)">+</button>
+                <button type="button" class="btn-step" title="Decrease seats" onclick="changeDriverSeats('${dir}', ${driverIdx}, -1)">−</button>
+              </div>
             </div>
           </td>
-          <td style="text-align:center;">${noteBtnHtml}</td>
         `;
 
         // Render seat slots up to maxCols
@@ -2217,6 +3075,9 @@
           if (rider) {
             const isAdult = rider.type === 'adult';
             const isAmbiguous = rider.type === 'ambiguous';
+            const isDup = !isAdult && !isAmbiguous && (scoutCounts.get(normalizeName(rider.name)) > 1);
+            const scoutObj = !isAdult && !isAmbiguous ? (carpoolBaseline.scouts || []).find(sc => normalizeName(sc.name) === normalizeName(rider.name)) : null;
+            const isNotAttending = Boolean(rider.notAttending || (scoutObj && scoutObj.attending === 'N'));
 
             if (isAmbiguous) {
               cellsHtml += `
@@ -2229,10 +3090,16 @@
                 </td>
               `;
             } else {
+              const dupTitle = isDup ? `⚠️ Duplicate: ${escapeHtml(rider.name)} is claimed by multiple drivers on this leg!` : '';
+              const notAttendingTitle = isNotAttending ? `⚠️ Not Attending: ${escapeHtml(rider.name)} is claimed by this driver but is not registered for the campout on the website` : '';
+              const slotTitle = [dupTitle, notAttendingTitle].filter(Boolean).join(' | ');
+
               cellsHtml += `
                 <td>
-                  <div class="slot slot-filled ${isAdult ? 'adult' : ''}">
-                    <span>${escapeHtml(rider.name)}</span>
+                  <div class="slot slot-filled ${isAdult ? 'adult' : ''} ${isDup ? 'slot-duplicate' : ''} ${isNotAttending ? 'slot-not-attending' : ''}" ${slotTitle ? `title="${escapeHtml(slotTitle)}"` : ''}>
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(rider.name)}</span>
+                    ${isDup ? `<span class="badge-dup" title="Claimed by multiple drivers on this trip leg">DUP</span>` : ''}
+                    ${isNotAttending ? `<span style="margin-left:0.25rem; font-size:0.75rem; cursor:help; vertical-align:middle;" title="⚠️ Not Attending: ${escapeHtml(rider.name)} is not registered for the campout on the website">⚠️</span>` : ''}
                     <button class="btn-remove no-print" title="Remove rider" onclick="removeRider('${dir}', ${driverIdx}, ${s})">&times;</button>
                   </div>
                 </td>
@@ -2258,9 +3125,21 @@
           }
         }
 
+        let saveBtnHtml = '';
+        if (hasUserEdits) {
+          saveBtnHtml = `<button type="button" class="btn-row-save dirty" title="⚠️ Unsaved edits! Click to review and save to Website" onclick="openDriverSaveModal('${escapeHtml(d.name)}')">💾</button>`;
+        } else if (isFormatDiscrepant) {
+          saveBtnHtml = `<button type="button" class="btn-row-save format-opt" title="Format optimization available: Click to review and format comment on Website" onclick="openDriverSaveModal('${escapeHtml(d.name)}')">💾</button>`;
+        } else {
+          saveBtnHtml = `<button type="button" class="btn-row-save" disabled title="No unsaved changes (Driver is in sync with Website)">💾</button>`;
+        }
+
         cellsHtml += `
-          <td style="text-align:center; padding:0.2rem;" class="no-print">
-            <button class="btn-remove" title="Remove driver" onclick="removeDriver('${dir}', ${driverIdx})">🗑️</button>
+          <td style="text-align:center; padding:0.15rem; width:38px; min-width:38px;" class="no-print">
+            <div class="driver-actions-stack">
+              ${saveBtnHtml}
+              <button type="button" class="btn-remove" title="Remove driver" onclick="removeDriver('${dir}', ${driverIdx})">🗑️</button>
+            </div>
           </td>
         `;
 
@@ -2271,7 +3150,7 @@
 
     function renderWaitlist() {
       const container = document.getElementById('waitlistContainer');
-      const allScouts = carpoolBaseline.scouts || [];
+      const allScouts = (carpoolBaseline.scouts || []).filter(s => s.attending !== 'N');
 
       const assignedToSet = getAssignedScoutNormalizedSet('TO');
       const assignedFromSet = getAssignedScoutNormalizedSet('FROM');
@@ -2326,7 +3205,7 @@
     }
 
     function updateKpis() {
-      const allScouts = carpoolBaseline.scouts || [];
+      const allScouts = (carpoolBaseline.scouts || []).filter(s => s.attending !== 'N');
       const totalScouts = allScouts.length;
 
       const assignedToSet = getAssignedScoutNormalizedSet('TO');
@@ -2378,24 +3257,40 @@
       const marginTo = totalSeatsTo - totalScouts;
       const marginFrom = totalSeatsFrom - totalScouts;
 
-      // 1: Total Scouts
-      document.getElementById('kpiScouts').textContent = totalScouts;
+      // 1: Total Attending (Scouts / Adults)
+      const allAdults = (carpoolBaseline.adults || []).filter(a => a.attending !== 'N');
+      const totalAdults = allAdults.length;
+
+      const scoutsEl = document.getElementById('kpiScouts');
+      if (scoutsEl) scoutsEl.textContent = totalScouts;
+      const adultsEl = document.getElementById('kpiAdults');
+      if (adultsEl) adultsEl.textContent = totalAdults;
+      const attendingSubEl = document.getElementById('kpiAttendingSub');
+      if (attendingSubEl) attendingSubEl.textContent = `${totalScouts + totalAdults} total attending`;
 
       // 2: Total Drivers
-      document.getElementById('kpiDrivers').textContent = uniqueDrivers.size;
+      const driversEl = document.getElementById('kpiDrivers');
+      if (driversEl) driversEl.textContent = uniqueDrivers.size;
 
-      // 3: Assigned Seats
-      document.getElementById('kpiAssignedTo').textContent = assignedToCount;
-      document.getElementById('kpiAssignedFrom').textContent = assignedFromCount;
+      // 3: Total Seats (TO / FROM)
+      const totalSeatsToEl = document.getElementById('kpiTotalSeatsTo');
+      if (totalSeatsToEl) totalSeatsToEl.textContent = totalSeatsTo;
+      const totalSeatsFromEl = document.getElementById('kpiTotalSeatsFrom');
+      if (totalSeatsFromEl) totalSeatsFromEl.textContent = totalSeatsFrom;
 
-      // 4: Open Seats
-      document.getElementById('kpiOpenTo').textContent = openSeatsTo;
-      document.getElementById('kpiOpenFrom').textContent = openSeatsFrom;
+      // 3: Open Seats
+      const openToEl = document.getElementById('kpiOpenTo');
+      if (openToEl) openToEl.textContent = openSeatsTo;
+      const openFromEl = document.getElementById('kpiOpenFrom');
+      if (openFromEl) openFromEl.textContent = openSeatsFrom;
 
-      // 5: Needs Ride
-      document.getElementById('kpiNeedsTo').textContent = needsToCount;
-      document.getElementById('kpiNeedsFrom').textContent = needsFromCount;
-      document.getElementById('kpiNeedsTotalSub').textContent = `${waitlistTotal} scout${waitlistTotal === 1 ? '' : 's'} total`;
+      // 4: Waitlist
+      const needsToEl = document.getElementById('kpiNeedsTo');
+      if (needsToEl) needsToEl.textContent = needsToCount;
+      const needsFromEl = document.getElementById('kpiNeedsFrom');
+      if (needsFromEl) needsFromEl.textContent = needsFromCount;
+      const needsTotalSubEl = document.getElementById('kpiNeedsTotalSub');
+      if (needsTotalSubEl) needsTotalSubEl.textContent = `${waitlistTotal} scout${waitlistTotal === 1 ? '' : 's'} total`;
 
       const needsCard = document.getElementById('kpiNeedsRideCard');
       if (needsCard) {
@@ -2437,6 +3332,81 @@
       document.getElementById(modalId).style.display = 'flex';
     }
 
+    // Trip Leg Sync Prompt & Ambiguity Helpers
+    function promptTripLegSync({ title, message, singleButtonText, bothButtonText }) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('legSyncPromptModal');
+        const titleEl = document.getElementById('legSyncPromptTitle');
+        const descEl = document.getElementById('legSyncPromptDesc');
+        const singleBtn = document.getElementById('legSyncSingleBtn');
+        const bothBtn = document.getElementById('legSyncBothBtn');
+        const closeBtn = modal ? modal.querySelector('.modal-close') : null;
+
+        if (titleEl) titleEl.innerHTML = title || '🔄 Update Other Trip Leg?';
+        if (descEl) descEl.innerHTML = message;
+        if (singleBtn) singleBtn.textContent = singleButtonText || 'This Leg Only';
+        if (bothBtn) bothBtn.textContent = bothButtonText || 'Apply to Both Legs';
+
+        let finished = false;
+        function finish(choice) {
+          if (finished) return;
+          finished = true;
+          if (singleBtn) singleBtn.removeEventListener('click', onSingle);
+          if (bothBtn) bothBtn.removeEventListener('click', onBoth);
+          if (closeBtn) closeBtn.removeEventListener('click', onClose);
+          if (modal) modal.removeEventListener('click', onOverlay);
+          closeModal('legSyncPromptModal');
+          resolve(choice);
+        }
+
+        function onSingle() { finish(false); }
+        function onBoth() { finish(true); }
+        function onClose() { finish(false); }
+        function onOverlay(e) {
+          if (e.target === modal) finish(false);
+        }
+
+        if (singleBtn) singleBtn.addEventListener('click', onSingle);
+        if (bothBtn) bothBtn.addEventListener('click', onBoth);
+        if (closeBtn) closeBtn.addEventListener('click', onClose);
+        if (modal) modal.addEventListener('click', onOverlay);
+
+        openModal('legSyncPromptModal');
+      });
+    }
+
+    function findMatchingAmbiguousOccurrence(driverName, dir, token, riderName) {
+      const otherDir = dir === 'TO' ? 'FROM' : 'TO';
+      const otherDrivers = otherDir === 'TO' ? (localDraft.toDrivers || []) : (localDraft.fromDrivers || []);
+      const otherDriverIdx = otherDrivers.findIndex(d => normalizeName(d.name) === normalizeName(driverName));
+      if (otherDriverIdx === -1) return null;
+
+      const otherDriver = otherDrivers[otherDriverIdx];
+      const tokNorm = (token || '').trim().toLowerCase();
+      const nameNorm = normalizeName(riderName || '');
+
+      const otherSlotIdx = (otherDriver.riders || []).findIndex(r => {
+        if (!r || r.type !== 'ambiguous') return false;
+        const rTokNorm = (r.token || '').trim().toLowerCase();
+        const rNameNorm = normalizeName(r.name || '');
+
+        if (tokNorm && rTokNorm && tokNorm === rTokNorm) return true;
+        if (nameNorm && rNameNorm && nameNorm === rNameNorm) return true;
+        if (tokNorm && rNameNorm && tokNorm === rNameNorm) return true;
+        if (nameNorm && rTokNorm && nameNorm === rTokNorm) return true;
+        return false;
+      });
+
+      if (otherSlotIdx === -1) return null;
+      return {
+        dir: otherDir,
+        driverIdx: otherDriverIdx,
+        slotIdx: otherSlotIdx,
+        driver: otherDriver,
+        rider: otherDriver.riders[otherSlotIdx],
+      };
+    }
+
     // Ambiguity Resolution Modal Logic
     let resolvingContext = null;
     let ambiguousGroupsMap = new Map();
@@ -2455,7 +3425,7 @@
 
       const occCount = item.occurrences.length;
       const legDesc = occCount > 1
-        ? 'present on <strong>both TO and FROM legs</strong>. Selecting a scout will assign them to both legs'
+        ? 'present on <strong>both TO and FROM legs</strong>'
         : (occCount === 1 ? `present on the <strong>${item.occurrences[0].dir} leg</strong>` : '');
 
       document.getElementById('resolveModalTitle').textContent = `⚠️ Resolve Ambiguous Name: "${item.token}"`;
@@ -2544,53 +3514,108 @@
       openModal('resolveModal');
     }
 
-    function resolveAmbiguousToScout(scoutFormattedName) {
+    async function resolveAmbiguousToScout(scoutFormattedName) {
       if (!resolvingContext) return;
-      const { driverName, occurrences } = resolvingContext;
-      pushUndoState(`Resolve ambiguous rider "${resolvingContext.token}" to ${toDisplayName(scoutFormattedName)}`, driverName);
+      const { driverName, token, occurrences } = resolvingContext;
+      const firstOcc = (occurrences && occurrences[0]) || { dir: 'TO', slotIdx: 0, driverIdx: 0 };
+      const otherOcc = findMatchingAmbiguousOccurrence(driverName, firstOcc.dir, token, token);
 
-      (occurrences || []).forEach(occ => {
-        const legDrivers = occ.dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
-        const d = legDrivers[occ.driverIdx];
-        if (d && d.riders && d.riders[occ.slotIdx]) {
-          d.riders[occ.slotIdx] = {
+      let applyToBoth = false;
+      closeModal('resolveModal');
+
+      if (otherOcc) {
+        applyToBoth = await promptTripLegSync({
+          title: '🔄 Resolve Ambiguous Rider',
+          message: `Driver <strong>${escapeHtml(toDisplayName(driverName))}</strong> wrote <em>"${escapeHtml(token)}"</em> for both <strong>TO and FROM legs</strong>.<br><br>Would you like to assign <strong>${escapeHtml(toDisplayName(scoutFormattedName))}</strong> to both trip legs?`,
+          singleButtonText: `Assign to ${firstOcc.dir} Only`,
+          bothButtonText: `Assign to Both Legs`,
+        });
+      }
+
+      if (applyToBoth && otherOcc) {
+        pushUndoState(`Resolve ambiguous rider "${token}" to ${toDisplayName(scoutFormattedName)} (both legs)`, driverName);
+        const legDrivers = firstOcc.dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+        const d = legDrivers[firstOcc.driverIdx];
+        if (d && d.riders && d.riders[firstOcc.slotIdx]) {
+          d.riders[firstOcc.slotIdx] = {
             name: scoutFormattedName,
             type: 'scout',
           };
         }
-      });
+        if (otherOcc.driver && otherOcc.driver.riders && otherOcc.driver.riders[otherOcc.slotIdx]) {
+          otherOcc.driver.riders[otherOcc.slotIdx] = {
+            name: scoutFormattedName,
+            type: 'scout',
+          };
+        }
+      } else {
+        pushUndoState(`Resolve ambiguous rider "${token}" to ${toDisplayName(scoutFormattedName)} (${firstOcc.dir} leg)`, driverName);
+        const legDrivers = firstOcc.dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+        const d = legDrivers[firstOcc.driverIdx];
+        if (d && d.riders && d.riders[firstOcc.slotIdx]) {
+          d.riders[firstOcc.slotIdx] = {
+            name: scoutFormattedName,
+            type: 'scout',
+          };
+        }
+      }
 
-      closeModal('resolveModal');
       resolvingContext = null;
-      saveDraft();
-      persistDriverChange(driverName);
+      markDriverDirty(driverName);
     }
 
-    function clearAmbiguousSlot() {
+    async function clearAmbiguousSlot() {
       if (!resolvingContext) return;
-      const { driverName, occurrences } = resolvingContext;
-      pushUndoState(`Clear ambiguous rider "${resolvingContext.token}" for ${toDisplayName(driverName)}`, driverName);
+      const { driverName, token, occurrences } = resolvingContext;
+      const firstOcc = (occurrences && occurrences[0]) || { dir: 'TO', slotIdx: 0, driverIdx: 0 };
+      const otherOcc = findMatchingAmbiguousOccurrence(driverName, firstOcc.dir, token, token);
 
-      (occurrences || []).slice().reverse().forEach(occ => {
-        const legDrivers = occ.dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
-        const d = legDrivers[occ.driverIdx];
-        if (d && d.riders && d.riders[occ.slotIdx]) {
-          d.riders.splice(occ.slotIdx, 1);
-        }
-      });
-
+      let applyToBoth = false;
       closeModal('resolveModal');
+
+      if (otherOcc) {
+        applyToBoth = await promptTripLegSync({
+          title: 'Clear Ambiguous Seat',
+          message: `Driver <strong>${escapeHtml(toDisplayName(driverName))}</strong> wrote <em>"${escapeHtml(token)}"</em> for both <strong>TO and FROM legs</strong>.<br><br>Would you like to clear this seat on both trip legs?`,
+          singleButtonText: `Clear ${firstOcc.dir} Only`,
+          bothButtonText: `Clear Both Legs`,
+        });
+      }
+
+      if (applyToBoth && otherOcc) {
+        pushUndoState(`Clear ambiguous rider "${token}" for ${toDisplayName(driverName)} (both legs)`, driverName);
+        const legDrivers = firstOcc.dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+        const d = legDrivers[firstOcc.driverIdx];
+        if (d && d.riders && d.riders[firstOcc.slotIdx]) {
+          d.riders.splice(firstOcc.slotIdx, 1);
+        }
+        if (otherOcc.driver && otherOcc.driver.riders && otherOcc.driver.riders[otherOcc.slotIdx]) {
+          otherOcc.driver.riders.splice(otherOcc.slotIdx, 1);
+        }
+      } else {
+        pushUndoState(`Clear ambiguous rider "${token}" for ${toDisplayName(driverName)} (${firstOcc.dir} leg)`, driverName);
+        const legDrivers = firstOcc.dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
+        const d = legDrivers[firstOcc.driverIdx];
+        if (d && d.riders && d.riders[firstOcc.slotIdx]) {
+          d.riders.splice(firstOcc.slotIdx, 1);
+        }
+      }
+
       resolvingContext = null;
-      saveDraft();
-      persistDriverChange(driverName);
+      markDriverDirty(driverName);
     }
 
     function openAssignModalFromResolve() {
       if (!resolvingContext) return;
-      const { driverName, occurrences } = resolvingContext;
+      const { driverName, token, occurrences } = resolvingContext;
       const firstOcc = (occurrences && occurrences[0]) || { dir: 'TO', slotIdx: 0 };
+      const otherOcc = findMatchingAmbiguousOccurrence(driverName, firstOcc.dir, token, token);
       closeModal('resolveModal');
-      openAssignModal(firstOcc.dir, driverName, firstOcc.slotIdx);
+      openAssignModal(firstOcc.dir, driverName, firstOcc.slotIdx, {
+        isResolvingAmbiguity: true,
+        token,
+        otherOcc,
+      });
     }
 
     // Location & Map Modal Logic
@@ -2610,8 +3635,8 @@
     }
 
     // Assign Scout Modal Logic
-    function openAssignModal(dir, driverName, slotIndex) {
-      pendingAssignment = { dir, driverName, slotIndex };
+    function openAssignModal(dir, driverName, slotIndex, ambiguityContext = null) {
+      pendingAssignment = { dir, driverName, slotIndex, ambiguityContext };
       document.getElementById('assignModalTitle').textContent = `Assign Scout to ${toDisplayName(driverName)} (${dir} - Seat #${slotIndex + 1})`;
 
       renderModalScoutList();
@@ -2644,35 +3669,110 @@
       `).join('');
     }
 
-    function selectScoutForSeat(scoutName) {
+    async function selectScoutForSeat(scoutName) {
       if (!pendingAssignment) return;
-      const { dir, driverName, slotIndex } = pendingAssignment;
+      const { dir, driverName, slotIndex, ambiguityContext } = pendingAssignment;
       const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
       const driver = drivers.find(d => d.name === driverName);
-
-      if (driver) {
-        pushUndoState(`Assign ${toDisplayName(scoutName)} to ${toDisplayName(driverName)}`, driverName);
-        if (!driver.riders) driver.riders = [];
-        driver.riders[slotIndex] = { name: scoutName, type: 'scout' };
-        saveDraft();
-        persistDriverChange(driverName);
+      if (!driver) {
+        closeModal('assignModal');
+        pendingAssignment = null;
+        return;
       }
 
+      let token = ambiguityContext?.token;
+      let otherOcc = ambiguityContext?.otherOcc;
+
+      if (!token && driver.riders && driver.riders[slotIndex] && driver.riders[slotIndex].type === 'ambiguous') {
+        const currentRider = driver.riders[slotIndex];
+        token = currentRider.token || currentRider.name;
+        otherOcc = findMatchingAmbiguousOccurrence(driverName, dir, token, currentRider.name);
+      }
+
+      let matchingAmbSlot = null;
+      if (!token && driver.riders) {
+        matchingAmbSlot = driver.riders.find(r => r && r.type === 'ambiguous' && (
+          (r.candidates && r.candidates.some(c => normalizeName(c) === normalizeName(scoutName))) ||
+          (r.token && normalizeName(scoutName).toLowerCase().startsWith(r.token.toLowerCase()))
+        ));
+        if (matchingAmbSlot) {
+          token = matchingAmbSlot.token || matchingAmbSlot.name;
+          otherOcc = findMatchingAmbiguousOccurrence(driverName, dir, token, matchingAmbSlot.name);
+        }
+      }
+
+      let applyToBoth = false;
       closeModal('assignModal');
+
+      if (otherOcc) {
+        applyToBoth = await promptTripLegSync({
+          title: '🔄 Assign Scout to Other Trip Leg',
+          message: `Driver <strong>${escapeHtml(toDisplayName(driverName))}</strong> also has ambiguous rider <em>"${escapeHtml(token)}"</em> on the <strong>${otherOcc.dir} leg</strong>.<br><br>Would you like to assign <strong>${escapeHtml(toDisplayName(scoutName))}</strong> to the ${otherOcc.dir} leg as well?`,
+          singleButtonText: `Assign to ${dir} Only`,
+          bothButtonText: `Assign to Both Legs`,
+        });
+      }
+
+      if (!driver.riders) driver.riders = [];
+
+      let targetSlot = slotIndex;
+      if (matchingAmbSlot) {
+        const ambIdx = driver.riders.indexOf(matchingAmbSlot);
+        if (ambIdx !== -1) targetSlot = ambIdx;
+      }
+
+      if (applyToBoth && otherOcc) {
+        pushUndoState(`Assign ${toDisplayName(scoutName)} to ${toDisplayName(driverName)} (both legs)`, driverName);
+        driver.riders[targetSlot] = { name: scoutName, type: 'scout' };
+        if (otherOcc.driver && otherOcc.driver.riders) {
+          otherOcc.driver.riders[otherOcc.slotIdx] = { name: scoutName, type: 'scout' };
+        }
+      } else {
+        pushUndoState(`Assign ${toDisplayName(scoutName)} to ${toDisplayName(driverName)} (${dir} leg)`, driverName);
+        driver.riders[targetSlot] = { name: scoutName, type: 'scout' };
+      }
+
       pendingAssignment = null;
+      markDriverDirty(driverName);
     }
 
-    function removeRider(dir, driverIdx, slotIndex) {
+    async function removeRider(dir, driverIdx, slotIndex) {
       const drivers = dir === 'TO' ? localDraft.toDrivers : localDraft.fromDrivers;
       const driver = drivers[driverIdx];
-      if (driver && driver.riders) {
-        const removed = driver.riders[slotIndex];
-        const riderName = removed ? toDisplayName(removed.name) : 'rider';
-        pushUndoState(`Remove ${riderName} from ${toDisplayName(driver.name)}`, driver.name);
-        driver.riders.splice(slotIndex, 1);
-        saveDraft();
-        persistDriverChange(driver.name);
+      if (!driver || !driver.riders) return;
+
+      const removed = driver.riders[slotIndex];
+      if (!removed) return;
+
+      const riderName = toDisplayName(removed.name);
+      const isAmbiguous = removed.type === 'ambiguous' || !!removed.token;
+      const token = removed.token || removed.name;
+
+      let applyToBoth = false;
+      let otherOcc = null;
+
+      if (isAmbiguous) {
+        otherOcc = findMatchingAmbiguousOccurrence(driver.name, dir, token, removed.name);
+        if (otherOcc) {
+          applyToBoth = await promptTripLegSync({
+            title: 'Remove Ambiguous Rider',
+            message: `Driver <strong>${escapeHtml(toDisplayName(driver.name))}</strong> also has ambiguous rider <em>"${escapeHtml(token)}"</em> on the <strong>${otherOcc.dir} leg</strong>.<br><br>Would you like to remove it from the ${otherOcc.dir} leg as well?`,
+            singleButtonText: `Remove from ${dir} Only`,
+            bothButtonText: `Remove from Both Legs`,
+          });
+        }
       }
+
+      if (applyToBoth && otherOcc) {
+        pushUndoState(`Remove ${riderName} from ${toDisplayName(driver.name)} (both legs)`, driver.name);
+        driver.riders.splice(slotIndex, 1);
+        otherOcc.driver.riders.splice(otherOcc.slotIdx, 1);
+      } else {
+        pushUndoState(`Remove ${riderName} from ${toDisplayName(driver.name)} (${dir} leg)`, driver.name);
+        driver.riders.splice(slotIndex, 1);
+      }
+
+      markDriverDirty(driver.name);
     }
 
     function changeDriverSeats(dir, driverIdx, delta) {
@@ -2696,8 +3796,7 @@
       }
 
       driver.seats = newSeats;
-      saveDraft();
-      persistDriverChange(driver.name);
+      markDriverDirty(driver.name);
     }
 
     function removeDriver(dir, driverIdx) {
@@ -2708,8 +3807,7 @@
       if (confirm(`Remove driver ${driver.name} from ${dir} carpool? Any assigned riders will return to the unassigned pool.`)) {
         pushUndoState(`Remove driver ${toDisplayName(driver.name)} from ${dir}`, driver.name);
         drivers.splice(driverIdx, 1);
-        saveDraft();
-        persistDriverChange(driver.name);
+        markDriverDirty(driver.name);
       }
     }
 
@@ -2734,7 +3832,7 @@
         phone,
         seats,
         comment,
-        customNote: comment,
+        customNote: extractDriverNote(comment, []),
         baselineComment: '',
         drivingToFrom: leg,
         isCompliant: true,
@@ -2750,53 +3848,106 @@
       }
 
       closeModal('addDriverModal');
-      saveDraft();
-      persistDriverChange(name);
+      markDriverDirty(name);
     }
 
-    // View / Edit Note Logic
-    function viewDriverNote(driverName) {
+    // View / Edit Note & TWH Save Logic
+    let modalInitialNote = null;
+
+    function openDriverSaveModal(driverName) {
       activeNoteDriverName = driverName;
+      closeDriverUndoMenu();
       const norm = normalizeName(driverName);
       const driver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm) ||
                      (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
-      const note = driver ? (driver.customNote !== undefined ? driver.customNote : (driver.comment || '')) : '';
-      document.getElementById('noteModalTitle').textContent = `Driver Note: ${toDisplayName(driverName)}`;
-      document.getElementById('editNoteInput').value = note;
+      const baseD = (carpoolBaseline?.drivers || []).find(bd => normalizeName(bd.name) === norm);
+      const liveComment = (baseD ? baseD.comment : null) ?? (driver?.baselineComment || '');
+      const note = driver ? (driver.customNote !== undefined ? driver.customNote : '') : '';
+      modalInitialNote = note;
 
-      const logistics = getTripLogisticsClause(driverName);
-      const logisticsInfo = document.getElementById('noteLogisticsInfo');
-      if (logisticsInfo) {
-        logisticsInfo.textContent = logistics ? `Trip clause: "${logistics}" (${logistics.length} chars)` : 'No trip clause';
+      const modalTitle = document.getElementById('noteModalTitle');
+      if (modalTitle) {
+        modalTitle.textContent = `Review & Save: ${toDisplayName(driverName)}`;
       }
+
+      const liveBox = document.getElementById('noteLiveCommentBox');
+      const liveLen = document.getElementById('noteLiveCharCount');
+      if (liveBox) {
+        liveBox.textContent = liveComment || '(No comment on Website)';
+        liveBox.style.color = liveComment ? '#065f46' : '#64748b';
+      }
+      if (liveLen) {
+        liveLen.textContent = `${liveComment.length} / 100 chars`;
+      }
+
+      const input = document.getElementById('editNoteInput');
+      if (input) input.value = note;
+
       updateNoteModalCounter();
+      renderDriverUndoDropdown();
       openModal('noteModal');
+    }
+
+    function viewDriverNote(driverName) {
+      openDriverSaveModal(driverName);
+    }
+
+    function closeNoteModal() {
+      if (activeNoteDriverName) {
+        const input = document.getElementById('editNoteInput');
+        const currentVal = (input ? input.value : '').trim();
+        if (modalInitialNote !== null && currentVal !== modalInitialNote) {
+          const norm = normalizeName(activeNoteDriverName);
+          const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+          const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+          pushUndoState(`Edit note for ${toDisplayName(activeNoteDriverName)}`, activeNoteDriverName);
+          if (toDriver) toDriver.customNote = currentVal;
+          if (fromDriver) fromDriver.customNote = currentVal;
+          markDriverDirty(activeNoteDriverName);
+        }
+        activeNoteDriverName = null;
+      }
+      modalInitialNote = null;
+      closeDriverUndoMenu();
+      closeModal('noteModal');
     }
 
     function updateNoteModalCounter() {
       if (!activeNoteDriverName) return;
       const logistics = getTripLogisticsClause(activeNoteDriverName);
-      const note = (document.getElementById('editNoteInput').value || '').trim();
+      const noteInput = document.getElementById('editNoteInput');
+      const note = (noteInput ? noteInput.value : '').trim();
       const combined = logistics ? (note ? `${logistics} ${note}` : logistics) : note;
       const totalLen = combined.length;
       const diff = 100 - totalLen;
 
+      const proposedBox = document.getElementById('noteProposedOutputBox');
       const counterEl = document.getElementById('noteCharCount');
       const saveBtn = document.getElementById('noteSaveBtn');
-      if (!counterEl) return;
 
-      if (totalLen <= 100) {
-        counterEl.style.color = '#059669';
-        counterEl.textContent = `${totalLen} / 100 (${diff >= 0 ? diff : 0} remaining)`;
-        if (saveBtn) {
+      if (proposedBox) {
+        proposedBox.textContent = combined || '(Empty comment)';
+        proposedBox.style.color = combined ? (totalLen <= 100 ? '#075985' : '#991b1b') : '#64748b';
+        proposedBox.style.background = totalLen <= 100 ? '#f0f9ff' : '#fef2f2';
+        proposedBox.style.borderColor = totalLen <= 100 ? '#bae6fd' : '#fca5a5';
+      }
+
+      if (counterEl) {
+        if (totalLen <= 100) {
+          counterEl.style.color = '#059669';
+          counterEl.textContent = `${totalLen} / 100 chars (${diff >= 0 ? diff : 0} remaining)`;
+        } else {
+          counterEl.style.color = '#dc2626';
+          counterEl.textContent = `${totalLen} / 100 chars (${Math.abs(diff)} chars over limit!)`;
+        }
+      }
+
+      if (saveBtn) {
+        if (totalLen <= 100) {
           saveBtn.disabled = false;
           saveBtn.style.opacity = '1';
           saveBtn.style.cursor = 'pointer';
-        }
-      } else {
-        counterEl.style.color = '#dc2626';
-        counterEl.textContent = `${totalLen} / 100 (${Math.abs(diff)} chars over limit!)`;
-        if (saveBtn) {
+        } else {
           saveBtn.disabled = true;
           saveBtn.style.opacity = '0.5';
           saveBtn.style.cursor = 'not-allowed';
@@ -2804,47 +3955,282 @@
       }
     }
 
-    function submitEditDriverNote(e) {
-      e.preventDefault();
+    async function submitSaveDriverToTWH(e) {
+      if (e) e.preventDefault();
       if (!activeNoteDriverName) return;
+
       const newNote = (document.getElementById('editNoteInput').value || '').trim();
       const logistics = getTripLogisticsClause(activeNoteDriverName);
       const combined = logistics ? (newNote ? `${logistics} ${newNote}` : logistics) : newNote;
       if (combined.length > 100) {
+        alert('Cannot save: Combined comment exceeds 100 characters.');
         return;
       }
 
-      const norm = normalizeName(activeNoteDriverName);
+      const driverToSave = activeNoteDriverName;
+      const norm = normalizeName(driverToSave);
       const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
       const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
 
-      pushUndoState(`Edit note for ${toDisplayName(activeNoteDriverName)}`, activeNoteDriverName);
+      pushUndoState(`Save driver ${toDisplayName(driverToSave)} to Website`, driverToSave);
 
       if (toDriver) toDriver.customNote = newNote;
       if (fromDriver) fromDriver.customNote = newNote;
 
+      modalInitialNote = null;
+      closeDriverUndoMenu();
       closeModal('noteModal');
-      saveDraft();
-      persistDriverChange(activeNoteDriverName);
       activeNoteDriverName = null;
+
+      showSavingOverlay(`Saving ${toDisplayName(driverToSave)} to Website...`);
+      try {
+        await persistDriverChange(driverToSave);
+        // Remove from pending dirty drivers
+        for (const name of Array.from(pendingDriversToSync)) {
+          if (normalizeName(name) === norm) {
+            pendingDriversToSync.delete(name);
+          }
+        }
+        saveDraft();
+        renderPage();
+      } finally {
+        hideSavingOverlay();
+      }
+    }
+
+    function saveNoteDraftOnly() {
+      closeNoteModal();
+    }
+
+    function toggleDriverUndoMenu(e) {
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('driverUndoMenu');
+      if (!menu) return;
+      if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+      } else {
+        renderDriverUndoDropdown();
+        menu.style.display = 'block';
+      }
+    }
+
+    function closeDriverUndoMenu() {
+      const menu = document.getElementById('driverUndoMenu');
+      if (menu) menu.style.display = 'none';
+    }
+
+    function renderDriverUndoDropdown() {
+      const menu = document.getElementById('driverUndoMenu');
+      if (!menu) return;
+      if (!activeNoteDriverName) {
+        menu.innerHTML = `<div style="padding:0.5rem; font-size:0.78rem; color:var(--text-muted); font-style:italic;">No active driver selected.</div>`;
+        return;
+      }
+
+      const driverName = activeNoteDriverName;
+      const norm = normalizeName(driverName);
+      const hasUserEdits = Array.from(pendingDriversToSync).some(d => normalizeName(d) === norm);
+
+      const driverUndos = [];
+      for (let i = undoStack.length - 1; i >= 0; i--) {
+        const item = undoStack[i];
+        if (item.affectedDriverName && normalizeName(item.affectedDriverName) === norm) {
+          driverUndos.push({ item, originalIndex: i });
+        }
+      }
+
+      let html = '';
+
+      html += `
+        <div style="padding:0.35rem 0.75rem 0.35rem; font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">
+          Undo Edits: ${escapeHtml(toDisplayName(driverName))}
+        </div>
+      `;
+
+      if (driverUndos.length === 0 && !hasUserEdits) {
+        html += `
+          <div style="padding:0.4rem 0.75rem 0.5rem; font-size:0.78rem; color:var(--text-muted); font-style:italic;">
+            No actions to undo (Matches website baseline)
+          </div>
+        `;
+      } else {
+        if (driverUndos.length > 0) {
+          driverUndos.slice(0, 5).forEach((u, idx) => {
+            if (idx === 0) {
+              html += `
+                <button type="button" class="dropdown-item" onclick="undoActionForDriver('${escapeHtml(driverName)}', ${u.originalIndex}); closeDriverUndoMenu();" style="display:flex; align-items:center; gap:0.4rem; padding:0.4rem 0.75rem; text-align:left; width:100%; border:none; background:none; cursor:pointer;" title="Undo: ${escapeHtml(u.item.description)}">
+                  <span style="font-weight:700; color:var(--primary); white-space:nowrap;">↩️ Undo:</span>
+                  <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:210px; font-size:0.78rem; color:#1e293b;">${escapeHtml(u.item.description)}</span>
+                </button>
+              `;
+            } else {
+              html += `
+                <div style="padding:0.25rem 0.75rem; font-size:0.78rem; color:#64748b; display:flex; align-items:center; gap:0.4rem;">
+                  <span style="color:var(--text-muted); font-size:0.72rem; min-width:14px;">${idx + 1}.</span>
+                  <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:230px;" title="${escapeHtml(u.item.description)}">${escapeHtml(u.item.description)}</span>
+                </div>
+              `;
+            }
+          });
+          html += `<div style="height:1px; background:var(--border); margin:0.35rem 0;"></div>`;
+        }
+
+        // Sequential Revert option
+        if (hasUserEdits) {
+          html += `
+            <button type="button" class="dropdown-item" onclick="revertDriverToBaseline('${escapeHtml(driverName)}'); closeDriverUndoMenu();" style="display:flex; align-items:center; gap:0.4rem; padding:0.4rem 0.75rem; text-align:left; width:100%; border:none; background:none; cursor:pointer;" title="Revert this driver to original website state">
+              <span style="font-weight:700; color:#b91c1c; white-space:nowrap;">↺ Revert Driver:</span>
+              <span style="font-size:0.78rem; color:#dc2626;">Reset to Website Baseline</span>
+            </button>
+          `;
+        } else {
+          html += `
+            <div style="padding:0.35rem 0.75rem; font-size:0.78rem; color:#94a3b8; font-style:italic;">
+              ↺ Revert Driver: (Already at website baseline)
+            </div>
+          `;
+        }
+      }
+
+      menu.innerHTML = html;
+    }
+
+    function revertDriverToBaseline(driverName) {
+      if (!driverName) return;
+      const norm = normalizeName(driverName);
+      const baselineDraft = buildBaselineDraft();
+      const baseTo = (baselineDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const baseFrom = (baselineDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+
+      pushUndoState(`Revert ${toDisplayName(driverName)} to website baseline`, driverName);
+
+      if (baseTo) {
+        const idx = (localDraft.toDrivers || []).findIndex(d => normalizeName(d.name) === norm);
+        if (idx >= 0) localDraft.toDrivers[idx] = JSON.parse(JSON.stringify(baseTo));
+        else localDraft.toDrivers.push(JSON.parse(JSON.stringify(baseTo)));
+      } else {
+        localDraft.toDrivers = (localDraft.toDrivers || []).filter(d => normalizeName(d.name) !== norm);
+      }
+
+      if (baseFrom) {
+        const idx = (localDraft.fromDrivers || []).findIndex(d => normalizeName(d.name) === norm);
+        if (idx >= 0) localDraft.fromDrivers[idx] = JSON.parse(JSON.stringify(baseFrom));
+        else localDraft.fromDrivers.push(JSON.parse(JSON.stringify(baseFrom)));
+      } else {
+        localDraft.fromDrivers = (localDraft.fromDrivers || []).filter(d => normalizeName(d.name) !== norm);
+      }
+
+      // Remove driver from pendingDriversToSync
+      for (const name of Array.from(pendingDriversToSync)) {
+        if (normalizeName(name) === norm) {
+          pendingDriversToSync.delete(name);
+        }
+      }
+
+      saveDraft();
+      renderPage();
+
+      if (activeNoteDriverName && normalizeName(activeNoteDriverName) === norm) {
+        const input = document.getElementById('editNoteInput');
+        const restoredNote = baseTo ? (baseTo.customNote || '') : (baseFrom ? (baseFrom.customNote || '') : '');
+        if (input) input.value = restoredNote;
+        modalInitialNote = restoredNote;
+        updateNoteModalCounter();
+        renderDriverUndoDropdown();
+      }
+    }
+
+    function undoActionForDriver(driverName, stackIndex) {
+      if (!driverName) return;
+      const norm = normalizeName(driverName);
+
+      let targetIdx = stackIndex;
+      if (targetIdx === undefined || targetIdx === null) {
+        for (let i = undoStack.length - 1; i >= 0; i--) {
+          if (undoStack[i].affectedDriverName && normalizeName(undoStack[i].affectedDriverName) === norm) {
+            targetIdx = i;
+            break;
+          }
+        }
+      }
+
+      if (targetIdx === undefined || targetIdx === null || !undoStack[targetIdx]) return;
+
+      const stateToRestore = undoStack[targetIdx];
+      undoStack.splice(targetIdx, 1);
+
+      const prevTo = (stateToRestore.draft.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const prevFrom = (stateToRestore.draft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+
+      if (prevTo) {
+        const idx = (localDraft.toDrivers || []).findIndex(d => normalizeName(d.name) === norm);
+        if (idx >= 0) localDraft.toDrivers[idx] = JSON.parse(JSON.stringify(prevTo));
+        else localDraft.toDrivers.push(JSON.parse(JSON.stringify(prevTo)));
+      } else {
+        localDraft.toDrivers = (localDraft.toDrivers || []).filter(d => normalizeName(d.name) !== norm);
+      }
+
+      if (prevFrom) {
+        const idx = (localDraft.fromDrivers || []).findIndex(d => normalizeName(d.name) === norm);
+        if (idx >= 0) localDraft.fromDrivers[idx] = JSON.parse(JSON.stringify(prevFrom));
+        else localDraft.fromDrivers.push(JSON.parse(JSON.stringify(prevFrom)));
+      } else {
+        localDraft.fromDrivers = (localDraft.fromDrivers || []).filter(d => normalizeName(d.name) !== norm);
+      }
+
+      // Check if driver is still dirty
+      if (!isDriverTrulyDirty(driverName)) {
+        for (const name of Array.from(pendingDriversToSync)) {
+          if (normalizeName(name) === norm) {
+            pendingDriversToSync.delete(name);
+          }
+        }
+      }
+
+      saveDraft();
+      saveUndoHistory();
+      renderPage();
+
+      if (activeNoteDriverName && normalizeName(activeNoteDriverName) === norm) {
+        const input = document.getElementById('editNoteInput');
+        const restoredNote = prevTo ? (prevTo.customNote || '') : (prevFrom ? (prevFrom.customNote || '') : '');
+        if (input) input.value = restoredNote;
+        modalInitialNote = restoredNote;
+        updateNoteModalCounter();
+        renderDriverUndoDropdown();
+      }
     }
 
     // Comment Synthesizer
     function formatRiderForComment(rider) {
-      if (!rider || !rider.name) return '';
-      const rawName = rider.name.trim();
+      if (!rider) return '';
+      const rawName = (typeof rider === 'string' ? rider : (rider.name || '')).trim();
 
       // If ambiguous token, preserve as-is
-      if (rider.type === 'ambiguous') {
+      if (typeof rider === 'object' && rider.type === 'ambiguous') {
         return rider.token || rawName;
       }
 
+      // Check pre-computed compactName directly on rider object
+      if (typeof rider === 'object' && rider.compactName) {
+        return rider.compactName;
+      }
+
+      // Check server-provided deterministic nameMap
+      const nameMap = carpoolBaseline?.nameMap || window.carpoolData?.nameMap;
+      if (nameMap && rawName) {
+        const entry = nameMap[rawName] || nameMap[rawName.toLowerCase()] || nameMap[toDisplayName(rawName).toLowerCase()];
+        if (entry && entry.compactName) {
+          return entry.compactName;
+        }
+      }
+
       // Adult passengers retain First Last
-      if (rider.type === 'adult') {
+      if (typeof rider === 'object' && rider.type === 'adult') {
         return toDisplayName(rawName);
       }
 
-      // Parse last and first
+      // Fallback: Parse last and first deterministically
       let last = '';
       let first = '';
       if (rawName.includes(',')) {
@@ -2853,49 +4239,36 @@
         first = firstParts.join(' ').trim();
       } else {
         const parts = rawName.split(/\s+/);
-        last = parts.pop() || '';
-        first = parts.join(' ').trim();
+        if (parts.length >= 3 && /^(?:di|de|van|von|la|le|del|dos)$/i.test(parts[parts.length - 2])) {
+          last = parts.slice(parts.length - 2).join(' ');
+          first = parts.slice(0, parts.length - 2).join(' ');
+        } else {
+          last = parts.pop() || '';
+          first = parts.join(' ').trim();
+        }
       }
 
-      const lastInitial = last ? last[0].toUpperCase() : '';
-      if (!lastInitial) {
-        return first || toDisplayName(rawName);
-      }
+      const firstNameOnly = first.split(/\s+/)[0] || first;
+      // Single letter initial, no period
+      const lastInitial = last ? (last.match(/[a-zA-Z]/)?.[0]?.toUpperCase() || last[0].toUpperCase()) : '';
+      if (!lastInitial) return firstNameOnly || toDisplayName(rawName);
 
-      // Check if another attending scout shares the exact same first name and last initial
+      // Check collision
       const allAttendingScouts = carpoolBaseline?.scouts || [];
-      const firstNorm = first.toLowerCase();
-      const initialNorm = lastInitial.toLowerCase();
-
+      const firstNorm = firstNameOnly.toLowerCase();
       let collision = false;
       for (const other of allAttendingScouts) {
         const oName = (typeof other === 'string' ? other : (other.name || '')).trim();
         if (!oName || oName.toLowerCase() === rawName.toLowerCase()) continue;
-
-        let oLast = '';
-        let oFirst = '';
-        if (oName.includes(',')) {
-          const [oL, ...oF] = oName.split(',');
-          oLast = oL.trim();
-          oFirst = oF.join(' ').trim();
-        } else {
-          const oParts = oName.split(/\s+/);
-          oLast = oParts.pop() || '';
-          oFirst = oParts.join(' ').trim();
-        }
-
-        if (oFirst.toLowerCase() === firstNorm && oLast && oLast[0].toLowerCase() === initialNorm) {
+        const oEntry = nameMap?.[oName.toLowerCase()];
+        if (oEntry && oEntry.first.toLowerCase() === firstNorm && oEntry.initial.toLowerCase() === lastInitial.toLowerCase()) {
           collision = true;
           break;
         }
       }
 
-      // If duplicate first name + last initial exists, fall back to "First Last" to avoid conflict
-      if (collision) {
-        return toDisplayName(rawName);
-      }
-
-      return `${first} ${lastInitial}.`;
+      if (collision) return toDisplayName(rawName);
+      return `${firstNameOnly} ${lastInitial}`;
     }
 
     function getRiderDisplayList(driver) {
@@ -2905,10 +4278,44 @@
         .map(r => formatRiderForComment(r));
     }
 
-    function getTripLogisticsClause(driverName) {
+    function withDot(s) {
+      if (!s) return '';
+      const trimmed = s.trim().replace(/\.+$/, '');
+      return trimmed ? `${trimmed}.` : '';
+    }
+
+    function normalizeCommentForComparison(c) {
+      if (!c || typeof c !== 'string') return '';
+      return c
+        .trim()
+        .replace(/\s+/g, ' ')                          // collapse multiple whitespace
+        .replace(/\.{2,}/g, '.')                       // collapse .. to .
+        .replace(/\b([A-Za-z]+ [A-Z])\.(?=[,\s]|$)/g, '$1') // normalize initial period (Iris K. -> Iris K)
+        .replace(/[.,;:]+$/, '')                       // strip trailing punctuation
+        .replace(/\b(both|to|from)\b/gi, (m) => m.toUpperCase()) // normalize trip leg casing
+        .trim();
+    }
+
+    function areCommentsFunctionallyEquivalent(c1, c2) {
+      if (!c1 && !c2) return true;
+      if (!c1 || !c2) return false;
+      return normalizeCommentForComparison(c1).toLowerCase() === normalizeCommentForComparison(c2).toLowerCase();
+    }
+
+    function computeDriverSignature(drivers, normalized = true) {
+      return (drivers || [])
+        .map(d => {
+          const c = normalized ? normalizeCommentForComparison(d.comment || '') : (d.comment || '');
+          return `${d.name}:${d.seats || 0}:${d.drivingToFrom || 'Both'}:${c}`;
+        })
+        .sort()
+        .join('|');
+    }
+
+    function getTripLogisticsClause(driverName, targetDraft = localDraft) {
       const norm = normalizeName(driverName);
-      const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
-      const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+      const toDriver = (targetDraft?.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const fromDriver = (targetDraft?.fromDrivers || []).find(d => normalizeName(d.name) === norm);
 
       if (!toDriver && !fromDriver) return '';
 
@@ -2925,7 +4332,7 @@
         // All riders and seats are identical
         if (sameRiders && sameSeats) {
           const riderClause = toRiders.length > 0 ? toRiders.join(', ') : 'Open';
-          return `BOTH (${toDriver.seats || 0}): ${riderClause}.`;
+          return withDot(`BOTH (${toDriver.seats || 0}): ${riderClause}`);
         }
 
         // Partial overlap: Factor common riders into BOTH ( )
@@ -2934,39 +4341,39 @@
         const fromOnlyRiders = fromRiders.filter(r => !commonRiders.includes(r));
 
         if (commonRiders.length > 0 && sameSeats) {
-          let parts = [`BOTH (${toDriver.seats || 0}): ${commonRiders.join(', ')}.`];
-          if (toOnlyRiders.length > 0) parts.push(`TO: ${toOnlyRiders.join(', ')}.`);
-          if (fromOnlyRiders.length > 0) parts.push(`FROM: ${fromOnlyRiders.join(', ')}.`);
+          let parts = [withDot(`BOTH (${toDriver.seats || 0}): ${commonRiders.join(', ')}`)];
+          if (toOnlyRiders.length > 0) parts.push(withDot(`TO: ${toOnlyRiders.join(', ')}`));
+          if (fromOnlyRiders.length > 0) parts.push(withDot(`FROM: ${fromOnlyRiders.join(', ')}`));
           return parts.join(' ');
         }
 
         // No common riders or different seat counts: use discrete TO (X): ... FROM (Y): ...
-        const toClause = `TO (${toDriver.seats || 0}): ${toRiders.length > 0 ? toRiders.join(', ') : 'Open'}.`;
-        const fromClause = `FROM (${fromDriver.seats || 0}): ${fromRiders.length > 0 ? fromRiders.join(', ') : 'Open'}.`;
+        const toClause = withDot(`TO (${toDriver.seats || 0}): ${toRiders.length > 0 ? toRiders.join(', ') : 'Open'}`);
+        const fromClause = withDot(`FROM (${fromDriver.seats || 0}): ${fromRiders.length > 0 ? fromRiders.join(', ') : 'Open'}`);
         return `${toClause} ${fromClause}`;
       }
 
       // Driving TO only
       if (toDriver && !fromDriver) {
-        return `TO (${toDriver.seats || 0}): ${toRiders.length > 0 ? toRiders.join(', ') : 'Open'}.`;
+        return withDot(`TO (${toDriver.seats || 0}): ${toRiders.length > 0 ? toRiders.join(', ') : 'Open'}`);
       }
 
       // Driving FROM only
       if (!toDriver && fromDriver) {
-        return `FROM (${fromDriver.seats || 0}): ${fromRiders.length > 0 ? fromRiders.join(', ') : 'Open'}.`;
+        return withDot(`FROM (${fromDriver.seats || 0}): ${fromRiders.length > 0 ? fromRiders.join(', ') : 'Open'}`);
       }
 
       return '';
     }
 
-    function synthesizeDriverComment(driverName) {
+    function synthesizeDriverComment(driverName, targetDraft = localDraft) {
       const norm = normalizeName(driverName);
-      const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
-      const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
+      const toDriver = (targetDraft?.toDrivers || []).find(d => normalizeName(d.name) === norm);
+      const fromDriver = (targetDraft?.fromDrivers || []).find(d => normalizeName(d.name) === norm);
 
       if (!toDriver && !fromDriver) return '';
 
-      const logistics = getTripLogisticsClause(driverName);
+      const logistics = getTripLogisticsClause(driverName, targetDraft);
       const note = (toDriver?.customNote !== undefined ? toDriver.customNote : (fromDriver?.customNote || '')).trim();
 
       if (logistics && note) {
@@ -2975,7 +4382,87 @@
       return logistics || note || '';
     }
 
-    // Direct TroopWebHost Persistence Engine
+    // Direct TroopWebHost Persistence & Debounced Sync Engine
+    let pendingSaveTimer = null;
+    const pendingDriversToSync = new Set();
+    let isSyncInProgress = false;
+
+    function showSavingOverlay(message) {
+      const el = document.getElementById('savingOverlay');
+      const txt = document.getElementById('savingOverlayText');
+      if (txt && message) txt.textContent = message;
+      if (el) el.style.display = 'flex';
+    }
+
+    function hideSavingOverlay() {
+      const el = document.getElementById('savingOverlay');
+      if (el) el.style.display = 'none';
+    }
+
+    function queueDriverSync(driverName, options = {}) {
+      if (!driverName) return;
+      if (options.immediate) {
+        pendingDriversToSync.add(driverName);
+        saveDraft();
+        if (pendingSaveTimer) {
+          clearTimeout(pendingSaveTimer);
+          pendingSaveTimer = null;
+        }
+        flushPendingSyncs();
+        return;
+      }
+      markDriverDirty(driverName);
+    }
+
+    async function flushPendingSyncs() {
+      if (pendingSaveTimer) {
+        clearTimeout(pendingSaveTimer);
+        pendingSaveTimer = null;
+      }
+
+      if (pendingDriversToSync.size === 0 || isSyncInProgress) return;
+
+      // Length guard check before showing saving overlay
+      const driversToProcess = Array.from(pendingDriversToSync);
+      for (const driverName of driversToProcess) {
+        const updatedComment = synthesizeDriverComment(driverName);
+        if (updatedComment.length > 100) {
+          updateSyncBadge('error', `⚠️ Over 100 chars (${updatedComment.length}/100)`);
+          openTrimCommentModal(driverName);
+          return;
+        }
+      }
+
+      isSyncInProgress = true;
+      showSavingOverlay('Saving changes to Website...');
+
+      try {
+        while (pendingDriversToSync.size > 0) {
+          const driverName = pendingDriversToSync.values().next().value;
+          pendingDriversToSync.delete(driverName);
+
+          if (!isDriverTrulyDirty(driverName)) {
+            continue;
+          }
+
+          showSavingOverlay(`Saving ${toDisplayName(driverName)} to Website...`);
+          await persistDriverChange(driverName);
+        }
+
+        // All pending syncs are complete! Clear draft and update baseline cache
+        try {
+          localStorage.removeItem(legacyDraftKey);
+          localStorage.removeItem(draftStorageKey);
+          if (localDraft) localDraft.isCustom = false;
+          const db = document.getElementById('draftBanner');
+          if (db) db.style.display = 'none';
+        } catch (e) {}
+      } finally {
+        isSyncInProgress = false;
+        hideSavingOverlay();
+      }
+    }
+
     async function persistDriverChange(driverName, force = false) {
       const norm = normalizeName(driverName);
       const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
@@ -2998,7 +4485,7 @@
       const isDriver = (toDriver?.attending !== 'N' && fromDriver?.attending !== 'N');
       const baselineComment = toDriver?.baselineComment !== undefined ? toDriver.baselineComment : (fromDriver?.baselineComment || '');
 
-      updateSyncBadge('saving', `Saving ${toDisplayName(driverName)} to TWH...`);
+      updateSyncBadge('saving', `Saving ${toDisplayName(driverName)} to Website...`);
 
       try {
         const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/driver-update`, {
@@ -3015,22 +4502,39 @@
           }),
         });
 
-        if (res.status === 401) {
-          lockCoordinatorSession('Coordinator session expired. Please enter password again.');
+        if (res.status === 401 || res.status === 403) {
+          lockCoordinatorSession('Coordinator session expired. Please enter password again to sync changes.');
           return;
         }
 
         if (res.status === 409) {
           const data = await res.json();
+          const liveComment = data.liveComment || '';
+
+          // If live comment and proposed comment are functionally equivalent, auto-adopt without prompt!
+          if (areCommentsFunctionallyEquivalent(liveComment, updatedComment)) {
+            if (toDriver) {
+              toDriver.baselineComment = liveComment || updatedComment;
+              toDriver.comment = liveComment || updatedComment;
+            }
+            if (fromDriver) {
+              fromDriver.baselineComment = liveComment || updatedComment;
+              fromDriver.comment = liveComment || updatedComment;
+            }
+            saveDraft();
+            updateSyncBadge('success', '✓ In sync with Website');
+            return;
+          }
+
           activeConflict = {
             driverName,
-            liveComment: data.liveComment || '',
+            liveComment,
             proposedComment: updatedComment,
             passengerSeats,
             drivingToFrom,
             isDriver,
           };
-          updateSyncBadge('conflict', '⚠️ Conflict in TWH');
+          updateSyncBadge('conflict', '⚠️ Conflict on Website');
           openConflictModal(activeConflict);
           return;
         }
@@ -3050,13 +4554,39 @@
           fromDriver.comment = updatedComment;
         }
 
-        const storageKey = `troop402_coord_v1_${eventId}`;
-        localStorage.setItem(storageKey, JSON.stringify(localDraft));
+        if (carpoolBaseline && carpoolBaseline.drivers) {
+          const bd = carpoolBaseline.drivers.find(d => normalizeName(d.name) === norm);
+          if (bd) {
+            bd.comment = updatedComment;
+            if (passengerSeats !== undefined) bd.seats = passengerSeats;
+            if (drivingToFrom !== undefined) bd.drivingToFrom = drivingToFrom;
+            if (toDriver) bd.toSeats = toDriver.seats;
+            if (fromDriver) bd.fromSeats = fromDriver.seats;
+          }
+          lastSignature = computeDriverSignature(carpoolBaseline.drivers, false);
+          lastNormalizedSignature = computeDriverSignature(carpoolBaseline.drivers, true);
+        }
 
-        updateSyncBadge('success', '✓ Saved to TroopWebHost');
+        // Remove from pending dirty drivers
+        for (const name of Array.from(pendingDriversToSync)) {
+          if (normalizeName(name) === norm) {
+            pendingDriversToSync.delete(name);
+          }
+        }
+
+        // Update carpool baseline cache in localStorage
+        try {
+          localStorage.setItem(carpoolStorageKey, JSON.stringify({
+            savedAt: Date.now(),
+            data: carpoolBaseline,
+            meta: carpoolBaseline.meta || null,
+          }));
+        } catch (e) {}
+
+        updateSyncBadge('success', '✓ Saved to Website');
       } catch (err) {
         console.error('Failed to persist driver change to TWH:', err);
-        updateSyncBadge('error', `⚠️ TWH Save Failed: ${err.message}`);
+        updateSyncBadge('error', `⚠️ Save to Website Failed: ${err.message}`);
       }
     }
 
@@ -3153,11 +4683,150 @@
       closeModal('trimCommentModal');
       activeTrimDriverName = null;
       saveDraft();
-      persistDriverChange(driverName);
+      queueDriverSync(driverName, { immediate: true });
+    }
+
+    // Stale Draft Conflict Modal Handlers
+    let pendingStaleDraftPayload = null;
+
+    function formatRelativeTime(timestamp) {
+      if (!timestamp) return 'a while ago';
+      const diffMs = Date.now() - timestamp;
+      if (diffMs < 0) return 'just now';
+      const sec = Math.floor(diffMs / 1000);
+      if (sec < 60) return `${sec} seconds ago`;
+      const min = Math.floor(sec / 60);
+      if (min < 60) return `${min} minute${min === 1 ? '' : 's'} ago`;
+      const hr = Math.floor(min / 60);
+      if (hr < 24) return `${hr} hour${hr === 1 ? '' : 's'} ago`;
+      const days = Math.floor(hr / 24);
+      return `${days} day${days === 1 ? '' : 's'} ago`;
+    }
+
+    function showStaleDraftConflictModal(draftPayload, freshBaseline) {
+      pendingStaleDraftPayload = draftPayload;
+      const { savedAt, draft, dirtyDrivers } = draftPayload;
+
+      const ageEl = document.getElementById('staleDraftAge');
+      if (ageEl) {
+        ageEl.textContent = formatRelativeTime(savedAt);
+      }
+
+      const listEl = document.getElementById('staleDraftDriversList');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+
+      const dirtySet = new Set(dirtyDrivers || []);
+      const allDraftDrivers = [...(draft?.toDrivers || []), ...(draft?.fromDrivers || [])];
+      const draftDriverNames = [...new Set(allDraftDrivers.map(d => d.name))];
+
+      let cardsRendered = 0;
+      draftDriverNames.forEach(driverName => {
+        const norm = normalizeName(driverName);
+        const freshD = (freshBaseline?.drivers || []).find(fd => normalizeName(fd.name) === norm);
+        const liveComment = freshD ? (freshD.comment || '') : '(No longer listed on website)';
+        const proposedComment = synthesizeDriverComment(driverName, draft);
+
+        const isDirty = dirtySet.has(driverName);
+        const commentsDiff = !areCommentsFunctionallyEquivalent(liveComment, proposedComment);
+
+        if (isDirty || commentsDiff) {
+          cardsRendered++;
+          const card = document.createElement('div');
+          card.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem;';
+          card.innerHTML = `
+            <div style="font-weight:700; font-size:0.85rem; color:#1e293b; margin-bottom:0.4rem;">
+              🚗 ${escapeHtml(toDisplayName(driverName))}
+            </div>
+            <div style="font-size:0.72rem; color:#065f46; font-weight:700; text-transform:uppercase; margin-bottom:0.2rem;">
+              Live on Website (${liveComment.length}/100 chars):
+            </div>
+            <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:4px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#065f46; margin-bottom:0.5rem; word-break:break-word;">
+              ${escapeHtml(liveComment || '(Empty comment)')}
+            </div>
+            <div style="font-size:0.72rem; color:#0369a1; font-weight:700; text-transform:uppercase; margin-bottom:0.2rem;">
+              Your Stale Uncommitted Edit (${proposedComment.length}/100 chars):
+            </div>
+            <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#0369a1; word-break:break-word;">
+              ${escapeHtml(proposedComment || '(Empty comment)')}
+            </div>
+          `;
+          listEl.appendChild(card);
+        }
+      });
+
+      // If no cards were rendered (e.g. comments were functionally identical), auto-discard and don't block coordinator
+      if (cardsRendered === 0) {
+        resolveStaleDraftDiscard();
+        return;
+      }
+
+      openModal('staleDraftModal');
+    }
+
+    function resolveStaleDraftDiscard() {
+      try {
+        localStorage.removeItem(legacyDraftKey);
+        localStorage.removeItem(draftStorageKey);
+      } catch (e) {}
+      pendingStaleDraftPayload = null;
+      closeModal('staleDraftModal');
+
+      // Rebuild draft cleanly from live baseline
+      localDraft = buildBaselineDraft();
+      pendingDriversToSync.clear();
+      undoStack = [];
+      redoStack = [];
+      saveUndoHistory();
+
+      const db = document.getElementById('draftBanner');
+      if (db) db.style.display = 'none';
+
+      renderPage();
+      updateSyncBadge('idle', 'Using live Website data');
+    }
+
+    async function resolveStaleDraftOverwrite() {
+      if (!pendingStaleDraftPayload) {
+        closeModal('staleDraftModal');
+        return;
+      }
+
+      const { draft, dirtyDrivers } = pendingStaleDraftPayload;
+      closeModal('staleDraftModal');
+
+      // Adopt draft as current localDraft
+      localDraft = draft;
+      localDraft.isCustom = true;
+      pendingStaleDraftPayload = null;
+
+      renderPage();
+
+      const db = document.getElementById('draftBanner');
+      if (db) db.style.display = 'inline-flex';
+
+      // Queue dirty drivers to persist to TWH
+      const driversToQueue = (dirtyDrivers && dirtyDrivers.length > 0)
+        ? dirtyDrivers
+        : [...new Set([...(localDraft.toDrivers || []), ...(localDraft.fromDrivers || [])].map(d => d.name))];
+
+      driversToQueue.forEach(driverName => {
+        queueDriverSync(driverName);
+      });
+
+      flushPendingSyncs();
     }
 
     // Conflict Resolution Modal Handlers
     function openConflictModal(conflict) {
+      if (!conflict) return;
+
+      // If functionally equivalent, auto-adopt live comment without prompting coordinator
+      if (areCommentsFunctionallyEquivalent(conflict.liveComment, conflict.proposedComment)) {
+        resolveConflictKeepLive();
+        return;
+      }
+
       document.getElementById('conflictDriverName').textContent = toDisplayName(conflict.driverName);
       const liveText = conflict.liveComment || '(Empty comment)';
       const liveLen = (conflict.liveComment || '').length;
@@ -3175,7 +4844,7 @@
       if (overLimitWarning) {
         if (proposedLen > 100) {
           overLimitWarning.style.display = 'block';
-          overLimitWarning.textContent = `⚠️ Your proposed comment is ${proposedLen} characters, which exceeds TroopWebHost's 100-character limit! Overwriting will open the Trim Comment window.`;
+          overLimitWarning.textContent = `⚠️ Your proposed comment is ${proposedLen} characters, which exceeds the website's 100-character limit! Overwriting will open the Trim Comment window.`;
         } else {
           overLimitWarning.style.display = 'none';
         }
@@ -3194,18 +4863,18 @@
       if (toDriver) {
         toDriver.baselineComment = liveComment;
         toDriver.comment = liveComment;
-        toDriver.customNote = extractDriverNote(liveComment, toDriver.riders);
+        toDriver.customNote = extractDriverNote(liveComment, toDriver.riders, toDriver.name);
       }
       if (fromDriver) {
         fromDriver.baselineComment = liveComment;
         fromDriver.comment = liveComment;
-        fromDriver.customNote = extractDriverNote(liveComment, fromDriver.riders);
+        fromDriver.customNote = extractDriverNote(liveComment, fromDriver.riders, fromDriver.name);
       }
 
       saveDraft();
       closeModal('conflictModal');
       activeConflict = null;
-      updateSyncBadge('idle', 'Kept TWH comment');
+      updateSyncBadge('idle', 'Kept Website comment');
       renderPage();
     }
 
@@ -3217,7 +4886,12 @@
       if (proposedComment && proposedComment.length > 100) {
         openTrimCommentModal(driverName);
       } else {
-        await persistDriverChange(driverName, true);
+        showSavingOverlay(`Overwriting ${toDisplayName(driverName)} on Website...`);
+        try {
+          await persistDriverChange(driverName, true);
+        } finally {
+          hideSavingOverlay();
+        }
       }
     }
 
@@ -3283,12 +4957,21 @@
       saveUndoHistory();
 
       if (state.affectedDriverName) {
-        updateSyncBadge('saving', `↩️ Undoing: Syncing ${toDisplayName(state.affectedDriverName)}...`);
-        await persistDriverChange(state.affectedDriverName, true);
-      } else {
-        updateSyncBadge('idle', `↩️ Undone: ${state.description}`);
+        if (isDriverTrulyDirty(state.affectedDriverName)) {
+          pendingDriversToSync.add(state.affectedDriverName);
+        } else {
+          for (const name of Array.from(pendingDriversToSync)) {
+            if (normalizeName(name) === normalizeName(state.affectedDriverName)) {
+              pendingDriversToSync.delete(name);
+            }
+          }
+        }
       }
+      saveDraft();
+      saveUndoHistory();
+      updateSyncBadge('idle', `↩️ Undone: ${state.description}`);
       closeUndoMenu();
+      renderPage();
     }
 
     async function redoAction() {
@@ -3300,16 +4983,23 @@
         affectedDriverName: state.affectedDriverName,
       });
       localDraft = state.draft;
-      saveDraft();
-      saveUndoHistory();
 
       if (state.affectedDriverName) {
-        updateSyncBadge('saving', `↪️ Redoing: Syncing ${toDisplayName(state.affectedDriverName)}...`);
-        await persistDriverChange(state.affectedDriverName, true);
-      } else {
-        updateSyncBadge('idle', `↪️ Redone: ${state.description}`);
+        if (isDriverTrulyDirty(state.affectedDriverName)) {
+          pendingDriversToSync.add(state.affectedDriverName);
+        } else {
+          for (const name of Array.from(pendingDriversToSync)) {
+            if (normalizeName(name) === normalizeName(state.affectedDriverName)) {
+              pendingDriversToSync.delete(name);
+            }
+          }
+        }
       }
+      saveDraft();
+      saveUndoHistory();
+      updateSyncBadge('idle', `↪️ Redone: ${state.description}`);
       closeUndoMenu();
+      renderPage();
     }
 
     function renderUndoDropdown() {
@@ -3362,6 +5052,23 @@
         });
       }
 
+      // Sequential Baseline Revert Option
+      html += `<div style="height:1px; background:var(--border); margin:0.35rem 0;"></div>`;
+      if (pendingDriversToSync.size > 0 || undoStack.length > 0) {
+        html += `
+          <button type="button" class="dropdown-item" onclick="resetToBaseline(); closeUndoMenu();" style="display:flex; align-items:center; gap:0.4rem; padding:0.4rem 0.75rem; text-align:left; width:100%; border:none; background:none; cursor:pointer;" title="Reset all changes to Website baseline">
+            <span style="font-weight:700; color:#b91c1c; white-space:nowrap;">↺ Revert All:</span>
+            <span style="font-size:0.78rem; color:#dc2626;">Reset Worksheet to Website Baseline</span>
+          </button>
+        `;
+      } else {
+        html += `
+          <div style="padding:0.35rem 0.75rem; font-size:0.78rem; color:#94a3b8; font-style:italic;">
+            ↺ Revert All: (Already at website baseline)
+          </div>
+        `;
+      }
+
       menu.innerHTML = html;
     }
 
@@ -3388,6 +5095,10 @@
       if (wrapper && !wrapper.contains(e.target)) {
         closeUndoMenu();
       }
+      const driverWrapper = document.getElementById('driverUndoDropdownWrapper');
+      if (driverWrapper && !driverWrapper.contains(e.target)) {
+        closeDriverUndoMenu();
+      }
     });
 
     function updateUndoRedoButtons() {
@@ -3408,8 +5119,27 @@
       renderUndoDropdown();
     }
 
-    // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Cmd+Shift+Z)
+    // Global Keyboard Shortcuts (Escape, Ctrl+Z, Ctrl+Y, Cmd+Shift+Z)
     window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const noteModal = document.getElementById('noteModal');
+        if (noteModal && noteModal.style.display === 'flex') {
+          closeNoteModal();
+          return;
+        }
+        const openModals = ['assignModal', 'resolveModal', 'addDriverModal', 'locationModal', 'trimCommentModal', 'conflictModal', 'staleDraftModal', 'tabularExportModal', 'unsavedReminderModal'];
+        for (const mId of openModals) {
+          const m = document.getElementById(mId);
+          if (m && m.style.display === 'flex') {
+            closeModal(mId);
+            return;
+          }
+        }
+        closeUndoMenu();
+        closeDriverUndoMenu();
+        return;
+      }
+
       const tag = (e.target.tagName || '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
 
@@ -3448,13 +5178,20 @@
     }
 
     // Focus & Disparity Detection
+    window.addEventListener('beforeunload', (e) => {
+      if (pendingDriversToSync.size > 0 || isSyncInProgress) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved carpool edits for the website. Are you sure you want to leave?';
+      }
+    });
+
     window.addEventListener('blur', () => {
       lastBlurTime = Date.now();
     });
 
     window.addEventListener('focus', async () => {
       const now = Date.now();
-      if (now - lastBlurTime >= 120000 && now - lastFocusCheckTime >= 60000) {
+      if (now - lastBlurTime >= 15000 && now - lastFocusCheckTime >= 15000) {
         lastFocusCheckTime = now;
         await checkTwhDisparity();
       }
@@ -3467,31 +5204,105 @@
         });
         if (!res.ok) return;
         const data = await res.json();
-        if (lastSignature && data.signature && data.signature !== lastSignature) {
-          const banner = document.getElementById('disparityBanner');
-          if (banner) banner.style.display = 'flex';
+        const incomingNorm = data.normalizedSignature || data.signature;
+        if (lastNormalizedSignature && incomingNorm && incomingNorm !== lastNormalizedSignature) {
+          // If clean with no in-flight edits, aggressively reload and adopt fresh data!
+          if (pendingDriversToSync.size === 0 && !isSyncInProgress) {
+            await autoAdoptFreshServerData();
+          } else {
+            showDisparityToast();
+          }
         }
       } catch (err) {
         console.warn('Failed to check TWH status:', err);
       }
     }
 
-    function dismissDisparityBanner() {
-      const banner = document.getElementById('disparityBanner');
-      if (banner) banner.style.display = 'none';
+    async function autoAdoptFreshServerData() {
+      try {
+        updateSyncBadge('saving', 'Updating from Website...');
+        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
+        if (!res.ok) return;
+        const freshData = await res.json();
+        carpoolBaseline = freshData;
+
+        try {
+          localStorage.setItem(carpoolStorageKey, JSON.stringify({
+            savedAt: Date.now(),
+            data: carpoolBaseline,
+            meta: carpoolBaseline.meta || null,
+          }));
+        } catch (e) {}
+
+        lastSignature = computeDriverSignature(carpoolBaseline.drivers, false);
+        lastNormalizedSignature = computeDriverSignature(carpoolBaseline.drivers, true);
+
+        localDraft = buildBaselineDraft();
+        renderPage();
+        updateSyncBadge('success', '✓ Updated with live Website changes');
+      } catch (err) {
+        console.warn('Auto-adopt fresh data failed:', err);
+      }
     }
 
-    function refreshFromTWH() {
-      if (confirm('Refresh worksheet with latest data from TroopWebHost? Any local changes will be replaced with live TWH data.')) {
-        dismissDisparityBanner();
-        const draftKey = `troop402_coord_v1_${eventId}`;
-        const carpoolKey = `twh_event_carpool_${eventId}`;
-        localStorage.removeItem(draftKey);
-        localStorage.removeItem(carpoolKey);
+    function showDisparityToast() {
+      const banner = document.getElementById('disparityBanner');
+      if (banner) {
+        banner.style.display = 'flex';
+      }
+    }
+
+    function dismissDisparityBanner() {
+      const banner = document.getElementById('disparityBanner');
+      if (banner) {
+        banner.style.display = 'none';
+      }
+    }
+
+    async function refreshFromTWH() {
+      dismissDisparityBanner();
+      updateSyncBadge('saving', '🔄 Refreshing from Website...');
+
+      try {
+        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
+        if (!res.ok) throw new Error('Failed to fetch fresh data from Website');
+        const freshData = await res.json();
+
+        carpoolBaseline = freshData;
+
+        // Clean up legacy and draft keys
+        try {
+          localStorage.removeItem(legacyDraftKey);
+          localStorage.removeItem(draftStorageKey);
+        } catch (e) {}
+
+        // Cache fresh baseline in localStorage
+        try {
+          localStorage.setItem(carpoolStorageKey, JSON.stringify({
+            savedAt: Date.now(),
+            data: carpoolBaseline,
+            meta: carpoolBaseline.meta || null,
+          }));
+        } catch {}
+
+        lastSignature = computeDriverSignature(carpoolBaseline.drivers, false);
+        lastNormalizedSignature = computeDriverSignature(carpoolBaseline.drivers, true);
+
+        // Always rebuild cleanly from fresh Website baseline
+        localDraft = buildBaselineDraft();
+        pendingDriversToSync.clear();
         undoStack = [];
         redoStack = [];
         saveUndoHistory();
-        initCoordinator(true);
+
+        const db = document.getElementById('draftBanner');
+        if (db) db.style.display = 'none';
+
+        renderPage();
+        updateSyncBadge('success', '✓ Refreshed with Website');
+      } catch (err) {
+        console.error('Error refreshing from Website:', err);
+        updateSyncBadge('error', 'Refresh Failed');
       }
     }
 
@@ -3502,7 +5313,11 @@
 
     function handleModalOverlayClick(e, modalId) {
       if (e.target.id === modalId) {
-        closeModal(modalId);
+        if (modalId === 'noteModal') {
+          closeNoteModal();
+        } else {
+          closeModal(modalId);
+        }
       }
     }
 

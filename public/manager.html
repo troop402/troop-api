@@ -326,7 +326,7 @@
     <header>
       <div class="title-area">
         <h1>Troop 402 Manager Console</h1>
-        <p>Operational control, TroopWebHost roster cache, and event carpool hub.</p>
+        <p>Operational control, website roster cache, and event carpool hub.</p>
       </div>
       <div>
         <a href="/" class="btn" style="font-size: 0.8rem;">Public Status &rarr;</a>
@@ -500,14 +500,42 @@
       return localStorage.getItem('twh_troop_app_key') || DEFAULT_TROOP_APP_KEY;
     }
 
-    function getAuthHeaders(extraHeaders = {}) {
-      const headers = {
-        'x-troop-key': getTroopAppKey(),
-        ...extraHeaders,
-      };
+    async function getViewerToken() {
       const coordToken = sessionStorage.getItem('twh_coordinator_token');
-      if (coordToken) {
-        headers['Authorization'] = `Bearer ${coordToken}`;
+      const coordExp = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      if (coordToken && Date.now() < coordExp) {
+        return coordToken;
+      }
+      let viewerToken = sessionStorage.getItem('twh_viewer_token');
+      const viewerExp = parseInt(sessionStorage.getItem('twh_viewer_expires_at') || '0', 10);
+      if (viewerToken && Date.now() < viewerExp) {
+        return viewerToken;
+      }
+      try {
+        const res = await fetch('/api/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appKey: getTroopAppKey() }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          sessionStorage.setItem('twh_viewer_token', data.token);
+          sessionStorage.setItem('twh_viewer_expires_at', String(data.expiresAt));
+          return data.token;
+        }
+      } catch (e) {
+        console.warn('Silent viewer token acquisition failed:', e);
+      }
+      return null;
+    }
+
+    async function getAuthHeaders(extraHeaders = {}) {
+      const headers = { ...extraHeaders };
+      const token = await getViewerToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      } else {
+        headers['x-troop-key'] = getTroopAppKey();
       }
       return headers;
     }
@@ -515,7 +543,7 @@
     async function fetchRosterSummary() {
       try {
         const res = await fetch('/api/roster/summary', {
-          headers: getAuthHeaders(),
+          headers: await getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -535,7 +563,7 @@
     async function loadEvents() {
       try {
         const res = await fetch('/api/events', {
-          headers: getAuthHeaders(),
+          headers: await getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -601,7 +629,7 @@
 
       const ev = allEvents.find(e => String(e.id) === String(eventId));
       document.getElementById('launchEventTitle').textContent = ev?.title || `Event #${eventId}`;
-      document.getElementById('launchEventDate').textContent = `📅 ${ev?.start || 'See TWH'}`;
+      document.getElementById('launchEventDate').textContent = `📅 ${ev?.start || 'See Website'}`;
       document.getElementById('launchEventLocation').textContent = `📍 ${ev?.location || 'TBA'}`;
       document.getElementById('launchEventType').textContent = ev?.eventType || 'Trip';
       document.getElementById('launchEventIdBadge').textContent = `ID: #${eventId}`;
@@ -618,7 +646,7 @@
 
       try {
         const res = await fetch(`/api/events/${eventId}/carpool`, {
-          headers: getAuthHeaders(),
+          headers: await getAuthHeaders(),
         });
         if (res.ok) {
           const cp = await res.json();
@@ -881,7 +909,7 @@
 
         const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
           method: 'POST',
-          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+          headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(payload),
         });
 

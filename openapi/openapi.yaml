@@ -16,6 +16,7 @@ servers:
     description: Internal deployment URL
 
 security:
+  - BearerAuth: []
   - TroopAppKeyHeader: []
   - TroopAppKeyQuery: []
   - CoordinatorBearerAuth: []
@@ -47,6 +48,51 @@ paths:
             text/plain:
               schema:
                 type: string
+
+  /api/auth/token:
+    post:
+      operationId: acquireAuthToken
+      summary: Acquire role-based session token
+      description: Validates application key or coordinator password and returns a signed bearer token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                appKey:
+                  type: string
+                  description: Application key for viewer role
+                password:
+                  type: string
+                  description: Coordinator password for coordinator role
+      responses:
+        '200':
+          description: Token successfully issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  token:
+                    type: string
+                  role:
+                    type: string
+                    enum: [viewer, coordinator]
+                  expiresIn:
+                    type: integer
+                  expiresInMs:
+                    type: integer
+                  expiresAt:
+                    type: integer
+        '400':
+          description: Either appKey or password is required
+        '401':
+          description: Incorrect key or password
 
   /api/auth/coordinator-login:
     post:
@@ -551,6 +597,19 @@ paths:
                                 type: string
                             note:
                               type: string
+                      duplicateRiderClaims:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            scoutName:
+                              type: string
+                            direction:
+                              type: string
+                            drivers:
+                              type: array
+                              items:
+                                type: string
                   drivers:
                     type: array
                     items:
@@ -662,7 +721,9 @@ paths:
                   example: 'Simone, Jason'
                 updatedComment:
                   type: string
-                  example: 'Taking: Evelyn Adams. Notes: Depart 4:30 PM'
+                  maxLength: 100
+                  description: Driver comment adhering to TroopWebHost's strict 100-character maximum limit.
+                  example: 'BOTH (3): Evelyn A, Julia P. Notes: Depart 4:30 PM'
                 passengerSeats:
                   type: integer
                   example: 3
@@ -764,6 +825,9 @@ paths:
                     type: integer
                   signature:
                     type: string
+                  normalizedSignature:
+                    type: string
+                    description: Normalized signature for comparison suppressing whitespace, casing, and initial punctuation differences.
                   timestamp:
                     type: integer
         '400':
@@ -787,6 +851,11 @@ paths:
 
 components:
   securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Signed HMAC session bearer token issued by /api/auth/token
     TroopAppKeyHeader:
       type: apiKey
       in: header
@@ -801,6 +870,6 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Signed 5-minute coordinator session bearer token issued by /api/auth/coordinator-login
+      description: Signed coordinator session bearer token issued by /api/auth/token or /api/auth/coordinator-login
 
 

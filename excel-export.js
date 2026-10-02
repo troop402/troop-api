@@ -863,9 +863,9 @@ export const TABULAR_COLUMN_CATALOG = [
   { id: 'adult_comment', label: 'Driver Comment', category: 'Adult / Driver', defaultWidth: 32, align: 'left' },
   { id: 'adult_custom_note', label: 'Coordinator Note', category: 'Adult / Driver', defaultWidth: 26, align: 'left' },
 
-  // --- Rider / Passenger ---
   { id: 'rider_type', label: 'Rider Type', category: 'Rider / Passenger', defaultWidth: 14, align: 'center' },
   { id: 'rider_name', label: 'Rider Name', category: 'Rider / Passenger', defaultWidth: 22, align: 'left' },
+  { id: 'rider_compact_name', label: 'Rider Compact Name', category: 'Rider / Passenger', defaultWidth: 18, align: 'left' },
   { id: 'rider_parent_names', label: 'Parent / Emergency Contact', category: 'Rider / Passenger', defaultWidth: 26, align: 'left' },
   { id: 'rider_parent_phone', label: 'Parent Contact Phone', category: 'Rider / Passenger', defaultWidth: 20, align: 'center' },
   { id: 'rider_patrol', label: 'Patrol', category: 'Rider / Passenger', defaultWidth: 16, align: 'left' },
@@ -915,6 +915,10 @@ const COLUMN_EXTRACTORS = {
   rider_name: row => {
     if (row.riderType === 'Open Seat') return '[Open Seat]';
     return row.rider ? formatLastFirst(row.rider.name) : '';
+  },
+  rider_compact_name: row => {
+    if (row.riderType === 'Open Seat') return '';
+    return row.rider ? (row.rider.compactName || '') : '';
   },
   rider_parent_names: row => (row.rider ? (row.rider.parentNames || '') : ''),
   rider_parent_phone: row => (row.rider ? (row.rider.parentPhone || '') : ''),
