@@ -95,11 +95,19 @@ function requireRole(requiredRole = 'viewer') {
     if (token) {
       const payload = verifySignedToken(token);
       if (payload) {
-        if (requiredRole === 'coordinator' && payload.role !== 'coordinator') {
+        const hasCoordinatorRole = payload.role === 'coordinator' ||
+          (Array.isArray(payload.roles) && (payload.roles.includes('coordinator') || payload.roles.includes('Event Planner')));
+        const hasViewerRole = payload.role === 'viewer' || payload.role === 'coordinator' ||
+          (Array.isArray(payload.roles) && (payload.roles.includes('viewer') || payload.roles.includes('Adult') || payload.roles.includes('coordinator') || payload.roles.includes('Event Planner')));
+
+        if (requiredRole === 'coordinator' && !hasCoordinatorRole) {
           return res.status(403).json({ error: 'Forbidden: Coordinator privileges required.' });
         }
+        if (requiredRole === 'viewer' && !hasViewerRole) {
+          return res.status(403).json({ error: 'Forbidden: Viewer privileges required.' });
+        }
         req.user = payload;
-        if (payload.role === 'coordinator') {
+        if (hasCoordinatorRole) {
           req.coordinator = payload;
         }
         return next();
@@ -2673,6 +2681,7 @@ app.post('/api/auth/token', (req, res) => {
     const expiresInMs = COORDINATOR_IDLE_TIMEOUT_MS;
     const payload = {
       role: 'coordinator',
+      roles: ['Adult', 'Event Planner'],
       authAt: now,
       exp: now + expiresInMs,
     };
@@ -2682,6 +2691,7 @@ app.post('/api/auth/token', (req, res) => {
       ok: true,
       token,
       role: 'coordinator',
+      roles: payload.roles,
       expiresIn: Math.floor(expiresInMs / 1000),
       expiresInMs,
       expiresAt: payload.exp,
@@ -2704,6 +2714,7 @@ app.post('/api/auth/token', (req, res) => {
     const expiresInMs = VIEWER_SESSION_TIMEOUT_MS;
     const payload = {
       role: 'viewer',
+      roles: ['Adult'],
       authAt: now,
       exp: now + expiresInMs,
     };
@@ -2713,6 +2724,7 @@ app.post('/api/auth/token', (req, res) => {
       ok: true,
       token,
       role: 'viewer',
+      roles: payload.roles,
       expiresIn: Math.floor(expiresInMs / 1000),
       expiresInMs,
       expiresAt: payload.exp,
@@ -2743,6 +2755,7 @@ app.post('/api/auth/coordinator-login', (req, res) => {
   const expiresInMs = COORDINATOR_IDLE_TIMEOUT_MS;
   const payload = {
     role: 'coordinator',
+    roles: ['Adult', 'Event Planner'],
     authAt: now,
     exp: now + expiresInMs,
   };
@@ -2752,6 +2765,7 @@ app.post('/api/auth/coordinator-login', (req, res) => {
     ok: true,
     token,
     role: 'coordinator',
+    roles: payload.roles,
     expiresIn: Math.floor(expiresInMs / 1000),
     expiresInMs,
     expiresAt: payload.exp,
@@ -2778,10 +2792,13 @@ app.post('/api/auth/refresh', (req, res) => {
     return res.status(401).json({ error: 'Session exceeded maximum allowed duration (24-hour cap). Please re-enter the coordinator password.' });
   }
 
-  const isCoord = payload.role === 'coordinator';
+  const isCoord = payload.role === 'coordinator' ||
+    (Array.isArray(payload.roles) && (payload.roles.includes('coordinator') || payload.roles.includes('Event Planner')));
   const expiresInMs = isCoord ? COORDINATOR_IDLE_TIMEOUT_MS : VIEWER_SESSION_TIMEOUT_MS;
   const newPayload = {
     ...payload,
+    role: payload.role || (isCoord ? 'coordinator' : 'viewer'),
+    roles: payload.roles || (isCoord ? ['Adult', 'Event Planner'] : ['Adult']),
     authAt,
     exp: now + expiresInMs,
   };
@@ -2790,7 +2807,8 @@ app.post('/api/auth/refresh', (req, res) => {
   return res.status(200).json({
     ok: true,
     token: newToken,
-    role: payload.role,
+    role: newPayload.role,
+    roles: newPayload.roles,
     expiresIn: Math.floor(expiresInMs / 1000),
     expiresInMs,
     expiresAt: newPayload.exp,

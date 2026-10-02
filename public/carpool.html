@@ -943,13 +943,13 @@
     }
 
     async function getViewerToken() {
-      const coordToken = sessionStorage.getItem('twh_coordinator_token');
-      const coordExp = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      const coordToken = localStorage.getItem('twh_coordinator_token') || sessionStorage.getItem('twh_coordinator_token');
+      const coordExp = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
       if (coordToken && Date.now() < coordExp) {
         return coordToken;
       }
-      let viewerToken = sessionStorage.getItem('twh_viewer_token');
-      const viewerExp = parseInt(sessionStorage.getItem('twh_viewer_expires_at') || '0', 10);
+      let viewerToken = localStorage.getItem('twh_viewer_token') || sessionStorage.getItem('twh_viewer_token');
+      const viewerExp = parseInt(localStorage.getItem('twh_viewer_expires_at') || sessionStorage.getItem('twh_viewer_expires_at') || '0', 10);
       if (viewerToken && Date.now() < viewerExp) {
         return viewerToken;
       }
@@ -961,8 +961,10 @@
         });
         if (res.ok) {
           const data = await res.json();
-          sessionStorage.setItem('twh_viewer_token', data.token);
-          sessionStorage.setItem('twh_viewer_expires_at', String(data.expiresAt));
+          localStorage.setItem('twh_viewer_token', data.token);
+          localStorage.setItem('twh_viewer_expires_at', String(data.expiresAt));
+          sessionStorage.removeItem('twh_viewer_token');
+          sessionStorage.removeItem('twh_viewer_expires_at');
           return data.token;
         }
       } catch (e) {

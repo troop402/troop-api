@@ -1222,10 +1222,10 @@
   <script>
     // Immediate pre-render session check: if already authenticated, add class to avoid lock flash
     try {
-      const t = sessionStorage.getItem('twh_coordinator_token');
-      const exp = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
-      const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
-      const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+      const t = localStorage.getItem('twh_coordinator_token') || sessionStorage.getItem('twh_coordinator_token');
+      const exp = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      const authAt = parseInt(localStorage.getItem('twh_coordinator_auth_at') || sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+      const maxMs = parseInt(localStorage.getItem('twh_coordinator_max_ms') || sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
       const now = Date.now();
       if (t && now < exp && (!authAt || (now - authAt <= maxMs))) {
         document.documentElement.classList.add('coord-authed');
@@ -1955,7 +1955,7 @@
     }
 
     function getCoordinatorToken() {
-      return sessionStorage.getItem('twh_coordinator_token') || '';
+      return localStorage.getItem('twh_coordinator_token') || sessionStorage.getItem('twh_coordinator_token') || '';
     }
 
     function getAuthHeaders(extraHeaders = {}) {
@@ -1988,15 +1988,16 @@
       if (document.visibilityState === 'visible') {
         const token = getCoordinatorToken();
         if (token) {
-          const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
-          const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
-          const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+          const expiresAt = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+          const authAt = parseInt(localStorage.getItem('twh_coordinator_auth_at') || sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+          const maxMs = parseInt(localStorage.getItem('twh_coordinator_max_ms') || sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
           const now = Date.now();
           if (authAt && (now - authAt > maxMs)) {
             lockCoordinatorSession('Coordinator session reached maximum duration (24 hours). Please enter password again.');
           } else if (expiresAt && now >= expiresAt) {
             lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.');
           } else {
+            if (expiresAt) scheduleSessionExpiry(expiresAt);
             maybeRefreshCoordinatorSession();
           }
         }
@@ -2006,10 +2007,42 @@
     window.addEventListener('focus', () => {
       const token = getCoordinatorToken();
       if (token) {
-        const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+        const expiresAt = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
         const now = Date.now();
         if (expiresAt && now >= expiresAt) {
           lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.');
+        } else if (expiresAt) {
+          scheduleSessionExpiry(expiresAt);
+        }
+      }
+    });
+
+    // Cross-tab synchronization via storage event
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'twh_coordinator_token' || e.key === 'twh_coordinator_expires_at') {
+        const token = getCoordinatorToken();
+        const expiresAt = parseInt(localStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+        const now = Date.now();
+        if (token && expiresAt && now < expiresAt) {
+          // Another window refreshed or authenticated the token!
+          document.documentElement.classList.add('coord-authed');
+          const overlay = document.getElementById('coordinatorLockOverlay');
+          if (overlay && overlay.style.display !== 'none') {
+            overlay.style.display = 'none';
+            const resolvers = [...pendingAuthResolvers];
+            pendingAuthResolvers = [];
+            resolvers.forEach(({ resolve }) => resolve(token));
+            const contentEl = document.getElementById('content');
+            if (!contentEl || contentEl.style.display === 'none') {
+              const loadingEl = document.getElementById('loading');
+              if (loadingEl) loadingEl.style.display = 'block';
+              initCoordinator();
+            }
+          }
+          scheduleSessionExpiry(expiresAt);
+        } else if (!token) {
+          // Another window locked out or logged out
+          lockCoordinatorSession('Coordinator session ended in another window.', false);
         }
       }
     });
@@ -2047,11 +2080,18 @@
             return false;
           }
 
-          sessionStorage.setItem('twh_coordinator_token', data.token);
-          sessionStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
-          if (data.authAt) sessionStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
-          if (data.idleTimeoutMs) sessionStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
-          if (data.maxSessionMs) sessionStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+          localStorage.setItem('twh_coordinator_token', data.token);
+          localStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
+          if (data.authAt) localStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
+          if (data.idleTimeoutMs) localStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
+          if (data.maxSessionMs) localStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+
+          // Clean legacy sessionStorage
+          sessionStorage.removeItem('twh_coordinator_token');
+          sessionStorage.removeItem('twh_coordinator_expires_at');
+          sessionStorage.removeItem('twh_coordinator_auth_at');
+          sessionStorage.removeItem('twh_coordinator_idle_ms');
+          sessionStorage.removeItem('twh_coordinator_max_ms');
 
           scheduleSessionExpiry(data.expiresAt);
           return true;
@@ -2070,10 +2110,10 @@
       const token = getCoordinatorToken();
       if (!token) return false;
 
-      const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
-      const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '1500000', 10);
-      const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
-      const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+      const expiresAt = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      const idleMs = parseInt(localStorage.getItem('twh_coordinator_idle_ms') || sessionStorage.getItem('twh_coordinator_idle_ms') || '1500000', 10);
+      const authAt = parseInt(localStorage.getItem('twh_coordinator_auth_at') || sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+      const maxMs = parseInt(localStorage.getItem('twh_coordinator_max_ms') || sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
 
       const now = Date.now();
       if (authAt && (now - authAt > maxMs)) {
@@ -2116,24 +2156,19 @@
 
     async function coordinatorFetch(url, options = {}, isRetry = false) {
       const isAuthEndpoint = url.includes('/api/auth/token') || url.includes('/api/auth/refresh');
+      const isMutationEndpoint = url.includes('driver-update');
       if (!isAuthEndpoint) {
         const token = getCoordinatorToken();
-        const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
-        const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
-        const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+        const expiresAt = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+        const authAt = parseInt(localStorage.getItem('twh_coordinator_auth_at') || sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+        const maxMs = parseInt(localStorage.getItem('twh_coordinator_max_ms') || sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
         const now = Date.now();
 
-        if (authAt && (now - authAt > maxMs)) {
+        if (authAt && (now - authAt > maxMs) && isMutationEndpoint) {
           await promptCoordinatorPassword('Coordinator session reached maximum 24-hour duration. Please enter password to continue.');
-        } else if (!token || (expiresAt && now >= expiresAt)) {
-          let promptReason = 'Coordinator session expired. Please enter password to continue.';
-          if (url.includes('driver-update')) {
-            promptReason = 'Coordinator password required to save changes to Website.';
-          } else if (url.includes('.xlsx')) {
-            promptReason = 'Coordinator password required to download spreadsheet.';
-          }
-          await promptCoordinatorPassword(promptReason);
-        } else {
+        } else if ((!token || (expiresAt && now >= expiresAt)) && isMutationEndpoint) {
+          await promptCoordinatorPassword('Coordinator password required to save changes to Website.');
+        } else if (token && expiresAt && now < expiresAt) {
           await maybeRefreshCoordinatorSession();
         }
       }
@@ -2154,18 +2189,15 @@
           if (data && data.error) errorMsg = data.error;
         } catch {}
 
-        if (!isRetry) {
-          let promptReason = errorMsg;
-          if (url.includes('driver-update')) {
-            promptReason = `Session expired (${errorMsg}). Enter coordinator password to save changes to Website.`;
-          } else if (url.includes('.xlsx')) {
-            promptReason = `Session expired (${errorMsg}). Enter coordinator password to download spreadsheet.`;
-          }
+        if (!isRetry && isMutationEndpoint) {
+          const promptReason = `Session expired (${errorMsg}). Enter coordinator password to save changes to Website.`;
           await promptCoordinatorPassword(promptReason);
           return await coordinatorFetch(url, options, true); // Auto-retry once with freshly obtained token!
         }
 
-        lockCoordinatorSession(errorMsg);
+        if (isMutationEndpoint) {
+          lockCoordinatorSession(errorMsg);
+        }
         const authErr = new Error(errorMsg);
         authErr.status = res.status;
         authErr.isAuthChallenge = true;
@@ -2187,7 +2219,7 @@
 
       const checkDelayMs = remainingMs > 5000 ? remainingMs - 5000 : remainingMs;
       sessionExpiryTimeout = setTimeout(async () => {
-        const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '1500000', 10);
+        const idleMs = parseInt(localStorage.getItem('twh_coordinator_idle_ms') || sessionStorage.getItem('twh_coordinator_idle_ms') || '1500000', 10);
         const timeSinceActivity = Date.now() - lastUserActivity;
         if (timeSinceActivity < idleMs) {
           const ok = await refreshCoordinatorSession();
@@ -2200,8 +2232,15 @@
       }, checkDelayMs);
     }
 
-    function lockCoordinatorSession(reasonMsg = '') {
+    function lockCoordinatorSession(reasonMsg = '', broadcast = true) {
       if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
+      if (broadcast) {
+        localStorage.removeItem('twh_coordinator_token');
+        localStorage.removeItem('twh_coordinator_expires_at');
+        localStorage.removeItem('twh_coordinator_auth_at');
+        localStorage.removeItem('twh_coordinator_idle_ms');
+        localStorage.removeItem('twh_coordinator_max_ms');
+      }
       sessionStorage.removeItem('twh_coordinator_token');
       sessionStorage.removeItem('twh_coordinator_expires_at');
       sessionStorage.removeItem('twh_coordinator_auth_at');
@@ -2290,11 +2329,19 @@
           throw new Error(data.error || 'Incorrect password.');
         }
 
-        sessionStorage.setItem('twh_coordinator_token', data.token);
-        sessionStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
-        if (data.authAt) sessionStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
-        if (data.idleTimeoutMs) sessionStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
-        if (data.maxSessionMs) sessionStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+        localStorage.setItem('twh_coordinator_token', data.token);
+        localStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
+        if (data.authAt) localStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
+        if (data.idleTimeoutMs) localStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
+        if (data.maxSessionMs) localStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+
+        // Clean up legacy sessionStorage
+        sessionStorage.removeItem('twh_coordinator_token');
+        sessionStorage.removeItem('twh_coordinator_expires_at');
+        sessionStorage.removeItem('twh_coordinator_auth_at');
+        sessionStorage.removeItem('twh_coordinator_idle_ms');
+        sessionStorage.removeItem('twh_coordinator_max_ms');
+
         lastUserActivity = Date.now();
         document.documentElement.classList.add('coord-authed');
 
@@ -2332,10 +2379,10 @@
     }
 
     function checkCoordinatorSession() {
-      const token = sessionStorage.getItem('twh_coordinator_token');
-      const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
-      const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
-      const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+      const token = getCoordinatorToken();
+      const expiresAt = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      const authAt = parseInt(localStorage.getItem('twh_coordinator_auth_at') || sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+      const maxMs = parseInt(localStorage.getItem('twh_coordinator_max_ms') || sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
       const now = Date.now();
 
       if (authAt && (now - authAt > maxMs)) {
@@ -2348,15 +2395,11 @@
         return false;
       }
 
-      if (now >= expiresAt) {
+      if (expiresAt && now >= expiresAt) {
         lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.');
         return false;
       }
 
-      lastUserActivity = now;
-      document.documentElement.classList.add('coord-authed');
-      const overlay = document.getElementById('coordinatorLockOverlay');
-      if (overlay) overlay.style.display = 'none';
       scheduleSessionExpiry(expiresAt);
       return true;
     }
