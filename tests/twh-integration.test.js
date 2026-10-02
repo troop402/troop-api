@@ -5,6 +5,7 @@ import { app, authenticateTroopWebHost } from '../server.js';
 
 let server;
 let baseUrl;
+const TROOP_KEY_HEADER = { 'x-troop-key': process.env.TROOP_APP_KEY || 'troop402-app-access' };
 
 before(() => {
   server = app.listen(0);
@@ -32,7 +33,10 @@ describe('TroopWebHost integration', () => {
   it('downloads the configured roster export through the API', async () => {
     const response = await fetch(`${baseUrl}/api/export-roster`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        ...TROOP_KEY_HEADER,
+      },
       body: JSON.stringify({}),
       signal: AbortSignal.timeout(60_000),
     });
@@ -55,6 +59,7 @@ describe('TroopWebHost integration', () => {
 
   it('returns roster summary statistics', async () => {
     const response = await fetch(`${baseUrl}/api/roster/summary`, {
+      headers: { ...TROOP_KEY_HEADER },
       signal: AbortSignal.timeout(60_000),
     });
     assert.equal(response.status, 200);
@@ -69,6 +74,7 @@ describe('TroopWebHost integration', () => {
 
   it('retrieves upcoming troop events and carpool details', async () => {
     const eventsResponse = await fetch(`${baseUrl}/api/events?days=120`, {
+      headers: { ...TROOP_KEY_HEADER },
       signal: AbortSignal.timeout(60_000),
     });
     assert.equal(eventsResponse.status, 200);
@@ -84,6 +90,7 @@ describe('TroopWebHost integration', () => {
 
     // Test carpool endpoint for the first event
     const carpoolResponse = await fetch(`${baseUrl}/api/events/${firstEvent.id}/carpool`, {
+      headers: { ...TROOP_KEY_HEADER },
       signal: AbortSignal.timeout(60_000),
     });
     assert.equal(carpoolResponse.status, 200);
