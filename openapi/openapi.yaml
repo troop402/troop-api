@@ -89,6 +89,12 @@ paths:
                     type: integer
                   expiresAt:
                     type: integer
+                  authAt:
+                    type: integer
+                  maxSessionMs:
+                    type: integer
+                  idleTimeoutMs:
+                    type: integer
         '400':
           description: Either appKey or password is required
         '401':
@@ -98,7 +104,7 @@ paths:
     post:
       operationId: loginCoordinator
       summary: Authenticate coordinator session
-      description: Validates coordinator password and returns a signed 5-minute bearer token.
+      description: Validates coordinator password and returns a signed bearer token.
       security: []
       requestBody:
         required: true
@@ -130,6 +136,12 @@ paths:
                     type: integer
                   expiresAt:
                     type: integer
+                  authAt:
+                    type: integer
+                  maxSessionMs:
+                    type: integer
+                  idleTimeoutMs:
+                    type: integer
         '400':
           description: Password is required
           content:
@@ -141,6 +153,51 @@ paths:
                     type: string
         '401':
           description: Incorrect password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/auth/refresh:
+    post:
+      operationId: refreshAuthToken
+      summary: Refresh active session token
+      description: Validates current unexpired bearer token, resets the idle timeout, and issues a new signed bearer token while preserving the original authentication timestamp up to the absolute session limit (e.g. 24 hours).
+      security:
+        - BearerAuth: []
+        - CoordinatorBearerAuth: []
+      responses:
+        '200':
+          description: Session successfully refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  token:
+                    type: string
+                  role:
+                    type: string
+                    enum: [viewer, coordinator]
+                  expiresIn:
+                    type: integer
+                  expiresInMs:
+                    type: integer
+                  expiresAt:
+                    type: integer
+                  authAt:
+                    type: integer
+                  maxSessionMs:
+                    type: integer
+                  idleTimeoutMs:
+                    type: integer
+        '401':
+          description: Session token invalid, expired, or 24-hour maximum duration exceeded
           content:
             application/json:
               schema:

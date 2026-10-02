@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { app, createSignedToken } from '../server.js';
+import { app, createSignedToken, verifySignedToken, COORDINATOR_IDLE_TIMEOUT_MS, COORDINATOR_MAX_SESSION_MS } from '../server.js';
 
 let server;
 let baseUrl;
@@ -397,6 +397,84 @@ describe('Authentication and authorization', () => {
     assert.deepEqual(await resValidToken.json(), {
       error: 'Valid numeric event ID is required.',
     });
+  });
+
+  it('handles idle session refresh via POST /api/auth/refresh and enforces the 24-hour ceiling', async () => {
+    // 1. Missing token
+    const resNoToken = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    assert.equal(resNoToken.status, 401);
+    assert.deepEqual(await resNoToken.json(), {
+      error: 'Session token required for refresh.',
+    });
+
+    // 2. Expired token
+    const expiredToken = createSignedToken({
+      role: 'coordinator',
+      exp: Date.now() - 5000,
+      authAt: Date.now() - 60000,
+    });
+    const resExpired = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${expiredToken}`,
+      },
+    });
+    assert.equal(resExpired.status, 401);
+    assert.deepEqual(await resExpired.json(), {
+      error: 'Invalid or expired session token. Please re-enter the coordinator password.',
+    });
+
+    // 3. Valid active token refreshes successfully, slides expiration forward, and preserves original authAt
+    const originalAuthAt = Date.now() - 120000;
+    const activeToken = createSignedToken({
+      role: 'coordinator',
+      exp: Date.now() + 60000,
+      authAt: originalAuthAt,
+    });
+    const resRefresh = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${activeToken}`,
+      },
+    });
+    assert.equal(resRefresh.status, 200);
+    const refreshData = await resRefresh.json();
+    assert.equal(refreshData.ok, true);
+    assert.equal(refreshData.role, 'coordinator');
+    assert.equal(refreshData.authAt, originalAuthAt);
+    assert.equal(typeof refreshData.token, 'string');
+    assert.equal(refreshData.expiresInMs, COORDINATOR_IDLE_TIMEOUT_MS);
+    assert.ok(refreshData.expiresAt > Date.now());
+
+    // Refreshed token is valid and carries original authAt
+    const verifiedPayload = verifySignedToken(refreshData.token);
+    assert.ok(verifiedPayload);
+    assert.equal(verifiedPayload.role, 'coordinator');
+    assert.equal(verifiedPayload.authAt, originalAuthAt);
+
+    // 4. Token exceeding 24-hour absolute maximum session duration is rejected
+    const cappedAuthAt = Date.now() - (COORDINATOR_MAX_SESSION_MS + 1000);
+    const overCapToken = createSignedToken({
+      role: 'coordinator',
+      exp: Date.now() + 60000,
+      authAt: cappedAuthAt,
+    });
+    const resOverCap = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${overCapToken}`,
+      },
+    });
+    assert.equal(resOverCap.status, 401);
+
+    // verifySignedToken also rejects tokens that exceeded max session duration
+    assert.equal(verifySignedToken(overCapToken), null);
   });
 });
 

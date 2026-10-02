@@ -32,7 +32,9 @@ if (!COORDINATOR_PASSWORD) {
 }
 
 const SESSION_SECRET = process.env.SESSION_SECRET || process.env.COORDINATOR_PASSWORD || 'troop402-session-secret-salt';
-const COORDINATOR_SESSION_TIMEOUT_MS = parseInt(process.env.COORDINATOR_SESSION_TIMEOUT_MS || '300000', 10); // default 5 minutes
+const COORDINATOR_IDLE_TIMEOUT_MS = parseInt(process.env.COORDINATOR_IDLE_TIMEOUT_MS || process.env.COORDINATOR_SESSION_TIMEOUT_MS || '300000', 10); // default 5 minutes idle
+const COORDINATOR_MAX_SESSION_MS = parseInt(process.env.COORDINATOR_MAX_SESSION_MS || '86400000', 10); // default 24 hours absolute max
+const COORDINATOR_SESSION_TIMEOUT_MS = COORDINATOR_IDLE_TIMEOUT_MS; // Backwards-compatible alias
 const VIEWER_SESSION_TIMEOUT_MS = parseInt(process.env.VIEWER_SESSION_TIMEOUT_MS || '86400000', 10); // default 24 hours
 const CARPOOL_CACHE_TTL_MS = process.env.CARPOOL_CACHE_TTL_MS !== undefined ? parseInt(process.env.CARPOOL_CACHE_TTL_MS, 10) : 0;
 
@@ -59,6 +61,9 @@ function verifySignedToken(token) {
     const payload = JSON.parse(Buffer.from(payloadStr, 'base64url').toString('utf8'));
     if (payload.exp && Date.now() > payload.exp) {
       return null; // Expired
+    }
+    if (payload.authAt && (Date.now() - payload.authAt > COORDINATOR_MAX_SESSION_MS)) {
+      return null; // Exceeded absolute max session duration (e.g. 24 hours)
     }
     return payload;
   } catch {
@@ -2590,10 +2595,12 @@ app.post('/api/auth/token', (req, res) => {
       return res.status(401).json({ error: 'Incorrect coordinator password.' });
     }
 
-    const expiresInMs = COORDINATOR_SESSION_TIMEOUT_MS;
+    const now = Date.now();
+    const expiresInMs = COORDINATOR_IDLE_TIMEOUT_MS;
     const payload = {
       role: 'coordinator',
-      exp: Date.now() + expiresInMs,
+      authAt: now,
+      exp: now + expiresInMs,
     };
     const token = createSignedToken(payload);
 
@@ -2604,6 +2611,9 @@ app.post('/api/auth/token', (req, res) => {
       expiresIn: Math.floor(expiresInMs / 1000),
       expiresInMs,
       expiresAt: payload.exp,
+      authAt: payload.authAt,
+      maxSessionMs: COORDINATOR_MAX_SESSION_MS,
+      idleTimeoutMs: COORDINATOR_IDLE_TIMEOUT_MS,
     });
   }
 
@@ -2616,10 +2626,12 @@ app.post('/api/auth/token', (req, res) => {
       return res.status(401).json({ error: 'Incorrect troop application key.' });
     }
 
+    const now = Date.now();
     const expiresInMs = VIEWER_SESSION_TIMEOUT_MS;
     const payload = {
       role: 'viewer',
-      exp: Date.now() + expiresInMs,
+      authAt: now,
+      exp: now + expiresInMs,
     };
     const token = createSignedToken(payload);
 
@@ -2630,6 +2642,7 @@ app.post('/api/auth/token', (req, res) => {
       expiresIn: Math.floor(expiresInMs / 1000),
       expiresInMs,
       expiresAt: payload.exp,
+      authAt: payload.authAt,
     });
   }
 
@@ -2652,10 +2665,12 @@ app.post('/api/auth/coordinator-login', (req, res) => {
     return res.status(401).json({ error: 'Incorrect coordinator password.' });
   }
 
-  const expiresInMs = COORDINATOR_SESSION_TIMEOUT_MS;
+  const now = Date.now();
+  const expiresInMs = COORDINATOR_IDLE_TIMEOUT_MS;
   const payload = {
     role: 'coordinator',
-    exp: Date.now() + expiresInMs,
+    authAt: now,
+    exp: now + expiresInMs,
   };
   const token = createSignedToken(payload);
 
@@ -2666,6 +2681,48 @@ app.post('/api/auth/coordinator-login', (req, res) => {
     expiresIn: Math.floor(expiresInMs / 1000),
     expiresInMs,
     expiresAt: payload.exp,
+    authAt: payload.authAt,
+    maxSessionMs: COORDINATOR_MAX_SESSION_MS,
+    idleTimeoutMs: COORDINATOR_IDLE_TIMEOUT_MS,
+  });
+});
+
+app.post('/api/auth/refresh', (req, res) => {
+  const token = extractBearerToken(req);
+  if (!token) {
+    return res.status(401).json({ error: 'Session token required for refresh.' });
+  }
+
+  const payload = verifySignedToken(token);
+  if (!payload) {
+    return res.status(401).json({ error: 'Invalid or expired session token. Please re-enter the coordinator password.' });
+  }
+
+  const now = Date.now();
+  const authAt = payload.authAt || (payload.exp ? payload.exp - COORDINATOR_IDLE_TIMEOUT_MS : now);
+  if (now - authAt > COORDINATOR_MAX_SESSION_MS) {
+    return res.status(401).json({ error: 'Session exceeded maximum allowed duration (24-hour cap). Please re-enter the coordinator password.' });
+  }
+
+  const isCoord = payload.role === 'coordinator';
+  const expiresInMs = isCoord ? COORDINATOR_IDLE_TIMEOUT_MS : VIEWER_SESSION_TIMEOUT_MS;
+  const newPayload = {
+    ...payload,
+    authAt,
+    exp: now + expiresInMs,
+  };
+  const newToken = createSignedToken(newPayload);
+
+  return res.status(200).json({
+    ok: true,
+    token: newToken,
+    role: payload.role,
+    expiresIn: Math.floor(expiresInMs / 1000),
+    expiresInMs,
+    expiresAt: newPayload.exp,
+    authAt,
+    maxSessionMs: COORDINATOR_MAX_SESSION_MS,
+    idleTimeoutMs: COORDINATOR_IDLE_TIMEOUT_MS,
   });
 });
 
@@ -3232,6 +3289,8 @@ export {
   normalizeCommentForComparison,
   areCommentsFunctionallyEquivalent,
   buildNameDictionary,
+  COORDINATOR_IDLE_TIMEOUT_MS,
+  COORDINATOR_MAX_SESSION_MS,
 };
 
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;

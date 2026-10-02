@@ -1121,7 +1121,10 @@
     try {
       const t = sessionStorage.getItem('twh_coordinator_token');
       const exp = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
-      if (t && Date.now() < exp) {
+      const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+      const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+      const now = Date.now();
+      if (t && now < exp && (!authAt || (now - authAt <= maxMs))) {
         document.documentElement.classList.add('coord-authed');
       }
     } catch (e) {}
@@ -1831,7 +1834,104 @@
       return headers;
     }
 
+    let lastUserActivity = Date.now();
+    function recordUserActivity() {
+      const now = Date.now();
+      if (now - lastUserActivity > 2000) {
+        lastUserActivity = now;
+        maybeRefreshCoordinatorSession();
+      }
+    }
+
+    ['mousedown', 'keydown', 'touchstart', 'scroll'].forEach((evt) => {
+      window.addEventListener(evt, recordUserActivity, { passive: true });
+    });
+
+    let refreshPromise = null;
+    async function refreshCoordinatorSession() {
+      if (refreshPromise) return refreshPromise;
+      const currentToken = getCoordinatorToken();
+      if (!currentToken) return false;
+
+      refreshPromise = (async () => {
+        try {
+          const res = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${currentToken}`,
+              'x-troop-key': getTroopAppKey(),
+            },
+          });
+
+          if (!res.ok) {
+            let errMsg = 'Coordinator session expired. Please enter password.';
+            try {
+              const errData = await res.json();
+              if (errData && errData.error) errMsg = errData.error;
+            } catch {}
+            lockCoordinatorSession(errMsg);
+            return false;
+          }
+
+          const data = await res.json();
+          if (!data || !data.token) {
+            lockCoordinatorSession('Failed to refresh coordinator session.');
+            return false;
+          }
+
+          sessionStorage.setItem('twh_coordinator_token', data.token);
+          sessionStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
+          if (data.authAt) sessionStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
+          if (data.idleTimeoutMs) sessionStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
+          if (data.maxSessionMs) sessionStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+
+          scheduleSessionExpiry(data.expiresAt);
+          return true;
+        } catch (err) {
+          console.warn('Network error while refreshing coordinator session:', err);
+          return false;
+        } finally {
+          refreshPromise = null;
+        }
+      })();
+
+      return refreshPromise;
+    }
+
+    async function maybeRefreshCoordinatorSession(force = false) {
+      const token = getCoordinatorToken();
+      if (!token) return false;
+
+      const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '300000', 10);
+      const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+      const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+
+      const now = Date.now();
+      if (authAt && (now - authAt > maxMs)) {
+        lockCoordinatorSession('Coordinator session reached maximum duration (24 hours). Please enter password again to continue.');
+        return false;
+      }
+
+      if (now >= expiresAt) {
+        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.');
+        return false;
+      }
+
+      const remainingMs = expiresAt - now;
+      const isUserActive = (now - lastUserActivity) < idleMs;
+      if (force || (isUserActive && remainingMs < (idleMs * 0.6))) {
+        return await refreshCoordinatorSession();
+      }
+      return true;
+    }
+
     async function coordinatorFetch(url, options = {}) {
+      if (!url.includes('/api/auth/token') && !url.includes('/api/auth/refresh')) {
+        await maybeRefreshCoordinatorSession();
+      }
+
       const headers = getAuthHeaders(options.headers || {});
       const fetchOpts = { ...options, headers };
       let res;
@@ -1860,18 +1960,35 @@
     let sessionExpiryTimeout = null;
     function scheduleSessionExpiry(expiresAt) {
       if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
-      const remainingMs = expiresAt - Date.now();
-      if (remainingMs > 0) {
-        sessionExpiryTimeout = setTimeout(() => {
-          lockCoordinatorSession('Coordinator session expired. Please enter password again to continue.');
-        }, remainingMs);
+      const now = Date.now();
+      const remainingMs = expiresAt - now;
+      if (remainingMs <= 0) {
+        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.');
+        return;
       }
+
+      const checkDelayMs = remainingMs > 5000 ? remainingMs - 5000 : remainingMs;
+      sessionExpiryTimeout = setTimeout(async () => {
+        const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '300000', 10);
+        const timeSinceActivity = Date.now() - lastUserActivity;
+        if (timeSinceActivity < idleMs) {
+          const ok = await refreshCoordinatorSession();
+          if (!ok) {
+            lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.');
+          }
+        } else {
+          lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.');
+        }
+      }, checkDelayMs);
     }
 
     function lockCoordinatorSession(reasonMsg = '') {
       if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
       sessionStorage.removeItem('twh_coordinator_token');
       sessionStorage.removeItem('twh_coordinator_expires_at');
+      sessionStorage.removeItem('twh_coordinator_auth_at');
+      sessionStorage.removeItem('twh_coordinator_idle_ms');
+      sessionStorage.removeItem('twh_coordinator_max_ms');
       document.documentElement.classList.remove('coord-authed');
 
       const overlay = document.getElementById('coordinatorLockOverlay');
@@ -1922,6 +2039,10 @@
 
         sessionStorage.setItem('twh_coordinator_token', data.token);
         sessionStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
+        if (data.authAt) sessionStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
+        if (data.idleTimeoutMs) sessionStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
+        if (data.maxSessionMs) sessionStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+        lastUserActivity = Date.now();
         document.documentElement.classList.add('coord-authed');
 
         const overlay = document.getElementById('coordinatorLockOverlay');
@@ -1952,10 +2073,26 @@
     function checkCoordinatorSession() {
       const token = sessionStorage.getItem('twh_coordinator_token');
       const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
-      if (!token || Date.now() >= expiresAt) {
+      const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+      const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+      const now = Date.now();
+
+      if (authAt && (now - authAt > maxMs)) {
+        lockCoordinatorSession('Coordinator session reached maximum duration (24 hours). Please enter password again to continue.');
+        return false;
+      }
+
+      if (!token) {
         lockCoordinatorSession();
         return false;
       }
+
+      if (now >= expiresAt) {
+        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.');
+        return false;
+      }
+
+      lastUserActivity = now;
       document.documentElement.classList.add('coord-authed');
       const overlay = document.getElementById('coordinatorLockOverlay');
       if (overlay) overlay.style.display = 'none';
