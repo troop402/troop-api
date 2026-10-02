@@ -216,6 +216,16 @@ K.6 Does not require prior authentication or application key.
 10.19.2 Instant 0ms Cache & Seamless Opportunistic Loading: Upcoming events (`twh_manager_events_cache`) and troop roster summary (`twh_manager_roster_summary`) are cached in client `localStorage`. On page load, cached events and summary counts render instantly (0ms) so the carpool dropdown and counts are immediately visible. The page opportunistically fetches fresh data in the background and seamlessly updates the UI upon response arrival without requiring manual refresh or sync buttons.
 10.19.3 Network Spin-Up Auto-Retry: API calls executed through `managerFetch` catch cold-start network failures and retry once with a 2.5-second backoff while the service is waking up from idle before displaying any error states.
 10.19.4 Authenticated Spreadsheet Downloads: Spreadsheet generation actions on the Manager Console route through authenticated `managerFetch`, downloading blobs directly and prompting for credentials if unauthorized rather than exposing raw unauthenticated endpoints.
+10.20 Persistent Download Feedback & Multi-Mode Dismissal:
+10.20.1 Prominent Top-Center Download Toast: Whenever a user triggers a spreadsheet or report export (.xlsx) across the Manager Console, Coordinator Worksheet, or Carpool Portal, the UI MUST display a prominent top-center floating toast notification (`.download-toast`).
+10.20.2 Distinct Preparation and Completion States:
+  - While generating on the server: displays an active indicator ("Preparing report (.xlsx)..." or "Preparing spreadsheet (.xlsx)...").
+  - Upon download completion: transitions to a prominent success state ("Downloaded! Saved to your Downloads folder.") with an explicit close button (`✕`).
+10.20.3 Multi-Mode Dismissal: The completion toast remains visible until dismissed. It MUST support dismissal via:
+  - Clicking the `✕` close button.
+  - Clicking directly on the toast itself.
+  - Clicking anywhere off the toast (document click).
+  - Pressing the Escape key.
 
 
 

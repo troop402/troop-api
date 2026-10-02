@@ -510,6 +510,21 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
 * **Authenticated Spreadsheet Downloads**:
   - Spreadsheet generation actions on the Manager Console route through authenticated `managerFetch`, downloading blobs directly and prompting for coordinator credentials if unauthorized rather than exposing raw unauthenticated endpoints.
 
+### 9.26 Persistent Download Toast Feedback & Multi-Mode Dismissal
+* **Cross-Browser & Safari Download Clarity**:
+  - Because browser download managers (especially Safari on macOS and iOS) route file downloads into subtle toolbar icons that users frequently overlook, report and spreadsheet generation actions now display a prominent, top-centered floating toast notification (`.download-toast`).
+* **Active Preparation & Completion States**:
+  - Displays `⏳ Preparing report (.xlsx)...` during backend generation, immediately communicating that server processing is occurring.
+  - Transitions to an emerald green success indicator (`📥 Downloaded! Saved to your Downloads folder.`) once the browser initiates file saving.
+* **Persistent Display with Multi-Mode Dismissal**:
+  - The completion toast remains visible until explicitly dismissed, preventing missed feedback.
+  - Users can dismiss the toast via:
+    1. Clicking the `✕` close button.
+    2. Clicking directly on the toast itself.
+    3. Clicking anywhere off the toast (document click).
+    4. Pressing the `Escape` key.
+  - Implemented uniformly across `manager.html`, `coordinator.html`, and `carpool.html`.
+
 
 
 

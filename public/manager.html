@@ -334,8 +334,54 @@
       border-color: #a7f3d0 !important;
       font-weight: 700;
     }
-    .btn-coord-active:hover {
-      background: #d1fae5 !important;
+    .download-toast {
+      position: fixed;
+      top: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 0.75rem 1.25rem;
+      border-radius: 9999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+      display: none;
+      align-items: center;
+      gap: 0.65rem;
+      z-index: 999999;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      user-select: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .download-toast:hover {
+      filter: brightness(1.08);
+    }
+    .download-toast-done {
+      background: #065f46;
+      border-color: #10b981;
+    }
+    .download-toast-icon {
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+    .download-toast-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-size: 0.9rem;
+      line-height: 1;
+      margin-left: 0.25rem;
+      cursor: pointer;
+    }
+    .download-toast-close:hover {
+      background: rgba(255, 255, 255, 0.35);
     }
   </style>
 </head>
@@ -1013,6 +1059,67 @@
       }
     }
 
+    let activeDownloadDismissHandler = null;
+    function showDownloadToast(msg, icon = '⏳', isDone = false) {
+      let toast = document.getElementById('downloadToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'downloadToast';
+        toast.className = 'download-toast';
+        document.body.appendChild(toast);
+      }
+
+      if (activeDownloadDismissHandler) {
+        document.removeEventListener('click', activeDownloadDismissHandler, true);
+        activeDownloadDismissHandler = null;
+      }
+
+      toast.innerHTML = `
+        <span class="download-toast-icon ${!isDone ? 'toast-spin' : ''}">${icon}</span>
+        <span class="download-toast-msg">${escapeHtml(msg)}</span>
+        ${isDone ? '<span class="download-toast-close" title="Dismiss" aria-label="Dismiss">&times;</span>' : ''}
+      `;
+      toast.style.display = 'inline-flex';
+
+      if (isDone) {
+        toast.classList.add('download-toast-done');
+        toast.title = 'Click to dismiss';
+
+        toast.onclick = () => {
+          dismissDownloadToast();
+        };
+
+        activeDownloadDismissHandler = (e) => {
+          if (!toast.contains(e.target)) {
+            dismissDownloadToast();
+          }
+        };
+
+        setTimeout(() => {
+          if (activeDownloadDismissHandler) {
+            document.addEventListener('click', activeDownloadDismissHandler, true);
+          }
+        }, 150);
+      } else {
+        toast.classList.remove('download-toast-done');
+        toast.title = '';
+        toast.onclick = null;
+      }
+    }
+
+    function dismissDownloadToast() {
+      const toast = document.getElementById('downloadToast');
+      if (toast) {
+        toast.style.display = 'none';
+        toast.classList.remove('download-toast-done');
+        toast.onclick = null;
+      }
+      if (activeDownloadDismissHandler) {
+        document.removeEventListener('click', activeDownloadDismissHandler, true);
+        activeDownloadDismissHandler = null;
+      }
+    }
+
     async function downloadCarpoolExcel() {
       const select = document.getElementById('eventSelect');
       const eventId = select ? select.value : '';
@@ -1027,6 +1134,7 @@
           btn.textContent = '⏳ Downloading...';
           btn.disabled = true;
         }
+        showDownloadToast('Preparing spreadsheet (.xlsx)...', '⏳', false);
         const res = await managerFetch(`/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`);
         if (!res.ok) throw new Error('Failed to download carpool spreadsheet');
         const blob = await res.blob();
@@ -1040,7 +1148,9 @@
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
+        showDownloadToast('Downloaded! Saved to your Downloads folder.', '📥', true);
       } catch (err) {
+        dismissDownloadToast();
         if (!err.isAuthChallenge) {
           alert('Error downloading carpool spreadsheet: ' + err.message);
         }
@@ -1274,6 +1384,7 @@
           includeUnassigned,
         };
 
+        showDownloadToast('Preparing custom report (.xlsx)...', '⏳', false);
         const res = await managerFetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1296,7 +1407,9 @@
         window.URL.revokeObjectURL(url);
 
         closeModal('tabularExportModal');
+        showDownloadToast('Downloaded! Saved to your Downloads folder.', '📥', true);
       } catch (err) {
+        dismissDownloadToast();
         if (!err.isAuthChallenge) {
           alert('Error downloading tabular spreadsheet: ' + err.message);
         }
@@ -1320,6 +1433,7 @@
       if (e.key === 'Escape') {
         closeModal('tabularExportModal');
         cancelCoordinatorAuthPrompt();
+        dismissDownloadToast();
       }
     });
 
