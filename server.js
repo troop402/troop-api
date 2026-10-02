@@ -32,8 +32,14 @@ if (!COORDINATOR_PASSWORD) {
 }
 
 const SESSION_SECRET = process.env.SESSION_SECRET || process.env.COORDINATOR_PASSWORD || 'troop402-session-secret-salt';
-const COORDINATOR_IDLE_TIMEOUT_MS = parseInt(process.env.COORDINATOR_IDLE_TIMEOUT_MS || process.env.COORDINATOR_SESSION_TIMEOUT_MS || '300000', 10); // default 5 minutes idle
-const COORDINATOR_MAX_SESSION_MS = parseInt(process.env.COORDINATOR_MAX_SESSION_MS || '86400000', 10); // default 24 hours absolute max
+const COORDINATOR_IDLE_TIMEOUT_MINUTES = process.env.COORDINATOR_IDLE_TIMEOUT_MINUTES ? parseFloat(process.env.COORDINATOR_IDLE_TIMEOUT_MINUTES) : null;
+const COORDINATOR_IDLE_TIMEOUT_MS = COORDINATOR_IDLE_TIMEOUT_MINUTES && !isNaN(COORDINATOR_IDLE_TIMEOUT_MINUTES)
+  ? Math.round(COORDINATOR_IDLE_TIMEOUT_MINUTES * 60 * 1000)
+  : parseInt(process.env.COORDINATOR_IDLE_TIMEOUT_MS || process.env.COORDINATOR_SESSION_TIMEOUT_MS || '1500000', 10); // default 25 minutes idle
+const COORDINATOR_MAX_SESSION_HOURS = process.env.COORDINATOR_MAX_SESSION_HOURS ? parseFloat(process.env.COORDINATOR_MAX_SESSION_HOURS) : null;
+const COORDINATOR_MAX_SESSION_MS = COORDINATOR_MAX_SESSION_HOURS && !isNaN(COORDINATOR_MAX_SESSION_HOURS)
+  ? Math.round(COORDINATOR_MAX_SESSION_HOURS * 3600 * 1000)
+  : parseInt(process.env.COORDINATOR_MAX_SESSION_MS || '86400000', 10); // default 24 hours absolute max
 const COORDINATOR_SESSION_TIMEOUT_MS = COORDINATOR_IDLE_TIMEOUT_MS; // Backwards-compatible alias
 const VIEWER_SESSION_TIMEOUT_MS = parseInt(process.env.VIEWER_SESSION_TIMEOUT_MS || '86400000', 10); // default 24 hours
 const CARPOOL_CACHE_TTL_MS = process.env.CARPOOL_CACHE_TTL_MS !== undefined ? parseInt(process.env.CARPOOL_CACHE_TTL_MS, 10) : 0;
@@ -3291,6 +3297,8 @@ export {
   buildNameDictionary,
   COORDINATOR_IDLE_TIMEOUT_MS,
   COORDINATOR_MAX_SESSION_MS,
+  COORDINATOR_IDLE_TIMEOUT_MINUTES,
+  COORDINATOR_MAX_SESSION_HOURS,
 };
 
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;

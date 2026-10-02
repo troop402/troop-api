@@ -132,7 +132,7 @@ J.9 Returns HTTP 400 for invalid event IDs and HTTP 500 for generation failures.
 ### K. POST /api/auth/coordinator-login
 K.1 Authenticates coordinator access using `COORDINATOR_PASSWORD` defined in server environment (defaults to dev fallback).
 K.2 Verifies the password using constant-time buffer comparison (`crypto.timingSafeEqual`) to prevent timing side-channel attacks.
-K.3 Returns a signed HMAC session bearer token (`token`), duration (`expiresIn` / `expiresInMs`, 5 minutes / 300 seconds), and exact expiry timestamp (`expiresAt`).
+K.3 Returns a signed HMAC session bearer token (`token`), duration (`expiresIn` / `expiresInMs`, defaulting to 25 minutes / 1500 seconds / 1,500,000 ms, configurable via `COORDINATOR_IDLE_TIMEOUT_MINUTES` or `COORDINATOR_IDLE_TIMEOUT_MS`), `idleTimeoutMs`, `maxSessionMs` (defaulting to 24 hours / 86,400,000 ms, configurable via `COORDINATOR_MAX_SESSION_HOURS` or `COORDINATOR_MAX_SESSION_MS`), and exact expiry timestamp (`expiresAt`).
 K.4 Returns HTTP 400 if password is missing or not a string.
 K.5 Returns HTTP 401 if password is incorrect.
 K.6 Does not require prior authentication or application key.
@@ -195,6 +195,11 @@ K.6 Does not require prior authentication or application key.
 10.16.1 The coordinator worksheet summary KPI row features a dedicated capacity balance card (`#kpiExtraCard`) that dynamically distinguishes between seat abundance and seat shortage across both trip legs.
 10.16.2 Seat Surplus (Blue Theme): When passenger seats provided meet or exceed attending scouts across both trip legs (`totalSeatsTo >= totalScouts && totalSeatsFrom >= totalScouts`), the card MUST be titled "Seat Surplus" with subtext "Seats to spare" (or "Exact ride capacity" when 0), display positive surplus integer counts for each trip leg, and style the entire card with a soft blue theme (`.kpi-surplus`, background `#eff6ff`, border `#bfdbfe`, accent `#2563eb`).
 10.16.3 Seat Deficit (Red Theme): When either trip leg has fewer passenger seats than attending scouts (`totalSeatsTo < totalScouts || totalSeatsFrom < totalScouts`), the card MUST be titled "Seat Deficit" with subtext "Capacity shortage", display positive integer numbers representing the additional seats needed on each leg, and style the entire card with a soft red theme (`.kpi-deficit`, background `#fef2f2`, border `#fecaca`, accent `#ef4444`).
+10.17 Proactive Coordinator Authentication, Action Continuation & Error Preservation:
+10.17.1 Pre-Flight & Reactive Password Prompting: Whenever a coordinator triggers an action requiring coordinator privileges (e.g. saving driver comments/seats, generating/downloading live custom spreadsheets) while unauthenticated or after session expiration, the client MUST proactively float up the password prompt (`#coordinatorLockOverlay`) with an explicit contextual rationale (e.g. "Coordinator password required to save changes to Website" or "Coordinator password required to download spreadsheet").
+10.17.2 Seamless Action Continuation & Auto-Retry: The authentication prompt MUST resolve pending actions asynchronously. Upon successful password verification, any in-flight or intercepted request (such as a driver save or spreadsheet generation) MUST be automatically executed or retried without requiring the user to re-trigger the action from scratch.
+10.17.3 Preservation of Dirty State on Writeback Failures: If a driver update fails due to authentication or network error, `persistDriverChange` MUST propagate the error, and the client MUST strictly preserve dirty drivers in `pendingDriversToSync` and `localDraft`. The system MUST NEVER mark a driver clean or disable the save button when synchronization has not succeeded.
+10.17.4 Proactive Visibility Expiry Detection: The client MUST listen for browser `visibilitychange` and window `focus` events to immediately evaluate token freshness when returning to the tab, prompting for re-authentication immediately if the inactivity window has elapsed in the background.
 
 
 

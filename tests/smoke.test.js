@@ -324,7 +324,7 @@ describe('Authentication and authorization', () => {
     assert.equal(coordData.ok, true);
     assert.equal(coordData.role, 'coordinator');
     assert.equal(typeof coordData.token, 'string');
-    assert.equal(coordData.expiresIn, 300);
+    assert.equal(coordData.expiresIn, Math.floor(COORDINATOR_IDLE_TIMEOUT_MS / 1000));
   });
 
   it('handles coordinator authentication flow via POST /api/auth/coordinator-login', async () => {
@@ -339,7 +339,7 @@ describe('Authentication and authorization', () => {
     assert.equal(data.ok, true);
     assert.equal(data.role, 'coordinator');
     assert.equal(typeof data.token, 'string');
-    assert.equal(data.expiresIn, 300);
+    assert.equal(data.expiresIn, Math.floor(COORDINATOR_IDLE_TIMEOUT_MS / 1000));
   });
 
   it('protects driver-update with coordinator role requirements', async () => {
@@ -475,6 +475,23 @@ describe('Authentication and authorization', () => {
 
     // verifySignedToken also rejects tokens that exceeded max session duration
     assert.equal(verifySignedToken(overCapToken), null);
+  });
+
+  it('supports configurable coordinator idle timeout (default 25 minutes) and max session duration', async () => {
+    assert.equal(COORDINATOR_IDLE_TIMEOUT_MS, 25 * 60 * 1000);
+    assert.equal(COORDINATOR_MAX_SESSION_MS, 24 * 3600 * 1000);
+
+    const validPassword = process.env.COORDINATOR_PASSWORD;
+    const res = await fetch(`${baseUrl}/api/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: validPassword }),
+    });
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.idleTimeoutMs, 25 * 60 * 1000);
+    assert.equal(data.expiresIn, 25 * 60);
+    assert.equal(data.maxSessionMs, 24 * 3600 * 1000);
   });
 });
 

@@ -1177,8 +1177,8 @@
   <div id="coordinatorLockOverlay">
     <div style="background:white; border-radius:12px; max-width:440px; width:100%; padding:2.25rem; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align:center;">
       <div style="font-size:3rem; margin-bottom:0.75rem; line-height:1;">🔒</div>
-      <h2 style="font-size:1.35rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Coordinator Access Required</h2>
-      <p style="font-size:0.875rem; color:#64748b; line-height:1.5; margin-bottom:1.5rem;">
+      <h2 id="coordLockTitle" style="font-size:1.35rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Coordinator Access Required</h2>
+      <p id="coordLockSubtitle" style="font-size:0.875rem; color:#64748b; line-height:1.5; margin-bottom:1.5rem;">
         This page allows editing carpool rosters and updating TroopWebHost directly. Please enter the coordinator password to unlock.
       </p>
       <form id="coordinatorLoginForm" onsubmit="handleCoordinatorLogin(event)">
@@ -1187,12 +1187,17 @@
           <input type="password" id="coordPasswordInput" style="width:100%; padding:0.7rem 0.85rem; font-size:1rem; border:1px solid #cbd5e1; border-radius:6px; outline:none;" placeholder="Enter password" autofocus required />
         </div>
         <div id="coordLoginError" style="display:none; background:#fee2e2; color:#991b1b; padding:0.6rem 0.8rem; border-radius:6px; font-size:0.82rem; font-weight:600; margin-bottom:1rem; text-align:left;"></div>
-        <button type="submit" id="btnUnlockWorksheet" class="btn btn-primary" style="width:100%; padding:0.75rem; font-size:1rem; justify-content:center; font-weight:700; background:#0284c7; border-color:#0284c7;">
-          🔓 Unlock Coordinator Worksheet
-        </button>
+        <div style="display:flex; gap:0.5rem;">
+          <button type="button" id="btnCancelCoordLogin" class="btn" style="display:none; flex:1; padding:0.75rem; font-size:0.95rem; justify-content:center; font-weight:600;" onclick="cancelCoordinatorAuthPrompt()">
+            Cancel
+          </button>
+          <button type="submit" id="btnUnlockWorksheet" class="btn btn-primary" style="flex:2; padding:0.75rem; font-size:1rem; justify-content:center; font-weight:700; background:#0284c7; border-color:#0284c7;">
+            🔓 Unlock
+          </button>
+        </div>
       </form>
       <div style="margin-top:1.5rem; border-top:1px solid #e2e8f0; padding-top:1rem;">
-        <a id="lockCarpoolReturnLink" href="#" style="font-size:0.85rem; color:#64748b; text-decoration:none; font-weight:600;">&larr; Return to View-Only Carpool</a>
+        <a id="lockCarpoolReturnLink" href="#" style="font-size:0.85rem; color:#64748b; text-decoration:none; font-weight:600;" onclick="cancelCoordinatorAuthPrompt()">&larr; Return to View-Only Carpool</a>
       </div>
     </div>
   </div>
@@ -1889,6 +1894,37 @@
       window.addEventListener(evt, recordUserActivity, { passive: true });
     });
 
+    // Proactive check when switching back to tab
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        const token = getCoordinatorToken();
+        if (token) {
+          const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+          const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+          const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+          const now = Date.now();
+          if (authAt && (now - authAt > maxMs)) {
+            lockCoordinatorSession('Coordinator session reached maximum duration (24 hours). Please enter password again.');
+          } else if (expiresAt && now >= expiresAt) {
+            lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.');
+          } else {
+            maybeRefreshCoordinatorSession();
+          }
+        }
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      const token = getCoordinatorToken();
+      if (token) {
+        const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+        const now = Date.now();
+        if (expiresAt && now >= expiresAt) {
+          lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.');
+        }
+      }
+    });
+
     let refreshPromise = null;
     async function refreshCoordinatorSession() {
       if (refreshPromise) return refreshPromise;
@@ -1946,7 +1982,7 @@
       if (!token) return false;
 
       const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
-      const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '300000', 10);
+      const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '1500000', 10);
       const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
       const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
 
@@ -1969,9 +2005,48 @@
       return true;
     }
 
-    async function coordinatorFetch(url, options = {}) {
-      if (!url.includes('/api/auth/token') && !url.includes('/api/auth/refresh')) {
-        await maybeRefreshCoordinatorSession();
+    // Pending Auth Resolvers for Seamless Request Continuation & Retry
+    let pendingAuthResolvers = [];
+
+    function promptCoordinatorPassword(reasonMsg = 'Please enter coordinator password to continue.') {
+      return new Promise((resolve, reject) => {
+        pendingAuthResolvers.push({ resolve, reject });
+        lockCoordinatorSession(reasonMsg);
+      });
+    }
+
+    function cancelCoordinatorAuthPrompt() {
+      const overlay = document.getElementById('coordinatorLockOverlay');
+      if (overlay) overlay.style.display = 'none';
+      const resolvers = [...pendingAuthResolvers];
+      pendingAuthResolvers = [];
+      const err = new Error('Coordinator authentication cancelled.');
+      err.isAuthChallenge = true;
+      resolvers.forEach(({ reject }) => reject(err));
+    }
+
+    async function coordinatorFetch(url, options = {}, isRetry = false) {
+      const isAuthEndpoint = url.includes('/api/auth/token') || url.includes('/api/auth/refresh');
+      if (!isAuthEndpoint) {
+        const token = getCoordinatorToken();
+        const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+        const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+        const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+        const now = Date.now();
+
+        if (authAt && (now - authAt > maxMs)) {
+          await promptCoordinatorPassword('Coordinator session reached maximum 24-hour duration. Please enter password to continue.');
+        } else if (!token || (expiresAt && now >= expiresAt)) {
+          let promptReason = 'Coordinator session expired. Please enter password to continue.';
+          if (url.includes('driver-update')) {
+            promptReason = 'Coordinator password required to save changes to Website.';
+          } else if (url.includes('.xlsx')) {
+            promptReason = 'Coordinator password required to download spreadsheet.';
+          }
+          await promptCoordinatorPassword(promptReason);
+        } else {
+          await maybeRefreshCoordinatorSession();
+        }
       }
 
       const headers = getAuthHeaders(options.headers || {});
@@ -1989,6 +2064,18 @@
           const data = await res.clone().json();
           if (data && data.error) errorMsg = data.error;
         } catch {}
+
+        if (!isRetry) {
+          let promptReason = errorMsg;
+          if (url.includes('driver-update')) {
+            promptReason = `Session expired (${errorMsg}). Enter coordinator password to save changes to Website.`;
+          } else if (url.includes('.xlsx')) {
+            promptReason = `Session expired (${errorMsg}). Enter coordinator password to download spreadsheet.`;
+          }
+          await promptCoordinatorPassword(promptReason);
+          return await coordinatorFetch(url, options, true); // Auto-retry once with freshly obtained token!
+        }
+
         lockCoordinatorSession(errorMsg);
         const authErr = new Error(errorMsg);
         authErr.status = res.status;
@@ -2011,7 +2098,7 @@
 
       const checkDelayMs = remainingMs > 5000 ? remainingMs - 5000 : remainingMs;
       sessionExpiryTimeout = setTimeout(async () => {
-        const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '300000', 10);
+        const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '1500000', 10);
         const timeSinceActivity = Date.now() - lastUserActivity;
         if (timeSinceActivity < idleMs) {
           const ok = await refreshCoordinatorSession();
@@ -2038,15 +2125,33 @@
       if (loadingEl) loadingEl.style.display = 'none';
       if (overlay) overlay.style.display = 'flex';
 
+      const titleEl = document.getElementById('coordLockTitle');
+      const subtitleEl = document.getElementById('coordLockSubtitle');
       const errEl = document.getElementById('coordLoginError');
-      if (errEl) {
+
+      if (titleEl) {
+        titleEl.textContent = 'Coordinator Access Required';
+      }
+      if (subtitleEl) {
         if (reasonMsg) {
-          errEl.textContent = reasonMsg;
-          errEl.style.display = 'block';
+          subtitleEl.innerHTML = `<span style="display:inline-block; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:0.5rem 0.75rem; border-radius:6px; font-weight:600; font-size:0.84rem; text-align:left; width:100%; box-sizing:border-box;">🔒 ${escapeHtml(reasonMsg)}</span>`;
         } else {
-          errEl.style.display = 'none';
+          subtitleEl.textContent = 'This page allows editing carpool rosters and updating TroopWebHost directly. Please enter the coordinator password to unlock.';
         }
       }
+
+      if (errEl) {
+        errEl.textContent = '';
+        errEl.style.display = 'none';
+      }
+
+      // Show cancel button if worksheet content is already rendered so user can dismiss if needed
+      const cancelBtn = document.getElementById('btnCancelCoordLogin');
+      const contentEl = document.getElementById('content');
+      if (cancelBtn) {
+        cancelBtn.style.display = (contentEl && contentEl.style.display !== 'none') ? 'inline-block' : 'none';
+      }
+
       const passInput = document.getElementById('coordPasswordInput');
       if (passInput) {
         passInput.value = '';
@@ -2091,6 +2196,11 @@
         if (overlay) overlay.style.display = 'none';
         scheduleSessionExpiry(data.expiresAt);
 
+        // Resolve any pending auth resolvers so ongoing/retried calls proceed immediately
+        const resolvers = [...pendingAuthResolvers];
+        pendingAuthResolvers = [];
+        resolvers.forEach(({ resolve }) => resolve(data.token));
+
         // Resume or initialize coordinator
         const contentEl = document.getElementById('content');
         if (!contentEl || contentEl.style.display === 'none') {
@@ -2108,7 +2218,7 @@
         if (passInput) passInput.select();
       } finally {
         btn.disabled = false;
-        btn.textContent = '🔓 Unlock Coordinator Worksheet';
+        btn.textContent = '🔓 Unlock';
       }
     }
 
@@ -4343,15 +4453,19 @@
 
       showSavingOverlay(`Saving ${toDisplayName(driverToSave)} to Website...`);
       try {
-        await persistDriverChange(driverToSave);
-        // Remove from pending dirty drivers
-        for (const name of Array.from(pendingDriversToSync)) {
-          if (normalizeName(name) === norm) {
-            pendingDriversToSync.delete(name);
-          }
+        const savedOk = await persistDriverChange(driverToSave);
+        if (savedOk) {
+          saveDraft();
+          renderPage();
         }
+      } catch (err) {
+        console.error('Failed to persist driver change to TWH:', err);
+        updateSyncBadge('error', `⚠️ Save Failed: ${err.message}`);
         saveDraft();
         renderPage();
+        if (!err.isAuthChallenge) {
+          alert(`Failed to save ${toDisplayName(driverToSave)} to Website: ${err.message}`);
+        }
       } finally {
         hideSavingOverlay();
       }
@@ -4796,34 +4910,42 @@
       showSavingOverlay('Saving changes to Website...');
 
       try {
-        while (pendingDriversToSync.size > 0) {
-          const driverName = pendingDriversToSync.values().next().value;
-          pendingDriversToSync.delete(driverName);
-
+        const dirtyList = Array.from(pendingDriversToSync);
+        for (const driverName of dirtyList) {
           if (!isDriverTrulyDirty(driverName)) {
+            pendingDriversToSync.delete(driverName);
             continue;
           }
 
           showSavingOverlay(`Saving ${toDisplayName(driverName)} to Website...`);
           try {
-            await persistDriverChange(driverName);
-          } catch (err) {
-            if (err.isAuthChallenge) {
-              pendingDriversToSync.add(driverName);
-              return;
+            const savedOk = await persistDriverChange(driverName);
+            if (!savedOk) {
+              break;
             }
-            throw err;
+          } catch (err) {
+            console.error(`Error saving ${driverName}:`, err);
+            updateSyncBadge('error', `⚠️ Save Failed: ${err.message}`);
+            if (!err.isAuthChallenge) {
+              alert(`Failed to save ${toDisplayName(driverName)} to Website: ${err.message}`);
+            }
+            break;
           }
         }
 
-        // All pending syncs are complete! Clear draft and update baseline cache
-        try {
-          localStorage.removeItem(legacyDraftKey);
-          localStorage.removeItem(draftStorageKey);
-          if (localDraft) localDraft.isCustom = false;
-          const db = document.getElementById('draftBanner');
-          if (db) db.style.display = 'none';
-        } catch (e) {}
+        saveDraft();
+        renderPage();
+
+        if (pendingDriversToSync.size === 0) {
+          // All pending syncs are complete! Clear draft and update baseline cache
+          try {
+            localStorage.removeItem(legacyDraftKey);
+            localStorage.removeItem(draftStorageKey);
+            if (localDraft) localDraft.isCustom = false;
+            const db = document.getElementById('draftBanner');
+            if (db) db.style.display = 'none';
+          } catch (e) {}
+        }
       } finally {
         isSyncInProgress = false;
         hideSavingOverlay();
@@ -4835,13 +4957,13 @@
       const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
       const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
 
-      if (!toDriver && !fromDriver) return;
+      if (!toDriver && !fromDriver) return false;
 
       const updatedComment = synthesizeDriverComment(driverName);
       if (updatedComment.length > 100) {
         updateSyncBadge('error', `⚠️ Over 100 chars (${updatedComment.length}/100)`);
         openTrimCommentModal(driverName);
-        return;
+        return false;
       }
 
       const passengerSeats = Math.max(toDriver?.seats || 0, fromDriver?.seats || 0);
@@ -4885,7 +5007,7 @@
             }
             saveDraft();
             updateSyncBadge('success', '✓ In sync with Website');
-            return;
+            return true;
           }
 
           activeConflict = {
@@ -4898,7 +5020,7 @@
           };
           updateSyncBadge('conflict', '⚠️ Conflict on Website');
           openConflictModal(activeConflict);
-          return;
+          return false;
         }
 
         if (!res.ok) {
@@ -4946,9 +5068,11 @@
         } catch (e) {}
 
         updateSyncBadge('success', '✓ Saved to Website');
+        return true;
       } catch (err) {
         console.error('Failed to persist driver change to TWH:', err);
         updateSyncBadge('error', `⚠️ Save to Website Failed: ${err.message}`);
+        throw err;
       }
     }
 
@@ -5740,16 +5864,15 @@
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-
-        btn.textContent = origText;
-        btn.disabled = false;
+        showRefreshToast('Carpool spreadsheet (.xlsx) downloaded', '📥', false, 3000);
       } catch (err) {
         if (!err.isAuthChallenge) {
           alert('Error downloading Excel: ' + err.message);
         }
+      } finally {
         const btn = document.getElementById('downloadExcelBtn');
         if (btn) {
-          btn.textContent = '📥 Download Excel (.xlsx)';
+          btn.textContent = origText || '📥 Download Excel (.xlsx)';
           btn.disabled = false;
         }
       }
@@ -5990,6 +6113,7 @@
         window.URL.revokeObjectURL(url);
 
         closeModal('tabularExportModal');
+        showRefreshToast('Custom report (.xlsx) downloaded', '📥', false, 3000);
       } catch (err) {
         if (!err.isAuthChallenge) {
           alert('Error downloading tabular spreadsheet: ' + err.message);

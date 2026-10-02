@@ -87,8 +87,8 @@ To prevent architectural drift and regressions across sessions, the repository m
 ### Current Status: `0.3.0-alpha` (Branch `feat/security-auth`)
 * **Two-Tier Authentication Architecture**:
   - **Tier 1 (Troop Application Key)**: Shared `x-troop-key` HTTP header (or `?key=` query param for direct browser file downloads) required across all read endpoints (`/api/roster/summary`, `/api/export-roster`, `/api/events`, `/api/events/:id/carpool`, `/api/events/:id/carpool.xlsx`, `/api/events/:id/tabular.xlsx`, `/api/events/:id/twh-status`). Dev fallback is `troop402-app-access`. Unauthenticated calls receive HTTP 401.
-  - **Tier 2 (Coordinator Password & Session Token)**: Write operations (`POST /api/events/:id/driver-update`) strictly require an `Authorization: Bearer <token>` signed HMAC session token issued by `POST /api/auth/coordinator-login` using the coordinator password (`COORDINATOR_PASSWORD=Riptide` in `.env`). Server strictly fails fast on boot without fallback if unset. Session tokens expire after 5 minutes (300 seconds).
-  - **Visual Full-Page Lockout Overlay**: The Coordinator Worksheet (`/coordinator.html`) renders unauthenticated states with a full-page modal (`#coordinatorLockOverlay`) before any data loading indicator. Client utility `coordinatorFetch()` intercepts HTTP 401/403 responses and surfaces the challenge immediately.
+  - **Tier 2 (Coordinator Password & Session Token)**: Write operations (`POST /api/events/:id/driver-update`) strictly require an `Authorization: Bearer <token>` signed HMAC session token issued by `POST /api/auth/coordinator-login` using the coordinator password (`COORDINATOR_PASSWORD=Riptide` in `.env`). Server strictly fails fast on boot without fallback if unset. Session tokens feature a configurable idle timeout defaulting to 25 minutes (1500 seconds / 1,500,000 ms; configurable via `COORDINATOR_IDLE_TIMEOUT_MINUTES` or `COORDINATOR_IDLE_TIMEOUT_MS`) and a configurable absolute session cap of 24 hours (`COORDINATOR_MAX_SESSION_HOURS` / `COORDINATOR_MAX_SESSION_MS`).
+  - **Visual Full-Page Lockout Overlay**: The Coordinator Worksheet (`/coordinator.html`) renders unauthenticated states with a full-page modal (`#coordinatorLockOverlay`) before any data loading indicator. Client utility `coordinatorFetch()` proactively checks session freshness, prompts with context-specific messages, and automatically retries upon authentication challenge.
 * **Shelved Server-Side In-Memory Carpool Cache**:
   - Server in-memory carpool cache TTL set to 0 (`carpoolTtlMs: 0`). The Node server always queries TroopWebHost live on event carpool requests.
   - Prominent floating refresh toast notification (`🔄 Checking...`, `✅ Up to date...`, `✨ Updated with latest...`, `⚠️ Error...`) provides continuous visual status feedback on both `carpool.html` and `coordinator.html`.
@@ -470,6 +470,24 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
      - Titled **`Seat Deficit`** with subtext *"Capacity shortage"* (or leg-specific note if single leg).
      - Displays positive integer values for shortage counts (`Math.max(0, -diffTo)`, `Math.max(0, -diffFrom)`) indicating exactly how many more seats must be recruited.
      - Tints the entire card soft red (`.kpi-deficit`, background `#fef2f2`, border `#fecaca`, accent `#ef4444`), with matching deep red title, split labels, numbers, and subtext.
+
+### 9.23 Configurable Coordinator Timeouts & Proactive Authentication Prompting
+* **Realistic & Configurable Idle Timeouts (`.env`)**:
+  - Following the transition from short demo intervals to production carpool coordination, coordinator password sessions default to a realistic **25 minutes** of inactivity (1,500,000 ms).
+  - Timeouts are fully configurable in `.env` and documented in `.env.example`:
+    - `COORDINATOR_IDLE_TIMEOUT_MINUTES=25` (or `COORDINATOR_IDLE_TIMEOUT_MS=1500000`).
+    - `COORDINATOR_MAX_SESSION_HOURS=24` (or `COORDINATOR_MAX_SESSION_MS=86400000`) enforcing an absolute 24-hour upper ceiling regardless of refresh activity.
+  - Endpoints (`/api/auth/token`, `/api/auth/coordinator-login`, `/api/auth/refresh`) return explicit metadata (`idleTimeoutMs`, `maxSessionMs`, `expiresAt`, `authAt`, `expiresIn`).
+* **Proactive Password Prompting & Action Continuation**:
+  - When a coordinator clicks **Save** (`submitSaveDriverToTWH`), **Save All**, or **Download Spreadsheet** (`downloadCoordinatorExcel`, `downloadTabularExcel`):
+    - `coordinatorFetch()` performs a pre-flight freshness check. If unauthenticated or if the session has expired (`now >= expiresAt`), it immediately floats up `#coordinatorLockOverlay` with a context-specific message (e.g. *"Coordinator password required to save changes to Website"* or *"Coordinator password required to download spreadsheet"*).
+    - If a backend service call fails with HTTP 401 or 403, `coordinatorFetch()` immediately intercepts the challenge, prompts for the password, and **automatically retries the pending request once authenticated** without dropping the user's action.
+  - On spreadsheet downloads, successful completion surfaces a floating toast notification (`📥 Carpool spreadsheet (.xlsx) downloaded` or `📥 Custom report (.xlsx) downloaded`).
+* **Preserving Dirty Edits Across Auth Failures**:
+  - `persistDriverChange()` throws on error rather than silently swallowing failed updates.
+  - If a save fails or user is unauthenticated, dirty drivers are strictly retained in `pendingDriversToSync` and `localDraft`. The system never prematurely disables the save button or purges drafts when writeback does not succeed.
+* **Proactive Tab Visibility & Focus Detection**:
+  - Window `focus` and `visibilitychange` event listeners proactively verify session freshness the instant a coordinator switches back to the browser tab, floating up the password prompt if the timeout elapsed in the background.
 
 
 
