@@ -310,35 +310,37 @@
       to { transform: rotate(360deg); }
     }
 
-    /* Visual Saving Overlay */
+    /* Visual Saving Overlay - High-Contrast Blocking Screen */
     .saving-overlay {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(15, 23, 42, 0.4);
-      backdrop-filter: blur(2px);
-      z-index: 10000;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 999999;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: opacity 0.2s ease;
+      cursor: wait;
+      pointer-events: all;
+      user-select: none;
     }
     .saving-card {
       background: white;
-      padding: 1.25rem 2rem;
+      padding: 1.75rem 2.25rem;
       border-radius: 12px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
       display: flex;
       align-items: center;
-      gap: 1rem;
-      font-weight: 600;
-      font-size: 0.95rem;
-      color: #1e293b;
+      gap: 1.25rem;
+      max-width: 480px;
+      border: 1px solid #e2e8f0;
     }
     .saving-spinner {
-      width: 24px;
-      height: 24px;
-      border: 3px solid #cbd5e1;
-      border-top-color: #2563eb;
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #0284c7;
       border-radius: 50%;
       animation: spin 0.75s linear infinite;
     }
@@ -1844,11 +1846,18 @@
         </div>
       </div>
     </div>
-  <!-- Saving Overlay (Brief grey screen with spinning save icon) -->
+  <!-- Saving Overlay (Prominent blocking screen with spinning save icon) -->
   <div id="savingOverlay" class="saving-overlay" style="display:none;">
     <div class="saving-card">
       <div class="saving-spinner"></div>
-      <div id="savingOverlayText">Saving changes to Website...</div>
+      <div>
+        <div id="savingOverlayTitle" style="font-weight: 800; font-size: 1.15rem; color: #0f172a; margin-bottom: 0.25rem;">
+          Saving changes to Website...
+        </div>
+        <div id="savingOverlayText" style="font-size: 0.88rem; color: #475569;">
+          Updating driver on TroopWebHost...
+        </div>
+      </div>
     </div>
   </div>
 
@@ -4697,6 +4706,12 @@
         return;
       }
 
+      const saveBtn = document.getElementById('noteSaveBtn');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="toast-spin" style="display:inline-block; margin-right:0.35rem;">⏳</span> Saving to Website...';
+      }
+
       const driverToSave = activeNoteDriverName;
       const norm = normalizeName(driverToSave);
       const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
@@ -4707,26 +4722,36 @@
       if (toDriver) toDriver.customNote = newNote;
       if (fromDriver) fromDriver.customNote = newNote;
 
+      // 1. First trigger the full-page blocking saving overlay so screen stays greyed out
+      showSavingOverlay(`Updating ${toDisplayName(driverToSave)} on TroopWebHost...`, 'Saving changes to Website...');
+
+      // 2. Close the modal dialog so user does not attempt additional edits
       modalInitialNote = null;
       closeDriverUndoMenu();
       closeModal('noteModal');
       activeNoteDriverName = null;
 
-      showSavingOverlay(`Saving ${toDisplayName(driverToSave)} to Website...`);
       try {
         const savedOk = await persistDriverChange(driverToSave);
         if (savedOk) {
           saveDraft();
           renderPage();
           showRefreshToast(`✅ ${toDisplayName(driverToSave)} saved to Website!`, '✅', false, 3500);
+        } else {
+          // If conflict or validation prevented save, preserve draft and dirty highlighting
+          markDriverDirty(driverToSave);
+          saveDraft();
+          renderPage();
         }
       } catch (err) {
         console.error('Failed to persist driver change to TWH:', err);
-        updateSyncBadge('error', `⚠️ Save Failed: ${err.message}`);
+        markDriverDirty(driverToSave);
         saveDraft();
         renderPage();
+        updateSyncBadge('error', `⚠️ Save Failed: ${err.message}`);
         if (!err.isAuthChallenge) {
-          alert(`Failed to save ${toDisplayName(driverToSave)} to Website: ${err.message}`);
+          showRefreshToast(`⚠️ Save failed: ${err.message}. Changes saved locally.`, '⚠️', false, 5000);
+          alert(`Failed to save ${toDisplayName(driverToSave)} to Website: ${err.message}\n\nYour changes have been saved locally on the worksheet and marked with an unsaved indicator so you can retry.`);
         }
       } finally {
         hideSavingOverlay();
@@ -4742,21 +4767,27 @@
         return;
       }
 
-      showSavingOverlay(`Saving ${toDisplayName(driverName)} to Website...`);
+      showSavingOverlay(`Updating ${toDisplayName(driverName)} on TroopWebHost...`, 'Saving changes to Website...');
       try {
         const savedOk = await persistDriverChange(driverName);
         if (savedOk) {
           saveDraft();
           renderPage();
           showRefreshToast(`✅ ${toDisplayName(driverName)} saved to Website!`, '✅', false, 3500);
+        } else {
+          markDriverDirty(driverName);
+          saveDraft();
+          renderPage();
         }
       } catch (err) {
         console.error(`Failed to save ${driverName} to Website:`, err);
-        updateSyncBadge('error', `⚠️ Save Failed: ${err.message}`);
+        markDriverDirty(driverName);
         saveDraft();
         renderPage();
+        updateSyncBadge('error', `⚠️ Save Failed: ${err.message}`);
         if (!err.isAuthChallenge) {
-          alert(`Failed to save ${toDisplayName(driverName)} to Website: ${err.message}`);
+          showRefreshToast(`⚠️ Save failed: ${err.message}. Changes saved locally.`, '⚠️', false, 5000);
+          alert(`Failed to save ${toDisplayName(driverName)} to Website: ${err.message}\n\nYour changes have been saved locally on the worksheet and marked with an unsaved indicator so you can retry.`);
         }
       } finally {
         hideSavingOverlay();
@@ -5152,9 +5183,11 @@
     const pendingDriversToSync = new Set();
     let isSyncInProgress = false;
 
-    function showSavingOverlay(message) {
+    function showSavingOverlay(message, title = 'Saving changes to Website...') {
       const el = document.getElementById('savingOverlay');
+      const titleEl = document.getElementById('savingOverlayTitle');
       const txt = document.getElementById('savingOverlayText');
+      if (titleEl) titleEl.textContent = title;
       if (txt && message) txt.textContent = message;
       if (el) el.style.display = 'flex';
     }
