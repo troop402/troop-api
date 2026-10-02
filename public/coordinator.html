@@ -1072,10 +1072,20 @@
       to { transform: rotate(360deg); }
     }
   </style>
+  <script>
+    // Immediate pre-render session check: if already authenticated, dismiss lock screen before render
+    try {
+      const t = sessionStorage.getItem('twh_coordinator_token');
+      const exp = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      if (t && Date.now() < exp) {
+        document.write('<style>#coordinatorLockOverlay{display:none !important;}#loading{display:block !important;}</style>');
+      }
+    } catch (e) {}
+  </script>
 </head>
 <body>
-  <!-- Full-Page Coordinator Lockout Overlay -->
-  <div id="coordinatorLockOverlay" style="display:none; position:fixed; inset:0; background:rgba(15, 23, 42, 0.95); backdrop-filter:blur(10px); z-index:999999; align-items:center; justify-content:center; padding:1.5rem;">
+  <!-- Full-Page Coordinator Lockout Overlay (Visible by default until authenticated) -->
+  <div id="coordinatorLockOverlay" style="display:flex; position:fixed; inset:0; background:rgba(15, 23, 42, 0.95); backdrop-filter:blur(10px); z-index:999999; align-items:center; justify-content:center; padding:1.5rem;">
     <div style="background:white; border-radius:12px; max-width:440px; width:100%; padding:2.25rem; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align:center;">
       <div style="font-size:3rem; margin-bottom:0.75rem; line-height:1;">🔒</div>
       <h2 style="font-size:1.35rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Coordinator Access Required</h2>
@@ -1105,7 +1115,7 @@
   </div>
 
   <div class="container">
-    <div id="loading" style="padding: 3rem; text-align: center;">
+    <div id="loading" style="display:none; padding: 3rem; text-align: center;">
       <h2 style="font-size: 1.3rem; margin-bottom: 0.5rem;">🚗 Loading Coordinator Worksheet...</h2>
       <p style="color: var(--text-muted);">Fetching driver rosters and scout attendance...</p>
     </div>
@@ -1794,6 +1804,8 @@
       sessionStorage.removeItem('twh_coordinator_expires_at');
 
       const overlay = document.getElementById('coordinatorLockOverlay');
+      const loadingEl = document.getElementById('loading');
+      if (loadingEl) loadingEl.style.display = 'none';
       const errEl = document.getElementById('coordLoginError');
       if (overlay) overlay.style.display = 'flex';
       if (errEl) {
@@ -1841,6 +1853,8 @@
 
         const overlay = document.getElementById('coordinatorLockOverlay');
         if (overlay) overlay.style.display = 'none';
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.style.display = 'block';
         scheduleSessionExpiry(data.expiresAt);
 
         // Resume loading coordinator
@@ -1866,6 +1880,8 @@
       }
       const overlay = document.getElementById('coordinatorLockOverlay');
       if (overlay) overlay.style.display = 'none';
+      const loadingEl = document.getElementById('loading');
+      if (loadingEl) loadingEl.style.display = 'block';
       scheduleSessionExpiry(expiresAt);
       return true;
     }
@@ -2365,7 +2381,6 @@
           } else {
             hideRefreshToast();
           }
-        }
         }
 
         lastSignature = freshSignature;

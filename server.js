@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 3080;
 
 // Security & Authentication Configuration
 const TROOP_APP_KEY = process.env.TROOP_APP_KEY || 'troop402-app-access';
-const COORDINATOR_PASSWORD = process.env.COORDINATOR_PASSWORD || 'scouts-lead-the-way';
+const COORDINATOR_PASSWORD = process.env.COORDINATOR_PASSWORD || 'Riptide';
 const SESSION_SECRET = process.env.SESSION_SECRET || COORDINATOR_PASSWORD || 'troop402-session-secret-salt';
 const COORDINATOR_SESSION_TIMEOUT_MS = parseInt(process.env.COORDINATOR_SESSION_TIMEOUT_MS || '300000', 10); // default 5 minutes
 const VIEWER_SESSION_TIMEOUT_MS = parseInt(process.env.VIEWER_SESSION_TIMEOUT_MS || '86400000', 10); // default 24 hours

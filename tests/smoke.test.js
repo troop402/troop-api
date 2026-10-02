@@ -316,7 +316,7 @@ describe('Authentication and authorization', () => {
     const resCoord = await fetch(`${baseUrl}/api/auth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'scouts-lead-the-way' }),
+      body: JSON.stringify({ password: 'Riptide' }),
     });
     assert.equal(resCoord.status, 200);
     const coordData = await resCoord.json();
@@ -330,7 +330,7 @@ describe('Authentication and authorization', () => {
     const resOk = await fetch(`${baseUrl}/api/auth/coordinator-login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'scouts-lead-the-way' }),
+      body: JSON.stringify({ password: 'Riptide' }),
     });
     assert.equal(resOk.status, 200);
     const data = await resOk.json();
