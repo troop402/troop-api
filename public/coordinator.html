@@ -1071,21 +1071,49 @@
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
+
+    /* Coordinator Lock Overlay */
+    #coordinatorLockOverlay {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(10px);
+      z-index: 999999;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    /* Loading indicator (hidden by default when unauthenticated) */
+    #loading {
+      display: none;
+      padding: 3rem;
+      text-align: center;
+    }
+
+    /* When pre-render authenticated session exists, hide overlay and show loading */
+    html.coord-authed #coordinatorLockOverlay {
+      display: none;
+    }
+    html.coord-authed #loading {
+      display: block;
+    }
   </style>
   <script>
-    // Immediate pre-render session check: if already authenticated, dismiss lock screen before render
+    // Immediate pre-render session check: if already authenticated, add class to avoid lock flash
     try {
       const t = sessionStorage.getItem('twh_coordinator_token');
       const exp = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
       if (t && Date.now() < exp) {
-        document.write('<style>#coordinatorLockOverlay{display:none !important;}#loading{display:block !important;}</style>');
+        document.documentElement.classList.add('coord-authed');
       }
     } catch (e) {}
   </script>
 </head>
 <body>
   <!-- Full-Page Coordinator Lockout Overlay (Visible by default until authenticated) -->
-  <div id="coordinatorLockOverlay" style="display:flex; position:fixed; inset:0; background:rgba(15, 23, 42, 0.95); backdrop-filter:blur(10px); z-index:999999; align-items:center; justify-content:center; padding:1.5rem;">
+  <div id="coordinatorLockOverlay">
     <div style="background:white; border-radius:12px; max-width:440px; width:100%; padding:2.25rem; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align:center;">
       <div style="font-size:3rem; margin-bottom:0.75rem; line-height:1;">🔒</div>
       <h2 style="font-size:1.35rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Coordinator Access Required</h2>
@@ -1115,7 +1143,7 @@
   </div>
 
   <div class="container">
-    <div id="loading" style="display:none; padding: 3rem; text-align: center;">
+    <div id="loading">
       <h2 style="font-size: 1.3rem; margin-bottom: 0.5rem;">🚗 Loading Coordinator Worksheet...</h2>
       <p style="color: var(--text-muted);">Fetching driver rosters and scout attendance...</p>
     </div>
@@ -1787,6 +1815,32 @@
       return headers;
     }
 
+    async function coordinatorFetch(url, options = {}) {
+      const headers = getAuthHeaders(options.headers || {});
+      const fetchOpts = { ...options, headers };
+      let res;
+      try {
+        res = await fetch(url, fetchOpts);
+      } catch (networkErr) {
+        throw networkErr;
+      }
+
+      if (res.status === 401 || res.status === 403) {
+        let errorMsg = 'Coordinator session expired or unauthorized. Please enter password.';
+        try {
+          const data = await res.clone().json();
+          if (data && data.error) errorMsg = data.error;
+        } catch {}
+        lockCoordinatorSession(errorMsg);
+        const authErr = new Error(errorMsg);
+        authErr.status = res.status;
+        authErr.isAuthChallenge = true;
+        throw authErr;
+      }
+
+      return res;
+    }
+
     let sessionExpiryTimeout = null;
     function scheduleSessionExpiry(expiresAt) {
       if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
@@ -1802,12 +1856,14 @@
       if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
       sessionStorage.removeItem('twh_coordinator_token');
       sessionStorage.removeItem('twh_coordinator_expires_at');
+      document.documentElement.classList.remove('coord-authed');
 
       const overlay = document.getElementById('coordinatorLockOverlay');
       const loadingEl = document.getElementById('loading');
       if (loadingEl) loadingEl.style.display = 'none';
-      const errEl = document.getElementById('coordLoginError');
       if (overlay) overlay.style.display = 'flex';
+
+      const errEl = document.getElementById('coordLoginError');
       if (errEl) {
         if (reasonMsg) {
           errEl.textContent = reasonMsg;
@@ -1850,15 +1906,21 @@
 
         sessionStorage.setItem('twh_coordinator_token', data.token);
         sessionStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
+        document.documentElement.classList.add('coord-authed');
 
         const overlay = document.getElementById('coordinatorLockOverlay');
         if (overlay) overlay.style.display = 'none';
-        const loadingEl = document.getElementById('loading');
-        if (loadingEl) loadingEl.style.display = 'block';
         scheduleSessionExpiry(data.expiresAt);
 
-        // Resume loading coordinator
-        initCoordinator();
+        // Resume or initialize coordinator
+        const contentEl = document.getElementById('content');
+        if (!contentEl || contentEl.style.display === 'none') {
+          const loadingEl = document.getElementById('loading');
+          if (loadingEl) loadingEl.style.display = 'block';
+          initCoordinator();
+        } else {
+          showRefreshToast('Coordinator session unlocked', '✅', false, 3000);
+        }
       } catch (err) {
         if (errEl) {
           errEl.textContent = err.message;
@@ -1878,10 +1940,9 @@
         lockCoordinatorSession();
         return false;
       }
+      document.documentElement.classList.add('coord-authed');
       const overlay = document.getElementById('coordinatorLockOverlay');
       if (overlay) overlay.style.display = 'none';
-      const loadingEl = document.getElementById('loading');
-      if (loadingEl) loadingEl.style.display = 'block';
       scheduleSessionExpiry(expiresAt);
       return true;
     }
@@ -2174,6 +2235,8 @@
       const returnLink = document.getElementById('lockCarpoolReturnLink');
       if (returnLink) returnLink.href = `/carpool.html?id=${encodeURIComponent(eventId)}`;
       if (checkCoordinatorSession()) {
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.style.display = 'block';
         initCoordinator();
       }
     }
@@ -2183,9 +2246,6 @@
         return;
       }
 
-      const carpoolStorageKey = `twh_event_carpool_${eventId}`;
-      const draftStorageKey = `troop402_coord_v1_${eventId}`;
-      const sigStorageKey = `troop402_coord_sig_${eventId}`;
       let renderedFromCache = false;
 
       // Detect if user performed a browser reload (F5 / Cmd+R / reload button)
@@ -2262,14 +2322,7 @@
 
       // 2. Fetch fresh baseline from server in background (or foreground if no cache)
       try {
-        const res = await fetch(`/api/events/${eventId}/carpool${shouldForceRefresh ? '?forceRefresh=true' : ''}`, {
-          headers: getAuthHeaders(),
-        });
-
-        if (res.status === 401 || res.status === 403) {
-          lockCoordinatorSession('Coordinator session expired. Please enter password again.');
-          return;
-        }
+        const res = await coordinatorFetch(`/api/events/${eventId}/carpool${shouldForceRefresh ? '?forceRefresh=true' : ''}`);
 
         if (!res.ok) throw new Error('Failed to load event carpool data');
         const freshData = await res.json();
@@ -2277,7 +2330,7 @@
 
         if (!carpoolBaseline.meta || !carpoolBaseline.meta.title) {
           try {
-            const evRes = await fetch('/api/events', { headers: getAuthHeaders() });
+            const evRes = await coordinatorFetch('/api/events');
             if (evRes.ok) {
               const evJson = await evRes.json();
               const found = (evJson.events || []).find(e => String(e.id) === String(eventId));
@@ -2390,6 +2443,9 @@
         renderPage();
         updateSyncBadge('idle', 'Website Connected');
       } catch (err) {
+        if (err.isAuthChallenge) {
+          return;
+        }
         if (!hasExistingRender) {
           updateSyncBadge('error', 'Sync Failed');
           document.getElementById('loading').innerHTML = `
@@ -4461,7 +4517,15 @@
           }
 
           showSavingOverlay(`Saving ${toDisplayName(driverName)} to Website...`);
-          await persistDriverChange(driverName);
+          try {
+            await persistDriverChange(driverName);
+          } catch (err) {
+            if (err.isAuthChallenge) {
+              pendingDriversToSync.add(driverName);
+              return;
+            }
+            throw err;
+          }
         }
 
         // All pending syncs are complete! Clear draft and update baseline cache
@@ -4503,9 +4567,9 @@
       updateSyncBadge('saving', `Saving ${toDisplayName(driverName)} to Website...`);
 
       try {
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/driver-update`, {
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/driver-update`, {
           method: 'POST',
-          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             driverName,
             updatedComment,
@@ -4516,11 +4580,6 @@
             force: Boolean(force),
           }),
         });
-
-        if (res.status === 401 || res.status === 403) {
-          lockCoordinatorSession('Coordinator session expired. Please enter password again to sync changes.');
-          return;
-        }
 
         if (res.status === 409) {
           const data = await res.json();
@@ -5214,9 +5273,7 @@
 
     async function checkTwhDisparity() {
       try {
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/twh-status`, {
-          headers: getAuthHeaders(),
-        });
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/twh-status`);
         if (!res.ok) return;
         const data = await res.json();
         const incomingNorm = data.normalizedSignature || data.signature;
@@ -5229,6 +5286,7 @@
           }
         }
       } catch (err) {
+        if (err.isAuthChallenge) return;
         console.warn('Failed to check TWH status:', err);
       }
     }
@@ -5236,7 +5294,7 @@
     async function autoAdoptFreshServerData() {
       try {
         updateSyncBadge('saving', 'Updating from Website...');
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
         if (!res.ok) return;
         const freshData = await res.json();
         carpoolBaseline = freshData;
@@ -5256,6 +5314,7 @@
         renderPage();
         updateSyncBadge('success', '✓ Updated with live Website changes');
       } catch (err) {
+        if (err.isAuthChallenge) return;
         console.warn('Auto-adopt fresh data failed:', err);
       }
     }
@@ -5279,7 +5338,7 @@
       updateSyncBadge('saving', '🔄 Refreshing from Website...');
 
       try {
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
         if (!res.ok) throw new Error('Failed to fetch fresh data from Website');
         const freshData = await res.json();
 
@@ -5316,6 +5375,7 @@
         renderPage();
         updateSyncBadge('success', '✓ Refreshed with Website');
       } catch (err) {
+        if (err.isAuthChallenge) return;
         console.error('Error refreshing from Website:', err);
         updateSyncBadge('error', 'Refresh Failed');
       }
@@ -5370,9 +5430,9 @@
           unassignedScouts: unassignedScouts,
         };
 
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`, {
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`, {
           method: 'POST',
-          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
 
@@ -5392,10 +5452,14 @@
         btn.textContent = origText;
         btn.disabled = false;
       } catch (err) {
-        alert('Error downloading Excel: ' + err.message);
+        if (!err.isAuthChallenge) {
+          alert('Error downloading Excel: ' + err.message);
+        }
         const btn = document.getElementById('downloadExcelBtn');
-        btn.textContent = '📥 Download Excel (.xlsx)';
-        btn.disabled = false;
+        if (btn) {
+          btn.textContent = '📥 Download Excel (.xlsx)';
+          btn.disabled = false;
+        }
       }
     }
 
@@ -5614,9 +5678,9 @@
           includeUnassigned,
         };
 
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
           method: 'POST',
-          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
 
@@ -5635,7 +5699,9 @@
 
         closeModal('tabularExportModal');
       } catch (err) {
-        alert('Error downloading tabular spreadsheet: ' + err.message);
+        if (!err.isAuthChallenge) {
+          alert('Error downloading tabular spreadsheet: ' + err.message);
+        }
       } finally {
         btn.textContent = origText;
         btn.disabled = false;
