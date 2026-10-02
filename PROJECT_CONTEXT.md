@@ -13,7 +13,7 @@ The core vision established during early brainstorming:
 - **TroopWebHost as System of Record:** Read data from TWH directly rather than replacing it.
 - **In-Memory Cache First:** Use a 12-hour in-memory TTL cache with request coalescing/de-duplication to prevent duplicate logins and external load. Permanent serverless database solutions (e.g. Neon.tech PostgreSQL) are deferred until historical persistence or relational querying is genuinely needed.
 - **Developer Workflow:** Developed in VS Code (GitHub Codespaces) with AI pair programming, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render.
-- **Alpha Framing:** The project is in active alpha development (`0.2.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
+- **Alpha Framing:** The project is in active alpha development (`0.3.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
 
 ---
 
@@ -84,7 +84,7 @@ To prevent architectural drift and regressions across sessions, the repository m
 
 ## 5. Current State & Roadmap
 
-### Current Status: Security & Auth Milestone (Branch `feat/security-auth`)
+### Current Status: `0.3.0-alpha` (Branch `feat/security-auth`)
 * **Two-Tier Authentication Architecture**:
   - **Tier 1 (Troop Application Key)**: Shared `x-troop-key` HTTP header (or `?key=` query param for direct browser file downloads) required across all read endpoints (`/api/roster/summary`, `/api/export-roster`, `/api/events`, `/api/events/:id/carpool`, `/api/events/:id/carpool.xlsx`, `/api/events/:id/tabular.xlsx`, `/api/events/:id/twh-status`). Dev fallback is `troop402-app-access`. Unauthenticated calls receive HTTP 401.
   - **Tier 2 (Coordinator Password & Session Token)**: Write operations (`POST /api/events/:id/driver-update`) strictly require an `Authorization: Bearer <token>` signed HMAC session token issued by `POST /api/auth/coordinator-login` using the coordinator password (`COORDINATOR_PASSWORD=Riptide` in `.env`). Server strictly fails fast on boot without fallback if unset. Session tokens expire after 5 minutes (300 seconds).
