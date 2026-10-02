@@ -11,8 +11,8 @@ The core vision established during early brainstorming:
 - **Zero-Cost Operation:** Run indefinitely on free-tier hosting (Render web service) without subscription fees.
 - **No Heavy Browser Automation:** Avoid resource-heavy headless browser frameworks (Playwright, Puppeteer, Chromium) or Docker containers. Maintain a tiny footprint (<50 MB RAM) to comfortably survive Render's 512 MB ceiling and 0.1 vCPU limits.
 - **TroopWebHost as System of Record:** Read data from TWH directly rather than replacing it.
-- **Developer Workflow:** Developed in VS Code (GitHub Codespaces) with AI pair programming, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render.
-  - **Local Development Policy:** By default, all active iteration, refactoring, and testing remain strictly local in development on the active working branch. The AI MUST NOT open a pull request, push to live, or merge to production (`main`) unless the user explicitly requests to do so.
+- **Developer Workflow:** Developed in VS Code with AI pair programming on the user's local Unraid machine, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render on push to `origin/main`.
+  - **Local Development Policy ("dev" = Local Unraid):** The user is only ever running "dev" on local. When the user says "dev", that explicitly and exclusively means their local Unraid development environment running via npm (`npm run dev`). By default, all active iteration, commits, refactoring, and testing remain strictly local in this development environment on the local `main` branch. The AI MUST NOT push to GitHub (`origin/main`), open a PR, or deploy to live/production (Render) unless the user explicitly instructs to push to live.
 - **Alpha Framing:** The project is in active alpha development (`0.2.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
 
 ---

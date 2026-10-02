@@ -163,7 +163,7 @@ K.6 Does not require prior authentication or application key.
 8.1 Breaking changes are allowed in alpha, but they should be intentional and called out.
 8.2 The project should avoid silent regressions in endpoint behavior.
 8.3 When a behavior changes, the corresponding contract and tests should be updated.
-8.4 Local Development Default: Unless the user explicitly requests to create a pull request or push changes live, all active iteration and testing MUST remain strictly local in the development environment. AI assistants and contributors must NOT merge changes into production (`main`) or deploy to live environments without explicit user approval.
+8.4 Local Development Definition & Default: The term "dev" explicitly and exclusively refers to the user's local Unraid development environment currently running via npm (`npm run dev`). The user only ever runs dev locally. Unless the user explicitly requests to push to live or create a pull request, all active iteration, commits, and testing MUST remain strictly local in the development environment. AI assistants and contributors must NOT push commits to GitHub (`origin/main`) or trigger deployment to live/production (Render) without explicit user instruction.
 8.5 This file is a current promise list, not a historical document of every abandoned idea.
 
 ## 9. Reference summary
