@@ -364,6 +364,48 @@
       flex: 1 1 148px;
       max-width: 190px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+    .kpi-card.kpi-surplus {
+      background: #eff6ff !important;
+      border: 1px solid #bfdbfe !important;
+      border-left: 3px solid #2563eb !important;
+    }
+    .kpi-card.kpi-surplus .kpi-title {
+      color: #1d4ed8 !important;
+    }
+    .kpi-card.kpi-surplus .kpi-split-label {
+      color: #3b82f6 !important;
+    }
+    .kpi-card.kpi-surplus .kpi-split-val {
+      color: #1d4ed8 !important;
+    }
+    .kpi-card.kpi-surplus .kpi-split-divider {
+      background: #bfdbfe !important;
+    }
+    .kpi-card.kpi-surplus .kpi-sub {
+      color: #2563eb !important;
+    }
+
+    .kpi-card.kpi-deficit {
+      background: #fef2f2 !important;
+      border: 1px solid #fecaca !important;
+      border-left: 3px solid #ef4444 !important;
+    }
+    .kpi-card.kpi-deficit .kpi-title {
+      color: #991b1b !important;
+    }
+    .kpi-card.kpi-deficit .kpi-split-label {
+      color: #dc2626 !important;
+    }
+    .kpi-card.kpi-deficit .kpi-split-val {
+      color: #b91c1c !important;
+    }
+    .kpi-card.kpi-deficit .kpi-split-divider {
+      background: #fca5a5 !important;
+    }
+    .kpi-card.kpi-deficit .kpi-sub {
+      color: #b91c1c !important;
     }
     .kpi-title {
       font-size: 0.67rem;
@@ -1330,9 +1372,9 @@
           <span class="kpi-sub" id="kpiNeedsTotalSub">0 scouts total</span>
         </div>
 
-        <!-- 5: Extra Seats Needed -->
+        <!-- 5: Seat Surplus / Deficit -->
         <div class="kpi-card" id="kpiExtraCard">
-          <span class="kpi-title" title="Additional passenger seats needed to accommodate all attending scouts">Extra Seats Needed</span>
+          <span class="kpi-title" id="kpiExtraTitle" title="Passenger seat balance relative to attending scouts">Seat Surplus</span>
           <div class="kpi-split">
             <div class="kpi-split-item">
               <span class="kpi-split-label">TO</span>
@@ -1344,7 +1386,7 @@
               <span class="kpi-split-val" id="kpiExtraFrom">0</span>
             </div>
           </div>
-          <span class="kpi-sub">Capacity shortage</span>
+          <span class="kpi-sub" id="kpiExtraSub">Seats to spare</span>
         </div>
       </div>
 
@@ -3579,26 +3621,69 @@
         }
       }
 
-      // 6: Extra Seats Needed (Capacity shortage: totalScouts - totalSeats; 0 if surplus)
-      const extraNeededTo = Math.max(0, totalScouts - totalSeatsTo);
-      const extraNeededFrom = Math.max(0, totalScouts - totalSeatsFrom);
+      // 5: Seat Surplus / Deficit Card
+      const diffTo = totalSeatsTo - totalScouts;
+      const diffFrom = totalSeatsFrom - totalScouts;
+      const isDeficit = diffTo < 0 || diffFrom < 0;
 
+      const extraTitleEl = document.getElementById('kpiExtraTitle');
+      const extraSubEl = document.getElementById('kpiExtraSub');
       const extraToEl = document.getElementById('kpiExtraTo');
       const extraFromEl = document.getElementById('kpiExtraFrom');
-      if (extraToEl) {
-        extraToEl.textContent = extraNeededTo;
-        extraToEl.style.color = extraNeededTo === 0 ? '#047857' : '#b91c1c';
-      }
-      if (extraFromEl) {
-        extraFromEl.textContent = extraNeededFrom;
-        extraFromEl.style.color = extraNeededFrom === 0 ? '#047857' : '#b91c1c';
-      }
-
       const extraCard = document.getElementById('kpiExtraCard');
-      if (extraCard) {
-        extraCard.style.borderLeft = (extraNeededTo === 0 && extraNeededFrom === 0)
-          ? '3px solid #10b981'
-          : '3px solid #ef4444';
+
+      if (extraToEl) extraToEl.style.color = '';
+      if (extraFromEl) extraFromEl.style.color = '';
+      if (extraCard) extraCard.style.borderLeft = '';
+
+      if (isDeficit) {
+        // Seat Deficit: not enough seats on one or both trip legs (red box)
+        if (extraTitleEl) {
+          extraTitleEl.textContent = 'Seat Deficit';
+          extraTitleEl.title = 'Passenger seat shortage relative to attending scouts';
+        }
+        const neededTo = Math.max(0, -diffTo);
+        const neededFrom = Math.max(0, -diffFrom);
+        if (extraToEl) extraToEl.textContent = neededTo;
+        if (extraFromEl) extraFromEl.textContent = neededFrom;
+
+        if (extraSubEl) {
+          if (diffTo < 0 && diffFrom < 0) {
+            extraSubEl.textContent = 'Capacity shortage';
+          } else if (diffTo < 0) {
+            extraSubEl.textContent = 'Shortage on TO leg';
+          } else {
+            extraSubEl.textContent = 'Shortage on FROM leg';
+          }
+        }
+
+        if (extraCard) {
+          extraCard.classList.remove('kpi-surplus');
+          extraCard.classList.add('kpi-deficit');
+        }
+      } else {
+        // Seat Surplus: enough or extra seats on both trip legs (blue box)
+        if (extraTitleEl) {
+          extraTitleEl.textContent = 'Seat Surplus';
+          extraTitleEl.title = 'Surplus passenger seats available beyond attending scouts';
+        }
+        const surplusTo = Math.max(0, diffTo);
+        const surplusFrom = Math.max(0, diffFrom);
+        if (extraToEl) extraToEl.textContent = surplusTo;
+        if (extraFromEl) extraFromEl.textContent = surplusFrom;
+
+        if (extraSubEl) {
+          if (surplusTo === 0 && surplusFrom === 0) {
+            extraSubEl.textContent = 'Exact ride capacity';
+          } else {
+            extraSubEl.textContent = 'Seats to spare';
+          }
+        }
+
+        if (extraCard) {
+          extraCard.classList.remove('kpi-deficit');
+          extraCard.classList.add('kpi-surplus');
+        }
       }
     }
 
