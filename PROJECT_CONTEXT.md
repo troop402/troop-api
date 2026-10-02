@@ -454,26 +454,15 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
   - Upon network resolution, clean driver rows are fully reconstructed via `buildBaselineDraft()`, ensuring immediate uptake of server comments and parsing updates.
   - Only active, verified dirty driver rows retain their in-flight edits, preventing stale local cache from corrupting clean data.
 
-### 9.22 Dynamic Seat Surplus (Blue) & Deficit (Red) KPI Card
-* **The Problem (Static Shortage Display on Sufficient Capacity)**:
-  - Previously, the 5th KPI card on `coordinator.html` was statically titled "Extra Seats Needed" with the subtext "Capacity shortage".
-  - When driver capacity was sufficient or surplus (e.g. 20 seats for 15 scouts), the card displayed `TO: 0` and `FROM: 0` with a green border, failing to inform coordinators how many actual *extra* seats were available and creating semantic confusion by calling an abundant state a "shortage".
-* **Two-State & Mixed Dynamic Feedback Model**:
-  - The card (`#kpiExtraCard`) adapts dynamically based on true remaining seat balance relative to waitlisted scouts needing rides (`balanceTo = openSeatsTo - needsToCount`, `balanceFrom = openSeatsFrom - needsFromCount`):
-  1. **Seat Surplus (Blue Theme)**:
-     - Triggered when `balanceTo >= 0 && balanceFrom >= 0`.
-     - Titled **`Seat Surplus`** with subtext *"Seats to spare"* (or *"Exact ride capacity"* when both are 0).
-     - Displays positive integer values for surplus seats on each leg (`balanceTo`, `balanceFrom`).
-     - Tints the entire card soft blue (`.kpi-surplus`, background `#eff6ff`, border `#bfdbfe`, accent `#2563eb`), with matching deep blue title, split labels, numbers, and subtext.
-  2. **Seat Deficit (Red Theme)**:
-     - Triggered when one or both legs have a shortage and neither has a surplus (e.g. `balanceTo < 0` and `balanceFrom <= 0`).
-     - Titled **`Seat Deficit`** with subtext *"Capacity shortage on both legs"* or leg-specific shortage note (e.g. *"Shortage on TO leg (1 seat needed)"*).
-     - Displays positive integer numbers indicating seats needed (e.g. `1 needed`) styled in deep red (`#b91c1c`), with `0 (Even)` in emerald green for balanced legs.
-     - Tints the entire card soft red (`.kpi-deficit`, background `#fef2f2`, border `#fecaca`, accent `#ef4444`).
-  3. **Seat Deficit & Surplus (Split Balance Theme)**:
-     - Triggered when legs diverge (one leg has a deficit and the other has a surplus, e.g. TO: -1, FROM: +2).
-     - Titled **`Seat Deficit & Surplus`** with subtext detailing both legs (`TO: 1 needed • FROM: 2 extra`).
-     - Styles each leg independently (red for deficit, blue for surplus) and tints the card with an amber alert border (`.kpi-split-balance`).
+### 9.22 Dynamic Seat Deficit (Red) & Surplus (Blue) Dual KPI Cards
+* **The Problem & Clarified User Intent**:
+  - The user requested clean numeric representation in the KPI split values (pure integer numbers, not inline bold text sentences) and preferred the classic clear titles: **"Extra Seats Needed"** when seats are needed, and **"Extra Seats"** when surplus capacity exists.
+  - When trip legs diverge (e.g. TO has a deficit and FROM has a surplus), instead of forcing both concepts into one card with conflicting labels, the worksheet renders **both boxes simultaneously side-by-side**.
+* **Clean Number Representation & Dual Card Coexistence**:
+  - The values in the TO and FROM split slots are always clean, pure numbers (e.g. `1`, `0`, `2`).
+  - **Extra Seats Needed (`#kpiDeficitCard`, Red)**: Displays when a deficit exists on any leg. Styled with `.kpi-deficit` (soft red `#fef2f2`, red border `#fecaca`, red numbers `#b91c1c`), titled **`Extra Seats Needed`**, with subtext identifying shortage legs (e.g. *"Shortage on TO leg (1 needed)"*).
+  - **Extra Seats (`#kpiExtraCard`, Blue)**: Displays when surplus capacity exists on any leg (or exact 0/0 capacity). Styled with `.kpi-surplus` (soft blue `#eff6ff`, blue border `#bfdbfe`, blue numbers `#1d4ed8`), titled **`Extra Seats`**, with subtext identifying extra capacity (e.g. *"2 extra on FROM leg"* or *"Seats to spare"*).
+  - **Dual Card Display on Mixed Legs**: When one leg has a shortage and the other has a surplus (e.g. TO: -1, FROM: +2), both cards are visible side-by-side: "Extra Seats Needed" shows `TO: 1, FROM: 0`, and "Extra Seats" shows `TO: 0, FROM: 2`.
 
 ### 9.23 Configurable Coordinator Timeouts & Proactive Authentication Prompting
 * **Realistic & Configurable Idle Timeouts (`.env`)**:
