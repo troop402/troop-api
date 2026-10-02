@@ -590,6 +590,22 @@
       text-decoration: underline;
       color: var(--primary);
     }
+    .driver-inline-note.driver-inline-note-edited {
+      color: #92400e;
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+      border-radius: 4px;
+      padding: 1px 4px;
+    }
+    .driver-inline-note.driver-inline-note-edited:hover {
+      color: #78350f;
+      background: #fde68a;
+    }
+    .note-tag-edited {
+      font-weight: 700;
+      color: #b45309;
+      margin-right: 2px;
+    }
     .driver-inline-note-empty {
       font-size: 0.72rem;
       color: #94a3b8;
@@ -1041,15 +1057,112 @@
       .section-card { box-shadow: none; border: 1px solid #ccc; margin-bottom: 1rem; page-break-inside: avoid; }
       .table-wrapper { overflow: visible !important; border: none; width: 100% !important; }
       table.coord-grid { font-size: 7.5pt; width: 100%; }
-      table.coord-grid th, table.coord-grid td { padding: 0.25rem 0.35rem; }
       .slot { min-width: auto; max-width: none; padding: 0.15rem 0.25rem; font-size: 7pt; }
       @page { size: landscape; margin: 0.35in; }
     }
+
+    /* Refresh Toast */
+    .refresh-toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.25), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+      display: none;
+      align-items: center;
+      gap: 0.6rem;
+      z-index: 10000;
+      transition: all 0.3s ease;
+    }
+    .toast-spin {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Coordinator Lock Overlay */
+    #coordinatorLockOverlay {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(10px);
+      z-index: 999999;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    /* Loading indicator (hidden by default when unauthenticated) */
+    #loading {
+      display: none;
+      padding: 3rem;
+      text-align: center;
+    }
+
+    /* When pre-render authenticated session exists, hide overlay and show loading */
+    html.coord-authed #coordinatorLockOverlay {
+      display: none;
+    }
+    html.coord-authed #loading {
+      display: block;
+    }
   </style>
+  <script>
+    // Immediate pre-render session check: if already authenticated, add class to avoid lock flash
+    try {
+      const t = sessionStorage.getItem('twh_coordinator_token');
+      const exp = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+      const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+      const now = Date.now();
+      if (t && now < exp && (!authAt || (now - authAt <= maxMs))) {
+        document.documentElement.classList.add('coord-authed');
+      }
+    } catch (e) {}
+  </script>
 </head>
 <body>
+  <!-- Full-Page Coordinator Lockout Overlay (Visible by default until authenticated) -->
+  <div id="coordinatorLockOverlay">
+    <div style="background:white; border-radius:12px; max-width:440px; width:100%; padding:2.25rem; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align:center;">
+      <div style="font-size:3rem; margin-bottom:0.75rem; line-height:1;">🔒</div>
+      <h2 style="font-size:1.35rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Coordinator Access Required</h2>
+      <p style="font-size:0.875rem; color:#64748b; line-height:1.5; margin-bottom:1.5rem;">
+        This page allows editing carpool rosters and updating TroopWebHost directly. Please enter the coordinator password to unlock.
+      </p>
+      <form id="coordinatorLoginForm" onsubmit="handleCoordinatorLogin(event)">
+        <div style="margin-bottom:1rem; text-align:left;">
+          <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.35rem;">COORDINATOR PASSWORD</label>
+          <input type="password" id="coordPasswordInput" style="width:100%; padding:0.7rem 0.85rem; font-size:1rem; border:1px solid #cbd5e1; border-radius:6px; outline:none;" placeholder="Enter password" autofocus required />
+        </div>
+        <div id="coordLoginError" style="display:none; background:#fee2e2; color:#991b1b; padding:0.6rem 0.8rem; border-radius:6px; font-size:0.82rem; font-weight:600; margin-bottom:1rem; text-align:left;"></div>
+        <button type="submit" id="btnUnlockWorksheet" class="btn btn-primary" style="width:100%; padding:0.75rem; font-size:1rem; justify-content:center; font-weight:700; background:#0284c7; border-color:#0284c7;">
+          🔓 Unlock Coordinator Worksheet
+        </button>
+      </form>
+      <div style="margin-top:1.5rem; border-top:1px solid #e2e8f0; padding-top:1rem;">
+        <a id="lockCarpoolReturnLink" href="#" style="font-size:0.85rem; color:#64748b; text-decoration:none; font-weight:600;">&larr; Return to View-Only Carpool</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Background Refresh Toast -->
+  <div id="refreshToast" class="refresh-toast">
+    <span id="refreshToastIcon" class="toast-spin">🔄</span>
+    <span id="refreshToastMsg">Checking TroopWebHost for latest updates...</span>
+  </div>
+
   <div class="container">
-    <div id="loading" style="padding: 3rem; text-align: center;">
+    <div id="loading">
       <h2 style="font-size: 1.3rem; margin-bottom: 0.5rem;">🚗 Loading Coordinator Worksheet...</h2>
       <p style="color: var(--text-muted);">Fetching driver rosters and scout attendance...</p>
     </div>
@@ -1699,6 +1812,325 @@
     let activeNoteDriverName = null;
     let syncFadeTimeout = null;
 
+    // Authentication & Session Management
+    const DEFAULT_TROOP_APP_KEY = 'troop402-app-access';
+    function getTroopAppKey() {
+      return localStorage.getItem('twh_troop_app_key') || DEFAULT_TROOP_APP_KEY;
+    }
+
+    function getCoordinatorToken() {
+      return sessionStorage.getItem('twh_coordinator_token') || '';
+    }
+
+    function getAuthHeaders(extraHeaders = {}) {
+      const headers = {
+        'x-troop-key': getTroopAppKey(),
+        ...extraHeaders,
+      };
+      const token = getCoordinatorToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      return headers;
+    }
+
+    let lastUserActivity = Date.now();
+    function recordUserActivity() {
+      const now = Date.now();
+      if (now - lastUserActivity > 2000) {
+        lastUserActivity = now;
+        maybeRefreshCoordinatorSession();
+      }
+    }
+
+    ['mousedown', 'keydown', 'touchstart', 'scroll'].forEach((evt) => {
+      window.addEventListener(evt, recordUserActivity, { passive: true });
+    });
+
+    let refreshPromise = null;
+    async function refreshCoordinatorSession() {
+      if (refreshPromise) return refreshPromise;
+      const currentToken = getCoordinatorToken();
+      if (!currentToken) return false;
+
+      refreshPromise = (async () => {
+        try {
+          const res = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${currentToken}`,
+              'x-troop-key': getTroopAppKey(),
+            },
+          });
+
+          if (!res.ok) {
+            let errMsg = 'Coordinator session expired. Please enter password.';
+            try {
+              const errData = await res.json();
+              if (errData && errData.error) errMsg = errData.error;
+            } catch {}
+            lockCoordinatorSession(errMsg);
+            return false;
+          }
+
+          const data = await res.json();
+          if (!data || !data.token) {
+            lockCoordinatorSession('Failed to refresh coordinator session.');
+            return false;
+          }
+
+          sessionStorage.setItem('twh_coordinator_token', data.token);
+          sessionStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
+          if (data.authAt) sessionStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
+          if (data.idleTimeoutMs) sessionStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
+          if (data.maxSessionMs) sessionStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+
+          scheduleSessionExpiry(data.expiresAt);
+          return true;
+        } catch (err) {
+          console.warn('Network error while refreshing coordinator session:', err);
+          return false;
+        } finally {
+          refreshPromise = null;
+        }
+      })();
+
+      return refreshPromise;
+    }
+
+    async function maybeRefreshCoordinatorSession(force = false) {
+      const token = getCoordinatorToken();
+      if (!token) return false;
+
+      const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '300000', 10);
+      const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+      const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+
+      const now = Date.now();
+      if (authAt && (now - authAt > maxMs)) {
+        lockCoordinatorSession('Coordinator session reached maximum duration (24 hours). Please enter password again to continue.');
+        return false;
+      }
+
+      if (now >= expiresAt) {
+        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.');
+        return false;
+      }
+
+      const remainingMs = expiresAt - now;
+      const isUserActive = (now - lastUserActivity) < idleMs;
+      if (force || (isUserActive && remainingMs < (idleMs * 0.6))) {
+        return await refreshCoordinatorSession();
+      }
+      return true;
+    }
+
+    async function coordinatorFetch(url, options = {}) {
+      if (!url.includes('/api/auth/token') && !url.includes('/api/auth/refresh')) {
+        await maybeRefreshCoordinatorSession();
+      }
+
+      const headers = getAuthHeaders(options.headers || {});
+      const fetchOpts = { ...options, headers };
+      let res;
+      try {
+        res = await fetch(url, fetchOpts);
+      } catch (networkErr) {
+        throw networkErr;
+      }
+
+      if (res.status === 401 || res.status === 403) {
+        let errorMsg = 'Coordinator session expired or unauthorized. Please enter password.';
+        try {
+          const data = await res.clone().json();
+          if (data && data.error) errorMsg = data.error;
+        } catch {}
+        lockCoordinatorSession(errorMsg);
+        const authErr = new Error(errorMsg);
+        authErr.status = res.status;
+        authErr.isAuthChallenge = true;
+        throw authErr;
+      }
+
+      return res;
+    }
+
+    let sessionExpiryTimeout = null;
+    function scheduleSessionExpiry(expiresAt) {
+      if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
+      const now = Date.now();
+      const remainingMs = expiresAt - now;
+      if (remainingMs <= 0) {
+        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.');
+        return;
+      }
+
+      const checkDelayMs = remainingMs > 5000 ? remainingMs - 5000 : remainingMs;
+      sessionExpiryTimeout = setTimeout(async () => {
+        const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '300000', 10);
+        const timeSinceActivity = Date.now() - lastUserActivity;
+        if (timeSinceActivity < idleMs) {
+          const ok = await refreshCoordinatorSession();
+          if (!ok) {
+            lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.');
+          }
+        } else {
+          lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.');
+        }
+      }, checkDelayMs);
+    }
+
+    function lockCoordinatorSession(reasonMsg = '') {
+      if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
+      sessionStorage.removeItem('twh_coordinator_token');
+      sessionStorage.removeItem('twh_coordinator_expires_at');
+      sessionStorage.removeItem('twh_coordinator_auth_at');
+      sessionStorage.removeItem('twh_coordinator_idle_ms');
+      sessionStorage.removeItem('twh_coordinator_max_ms');
+      document.documentElement.classList.remove('coord-authed');
+
+      const overlay = document.getElementById('coordinatorLockOverlay');
+      const loadingEl = document.getElementById('loading');
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (overlay) overlay.style.display = 'flex';
+
+      const errEl = document.getElementById('coordLoginError');
+      if (errEl) {
+        if (reasonMsg) {
+          errEl.textContent = reasonMsg;
+          errEl.style.display = 'block';
+        } else {
+          errEl.style.display = 'none';
+        }
+      }
+      const passInput = document.getElementById('coordPasswordInput');
+      if (passInput) {
+        passInput.value = '';
+        passInput.focus();
+      }
+    }
+
+    async function handleCoordinatorLogin(e) {
+      e.preventDefault();
+      const passInput = document.getElementById('coordPasswordInput');
+      const btn = document.getElementById('btnUnlockWorksheet');
+      const errEl = document.getElementById('coordLoginError');
+      const password = passInput ? passInput.value : '';
+
+      if (!password) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Verifying...';
+      if (errEl) errEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Incorrect password.');
+        }
+
+        sessionStorage.setItem('twh_coordinator_token', data.token);
+        sessionStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
+        if (data.authAt) sessionStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
+        if (data.idleTimeoutMs) sessionStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
+        if (data.maxSessionMs) sessionStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+        lastUserActivity = Date.now();
+        document.documentElement.classList.add('coord-authed');
+
+        const overlay = document.getElementById('coordinatorLockOverlay');
+        if (overlay) overlay.style.display = 'none';
+        scheduleSessionExpiry(data.expiresAt);
+
+        // Resume or initialize coordinator
+        const contentEl = document.getElementById('content');
+        if (!contentEl || contentEl.style.display === 'none') {
+          const loadingEl = document.getElementById('loading');
+          if (loadingEl) loadingEl.style.display = 'block';
+          initCoordinator();
+        } else {
+          showRefreshToast('Coordinator session unlocked', '✅', false, 3000);
+        }
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message;
+          errEl.style.display = 'block';
+        }
+        if (passInput) passInput.select();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔓 Unlock Coordinator Worksheet';
+      }
+    }
+
+    function checkCoordinatorSession() {
+      const token = sessionStorage.getItem('twh_coordinator_token');
+      const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+      const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+      const now = Date.now();
+
+      if (authAt && (now - authAt > maxMs)) {
+        lockCoordinatorSession('Coordinator session reached maximum duration (24 hours). Please enter password again to continue.');
+        return false;
+      }
+
+      if (!token) {
+        lockCoordinatorSession();
+        return false;
+      }
+
+      if (now >= expiresAt) {
+        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.');
+        return false;
+      }
+
+      lastUserActivity = now;
+      document.documentElement.classList.add('coord-authed');
+      const overlay = document.getElementById('coordinatorLockOverlay');
+      if (overlay) overlay.style.display = 'none';
+      scheduleSessionExpiry(expiresAt);
+      return true;
+    }
+
+    // Floating Refresh Toast Helpers
+    let toastTimeout = null;
+    function showRefreshToast(msg, icon = '🔄', isSpinning = true, autoDismissMs = 0) {
+      const toast = document.getElementById('refreshToast');
+      const iconEl = document.getElementById('refreshToastIcon');
+      const msgEl = document.getElementById('refreshToastMsg');
+      if (!toast) return;
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+
+      iconEl.textContent = icon;
+      if (isSpinning) {
+        iconEl.classList.add('toast-spin');
+      } else {
+        iconEl.classList.remove('toast-spin');
+      }
+      msgEl.textContent = msg;
+      toast.style.display = 'inline-flex';
+
+      if (autoDismissMs > 0) {
+        toastTimeout = setTimeout(() => {
+          toast.style.display = 'none';
+        }, autoDismissMs);
+      }
+    }
+
+    function hideRefreshToast() {
+      const toast = document.getElementById('refreshToast');
+      if (toast) toast.style.display = 'none';
+    }
+
     // Helper: Normalize name for matching across "Last, First" and "First Last"
     function normalizeName(name) {
       if (!name || typeof name !== 'string') return '';
@@ -1903,6 +2335,38 @@
       return str;
     }
 
+    function areRiderListsEquivalent(listA = [], listB = []) {
+      if (!listA && !listB) return true;
+      if ((listA?.length || 0) !== (listB?.length || 0)) return false;
+      if (listA.length === 0) return true;
+
+      const remainingB = [...listB];
+      for (const rA of listA) {
+        const normA = normalizeName(rA.name || rA.token || '');
+        const typeA = rA.type || 'scout';
+        const matchIdx = remainingB.findIndex(rB => {
+          const normB = normalizeName(rB.name || rB.token || '');
+          const typeB = rB.type || 'scout';
+          if (typeA !== typeB) return false;
+          if (normA === normB) return true;
+          // Support matching compact surname initial format e.g. "Elianna S" / "Elianna S." vs "Elianna Simone"
+          const partsA = normA.split(/\s+/);
+          const partsB = normB.split(/\s+/);
+          if (partsA[0] === partsB[0] && partsA.length >= 2 && partsB.length >= 2) {
+            const initA = partsA[1][0];
+            const initB = partsB[1][0];
+            if (initA && initB && initA === initB && (partsA[1].length <= 2 || partsB[1].length <= 2)) {
+              return true;
+            }
+          }
+          return false;
+        });
+        if (matchIdx === -1) return false;
+        remainingB.splice(matchIdx, 1);
+      }
+      return remainingB.length === 0;
+    }
+
     function isDriverTrulyDirty(driverName, targetDraft = localDraft, baseline = carpoolBaseline) {
       if (!driverName || !targetDraft || !baseline) return false;
       const norm = normalizeName(driverName);
@@ -1927,21 +2391,16 @@
       if (fromDriver && (fromDriver.seats || 0) !== baseFromSeats) return true;
 
       // Compare clean baseline driver built from baseline
-      const baseDraft = buildBaselineDraft();
+      const baseDraft = buildBaselineDraft(baseline);
       const baseTo = (baseDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
       const baseFrom = (baseDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
 
       const baseNote = (baseTo?.customNote || baseFrom?.customNote || '').trim();
       const curNote = (toDriver?.customNote || fromDriver?.customNote || '').trim();
-      if (baseNote !== curNote) return true;
+      if (baseNote.toLowerCase().replace(/\s+/g, ' ') !== curNote.toLowerCase().replace(/\s+/g, ' ')) return true;
 
-      const toRidersStr = (toDriver?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
-      const baseToRidersStr = (baseTo?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
-      if (toRidersStr !== baseToRidersStr) return true;
-
-      const fromRidersStr = (fromDriver?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
-      const baseFromRidersStr = (baseFrom?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
-      if (fromRidersStr !== baseFromRidersStr) return true;
+      if (!areRiderListsEquivalent(toDriver?.riders, baseTo?.riders)) return true;
+      if (!areRiderListsEquivalent(fromDriver?.riders, baseFrom?.riders)) return true;
 
       return false;
     }
@@ -1953,10 +2412,20 @@
         <a href="/manager.html" class="btn" style="margin-top:1rem;">Go to Event Manager</a>
       `;
     } else {
-      initCoordinator();
+      const returnLink = document.getElementById('lockCarpoolReturnLink');
+      if (returnLink) returnLink.href = `/carpool.html?id=${encodeURIComponent(eventId)}`;
+      if (checkCoordinatorSession()) {
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.style.display = 'block';
+        initCoordinator();
+      }
     }
 
     async function initCoordinator(forceRefresh = false) {
+      if (!checkCoordinatorSession()) {
+        return;
+      }
+
       let renderedFromCache = false;
 
       // Detect if user performed a browser reload (F5 / Cmd+R / reload button)
@@ -2010,7 +2479,12 @@
               carpoolBaseline = parsed.data;
               if (parsed.meta) carpoolBaseline.meta = parsed.meta;
               if (uncommittedDraftPayload && uncommittedDraftPayload.draft && uncommittedDraftPayload.dirtyDrivers && uncommittedDraftPayload.dirtyDrivers.length > 0) {
-                localDraft = uncommittedDraftPayload.draft;
+                const trulyDirty = uncommittedDraftPayload.dirtyDrivers.filter(d => isDriverTrulyDirty(d, uncommittedDraftPayload.draft, carpoolBaseline));
+                if (trulyDirty.length > 0) {
+                  localDraft = uncommittedDraftPayload.draft;
+                } else {
+                  localDraft = buildBaselineDraft();
+                }
               } else {
                 localDraft = buildBaselineDraft();
               }
@@ -2027,19 +2501,21 @@
       const hasExistingRender = renderedFromCache || Boolean(localDraft && (localDraft.toDrivers || localDraft.fromDrivers));
 
       if (hasExistingRender) {
+        showRefreshToast('Checking TroopWebHost for latest updates...', '🔄', true);
         updateSyncBadge('saving', shouldForceRefresh ? 'Refreshing from Website...' : 'Checking Website...');
       }
 
       // 2. Fetch fresh baseline from server in background (or foreground if no cache)
       try {
-        const res = await fetch(`/api/events/${eventId}/carpool${shouldForceRefresh ? '?forceRefresh=true' : ''}`);
+        const res = await coordinatorFetch(`/api/events/${eventId}/carpool${shouldForceRefresh ? '?forceRefresh=true' : ''}`);
+
         if (!res.ok) throw new Error('Failed to load event carpool data');
         const freshData = await res.json();
         carpoolBaseline = freshData;
 
         if (!carpoolBaseline.meta || !carpoolBaseline.meta.title) {
           try {
-            const evRes = await fetch('/api/events');
+            const evRes = await coordinatorFetch('/api/events');
             if (evRes.ok) {
               const evJson = await evRes.json();
               const found = (evJson.events || []).find(e => String(e.id) === String(eventId));
@@ -2123,6 +2599,7 @@
             (uncommittedDraftPayload.dirtyDrivers || []).forEach(d => pendingDriversToSync.add(d));
             const db = document.getElementById('draftBanner');
             if (db) db.style.display = 'inline-flex';
+
             if (pendingDriversToSync.size > 0) {
               flushPendingSyncs();
             }
@@ -2136,12 +2613,24 @@
           pendingDriversToSync.clear();
           const db = document.getElementById('draftBanner');
           if (db) db.style.display = 'none';
+
+          if (renderedFromCache) {
+            showRefreshToast('Loaded latest sign-ups from TroopWebHost', '✨', false, 4000);
+          } else {
+            hideRefreshToast();
+          }
         }
+
+        lastSignature = freshSignature;
+        lastFocusCheckTime = Date.now();
 
         loadUndoHistory();
         renderPage();
         updateSyncBadge('idle', 'Website Connected');
       } catch (err) {
+        if (err.isAuthChallenge) {
+          return;
+        }
         if (!hasExistingRender) {
           updateSyncBadge('error', 'Sync Failed');
           document.getElementById('loading').innerHTML = `
@@ -2149,19 +2638,22 @@
             <p>${escapeHtml(err.message)}</p>
             <a href="/manager.html" class="btn" style="margin-top:1rem;">Go to Event Manager</a>
           `;
+          hideRefreshToast();
         } else {
           console.warn('Background coordinator refresh failed:', err);
           updateSyncBadge('error', 'Offline (Cached)');
+          showRefreshToast('Could not reach TroopWebHost (showing cached data)', '⚠️', false, 4000);
         }
       }
     }
 
-    function buildBaselineDraft() {
+    function buildBaselineDraft(sourceBaseline = carpoolBaseline) {
+      if (!sourceBaseline) return { toDrivers: [], fromDrivers: [], isCustom: false };
       // Map initial drivers and their claimed riders in exact parsed comment order
       const toDrivers = [];
       const fromDrivers = [];
 
-      (carpoolBaseline.drivers || []).forEach(d => {
+      (sourceBaseline.drivers || []).forEach(d => {
         // Available seats: subtract 1 driver from vehicle seats
         const defaultSeats = d.seats > 0 ? Math.max(0, d.seats - 1) : 0;
         const toSeats = (d.toSeats !== undefined && d.toSeats !== null) ? d.toSeats : defaultSeats;
@@ -2242,7 +2734,7 @@
         }
 
         // Cross-check with scouts to guarantee any scout assigned to this driver is in riders
-        (carpoolBaseline.scouts || []).forEach(s => {
+        (sourceBaseline.scouts || []).forEach(s => {
           const formattedScout = formatLastFirst(s.name);
           const normDriver = normalizeName(d.name);
 
@@ -2766,8 +3258,11 @@
         const maxSeats = d.seats || 0;
         const isOneWay = (d.drivingToFrom || '').toLowerCase() !== 'both';
         const isSeatErroneous = maxSeats <= 0 || riders.length > maxSeats;
-        const hasUserEdits = Array.from(pendingDriversToSync).some(name => normalizeName(name) === normalizeName(d.name));
-        const isFormatDiscrepant = !hasUserEdits && !areCommentsFunctionallyEquivalent(d.comment || '', synthesizeDriverComment(d.name));
+        const hasUserEdits = Array.from(pendingDriversToSync).some(name => normalizeName(name) === normalizeName(d.name)) || isDriverTrulyDirty(d.name);
+        const baseD = (carpoolBaseline?.drivers || []).find(bd => normalizeName(bd.name) === normalizeName(d.name));
+        const originalWebsiteComment = ((baseD?.comment !== undefined ? baseD.comment : (d.baselineComment || d.comment)) || '').trim();
+        const proposedComment = (synthesizeDriverComment(d.name) || '').trim();
+        const isFormatDiscrepant = !hasUserEdits && !areCommentsFunctionallyEquivalent(originalWebsiteComment, proposedComment);
 
         if (hasUserEdits) {
           tr.classList.add('driver-row-dirty');
@@ -2801,10 +3296,24 @@
         let oneWayTag = isOneWay ? `<span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.64rem; font-weight:700; padding:0.08rem 0.35rem;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span>` : '';
         let notAttendingTag = (d.attending && d.attending !== 'Y') ? '<span class="badge badge-not-attending" title="Driver is registered to drive but not attending the event—verify return leg availability">⚠️ Not Attending</span>' : '';
 
-        const rawNote = ((d.baselineComment && d.baselineComment.trim()) || (d.comment && d.comment.trim()) || (d.customNote && d.customNote.trim()) || '').trim();
-        const noteHtml = rawNote
-          ? `<div class="driver-inline-note" onclick="viewDriverNote('${escapeHtml(d.name)}')" title="Click to view/edit note">Note: ${escapeHtml(rawNote)}</div>`
-          : `<div class="driver-inline-note-empty no-print" onclick="viewDriverNote('${escapeHtml(d.name)}')">+ Add note</div>`;
+        let noteHtml = '';
+        if (hasUserEdits) {
+          const displayNote = proposedComment || '(No comment will be saved)';
+          const tooltip = originalWebsiteComment
+            ? `Old note: ${originalWebsiteComment}\n(Click to review or save)`
+            : `Old note: (No comment on Website)\n(Click to review or save)`;
+          noteHtml = `<div class="driver-inline-note driver-inline-note-edited" onclick="viewDriverNote('${escapeHtml(d.name)}')" title="${escapeHtml(tooltip)}"><span class="note-tag-edited">✏️ Edited:</span> ${escapeHtml(displayNote)}</div>`;
+        } else if (originalWebsiteComment) {
+          const tooltip = isFormatDiscrepant
+            ? `Edited note: ${proposedComment}\n(Format optimization available — click to review)`
+            : `Website comment: ${originalWebsiteComment}\n(Click to edit note)`;
+          noteHtml = `<div class="driver-inline-note" onclick="viewDriverNote('${escapeHtml(d.name)}')" title="${escapeHtml(tooltip)}">Note: ${escapeHtml(originalWebsiteComment)}</div>`;
+        } else {
+          const tooltip = isFormatDiscrepant
+            ? `Edited note: ${proposedComment}\n(Format optimization available — click to review)`
+            : 'Click to add a driver note';
+          noteHtml = `<div class="driver-inline-note-empty no-print" onclick="viewDriverNote('${escapeHtml(d.name)}')" title="${escapeHtml(tooltip)}">+ Add note</div>`;
+        }
 
         const tagsHtml = [oneWayTag, notAttendingTag, safetyTagHtml].filter(Boolean).join(' ');
 
@@ -4211,7 +4720,15 @@
           }
 
           showSavingOverlay(`Saving ${toDisplayName(driverName)} to Website...`);
-          await persistDriverChange(driverName);
+          try {
+            await persistDriverChange(driverName);
+          } catch (err) {
+            if (err.isAuthChallenge) {
+              pendingDriversToSync.add(driverName);
+              return;
+            }
+            throw err;
+          }
         }
 
         // All pending syncs are complete! Clear draft and update baseline cache
@@ -4253,7 +4770,7 @@
       updateSyncBadge('saving', `Saving ${toDisplayName(driverName)} to Website...`);
 
       try {
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/driver-update`, {
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/driver-update`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -4467,6 +4984,18 @@
       pendingStaleDraftPayload = draftPayload;
       const { savedAt, draft, dirtyDrivers } = draftPayload;
 
+      // Filter dirty drivers strictly to those with verified true user edits against fresh baseline
+      const verifiedDirty = (dirtyDrivers || []).filter(dName =>
+        isDriverTrulyDirty(dName, draft, freshBaseline)
+      );
+
+      // If no drivers are truly dirty (differences were only format optimizations),
+      // auto-discard the stale draft immediately and do not block coordinator!
+      if (verifiedDirty.length === 0) {
+        resolveStaleDraftDiscard();
+        return;
+      }
+
       const ageEl = document.getElementById('staleDraftAge');
       if (ageEl) {
         ageEl.textContent = formatRelativeTime(savedAt);
@@ -4476,46 +5005,36 @@
       if (!listEl) return;
       listEl.innerHTML = '';
 
-      const dirtySet = new Set(dirtyDrivers || []);
-      const allDraftDrivers = [...(draft?.toDrivers || []), ...(draft?.fromDrivers || [])];
-      const draftDriverNames = [...new Set(allDraftDrivers.map(d => d.name))];
-
       let cardsRendered = 0;
-      draftDriverNames.forEach(driverName => {
+      verifiedDirty.forEach(driverName => {
         const norm = normalizeName(driverName);
         const freshD = (freshBaseline?.drivers || []).find(fd => normalizeName(fd.name) === norm);
         const liveComment = freshD ? (freshD.comment || '') : '(No longer listed on website)';
         const proposedComment = synthesizeDriverComment(driverName, draft);
 
-        const isDirty = dirtySet.has(driverName);
-        const commentsDiff = !areCommentsFunctionallyEquivalent(liveComment, proposedComment);
-
-        if (isDirty || commentsDiff) {
-          cardsRendered++;
-          const card = document.createElement('div');
-          card.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem;';
-          card.innerHTML = `
-            <div style="font-weight:700; font-size:0.85rem; color:#1e293b; margin-bottom:0.4rem;">
-              🚗 ${escapeHtml(toDisplayName(driverName))}
-            </div>
-            <div style="font-size:0.72rem; color:#065f46; font-weight:700; text-transform:uppercase; margin-bottom:0.2rem;">
-              Live on Website (${liveComment.length}/100 chars):
-            </div>
-            <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:4px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#065f46; margin-bottom:0.5rem; word-break:break-word;">
-              ${escapeHtml(liveComment || '(Empty comment)')}
-            </div>
-            <div style="font-size:0.72rem; color:#0369a1; font-weight:700; text-transform:uppercase; margin-bottom:0.2rem;">
-              Your Stale Uncommitted Edit (${proposedComment.length}/100 chars):
-            </div>
-            <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#0369a1; word-break:break-word;">
-              ${escapeHtml(proposedComment || '(Empty comment)')}
-            </div>
-          `;
-          listEl.appendChild(card);
-        }
+        cardsRendered++;
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem;';
+        card.innerHTML = `
+          <div style="font-weight:700; font-size:0.85rem; color:#1e293b; margin-bottom:0.4rem;">
+            🚗 ${escapeHtml(toDisplayName(driverName))}
+          </div>
+          <div style="font-size:0.72rem; color:#065f46; font-weight:700; text-transform:uppercase; margin-bottom:0.2rem;">
+            Live on Website (${liveComment.length}/100 chars):
+          </div>
+          <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:4px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#065f46; margin-bottom:0.5rem; word-break:break-word;">
+            ${escapeHtml(liveComment || '(Empty comment)')}
+          </div>
+          <div style="font-size:0.72rem; color:#0369a1; font-weight:700; text-transform:uppercase; margin-bottom:0.2rem;">
+            Your Stale Uncommitted Edit (${proposedComment.length}/100 chars):
+          </div>
+          <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#0369a1; word-break:break-word;">
+            ${escapeHtml(proposedComment || '(Empty comment)')}
+          </div>
+        `;
+        listEl.appendChild(card);
       });
 
-      // If no cards were rendered (e.g. comments were functionally identical), auto-discard and don't block coordinator
       if (cardsRendered === 0) {
         resolveStaleDraftDiscard();
         return;
@@ -4565,16 +5084,18 @@
       const db = document.getElementById('draftBanner');
       if (db) db.style.display = 'inline-flex';
 
-      // Queue dirty drivers to persist to TWH
-      const driversToQueue = (dirtyDrivers && dirtyDrivers.length > 0)
-        ? dirtyDrivers
-        : [...new Set([...(localDraft.toDrivers || []), ...(localDraft.fromDrivers || [])].map(d => d.name))];
+      // Queue ONLY verified dirty drivers to persist to TWH
+      const verifiedDirty = (dirtyDrivers || []).filter(dName =>
+        isDriverTrulyDirty(dName, draft, carpoolBaseline)
+      );
 
-      driversToQueue.forEach(driverName => {
+      verifiedDirty.forEach(driverName => {
         queueDriverSync(driverName);
       });
 
-      flushPendingSyncs();
+      if (verifiedDirty.length > 0) {
+        flushPendingSyncs();
+      }
     }
 
     // Conflict Resolution Modal Handlers
@@ -4959,7 +5480,7 @@
 
     async function checkTwhDisparity() {
       try {
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/twh-status`);
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/twh-status`);
         if (!res.ok) return;
         const data = await res.json();
         const incomingNorm = data.normalizedSignature || data.signature;
@@ -4972,6 +5493,7 @@
           }
         }
       } catch (err) {
+        if (err.isAuthChallenge) return;
         console.warn('Failed to check TWH status:', err);
       }
     }
@@ -4979,7 +5501,7 @@
     async function autoAdoptFreshServerData() {
       try {
         updateSyncBadge('saving', 'Updating from Website...');
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
         if (!res.ok) return;
         const freshData = await res.json();
         carpoolBaseline = freshData;
@@ -4999,6 +5521,7 @@
         renderPage();
         updateSyncBadge('success', '✓ Updated with live Website changes');
       } catch (err) {
+        if (err.isAuthChallenge) return;
         console.warn('Auto-adopt fresh data failed:', err);
       }
     }
@@ -5022,7 +5545,7 @@
       updateSyncBadge('saving', '🔄 Refreshing from Website...');
 
       try {
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/carpool?forceRefresh=true`);
         if (!res.ok) throw new Error('Failed to fetch fresh data from Website');
         const freshData = await res.json();
 
@@ -5059,6 +5582,7 @@
         renderPage();
         updateSyncBadge('success', '✓ Refreshed with Website');
       } catch (err) {
+        if (err.isAuthChallenge) return;
         console.error('Error refreshing from Website:', err);
         updateSyncBadge('error', 'Refresh Failed');
       }
@@ -5113,7 +5637,7 @@
           unassignedScouts: unassignedScouts,
         };
 
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`, {
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -5135,10 +5659,14 @@
         btn.textContent = origText;
         btn.disabled = false;
       } catch (err) {
-        alert('Error downloading Excel: ' + err.message);
+        if (!err.isAuthChallenge) {
+          alert('Error downloading Excel: ' + err.message);
+        }
         const btn = document.getElementById('downloadExcelBtn');
-        btn.textContent = '📥 Download Excel (.xlsx)';
-        btn.disabled = false;
+        if (btn) {
+          btn.textContent = '📥 Download Excel (.xlsx)';
+          btn.disabled = false;
+        }
       }
     }
 
@@ -5357,7 +5885,7 @@
           includeUnassigned,
         };
 
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
+        const res = await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -5378,7 +5906,9 @@
 
         closeModal('tabularExportModal');
       } catch (err) {
-        alert('Error downloading tabular spreadsheet: ' + err.message);
+        if (!err.isAuthChallenge) {
+          alert('Error downloading tabular spreadsheet: ' + err.message);
+        }
       } finally {
         btn.textContent = origText;
         btn.disabled = false;

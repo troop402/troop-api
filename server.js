@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'node:crypto';
 import * as cheerio from 'cheerio';
 import { gotScraping } from 'got-scraping';
 import { CookieJar } from 'tough-cookie';
@@ -16,6 +17,108 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3080;
 
+// Security & Authentication Configuration
+const TROOP_APP_KEY = process.env.TROOP_APP_KEY || 'troop402-app-access';
+const COORDINATOR_PASSWORD = process.env.COORDINATOR_PASSWORD;
+
+if (!COORDINATOR_PASSWORD) {
+  if (process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT)) {
+    process.env.COORDINATOR_PASSWORD = 'test-coordinator-password';
+  } else {
+    console.error('FATAL ERROR: COORDINATOR_PASSWORD environment variable is not set.');
+    console.error('Please define COORDINATOR_PASSWORD in your .env file or environment variables before starting the server.');
+    process.exit(1);
+  }
+}
+
+const SESSION_SECRET = process.env.SESSION_SECRET || process.env.COORDINATOR_PASSWORD || 'troop402-session-secret-salt';
+const COORDINATOR_IDLE_TIMEOUT_MS = parseInt(process.env.COORDINATOR_IDLE_TIMEOUT_MS || process.env.COORDINATOR_SESSION_TIMEOUT_MS || '300000', 10); // default 5 minutes idle
+const COORDINATOR_MAX_SESSION_MS = parseInt(process.env.COORDINATOR_MAX_SESSION_MS || '86400000', 10); // default 24 hours absolute max
+const COORDINATOR_SESSION_TIMEOUT_MS = COORDINATOR_IDLE_TIMEOUT_MS; // Backwards-compatible alias
+const VIEWER_SESSION_TIMEOUT_MS = parseInt(process.env.VIEWER_SESSION_TIMEOUT_MS || '86400000', 10); // default 24 hours
+const CARPOOL_CACHE_TTL_MS = process.env.CARPOOL_CACHE_TTL_MS !== undefined ? parseInt(process.env.CARPOOL_CACHE_TTL_MS, 10) : 0;
+
+function createSignedToken(payload) {
+  const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('base64url');
+  return `${payloadStr}.${signature}`;
+}
+
+function verifySignedToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [payloadStr, signature] = parts;
+
+  const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('base64url');
+  const sigBuf = Buffer.from(signature);
+  const expSigBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expSigBuf.length || !crypto.timingSafeEqual(sigBuf, expSigBuf)) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(Buffer.from(payloadStr, 'base64url').toString('utf8'));
+    if (payload.exp && Date.now() > payload.exp) {
+      return null; // Expired
+    }
+    if (payload.authAt && (Date.now() - payload.authAt > COORDINATOR_MAX_SESSION_MS)) {
+      return null; // Exceeded absolute max session duration (e.g. 24 hours)
+    }
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function extractBearerToken(req) {
+  const authHeader = req.headers.authorization || '';
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  if (req.query && req.query.token) {
+    return String(req.query.token).trim();
+  }
+  return null;
+}
+
+// Role-Based Access Control Middleware
+function requireRole(requiredRole = 'viewer') {
+  return (req, res, next) => {
+    const token = extractBearerToken(req);
+    if (token) {
+      const payload = verifySignedToken(token);
+      if (!payload) {
+        return res.status(401).json({ error: 'Invalid or expired session token.' });
+      }
+      if (requiredRole === 'coordinator' && payload.role !== 'coordinator') {
+        return res.status(403).json({ error: 'Forbidden: Coordinator privileges required.' });
+      }
+      req.user = payload;
+      if (payload.role === 'coordinator') {
+        req.coordinator = payload;
+      }
+      return next();
+    }
+
+    // Support legacy x-troop-key or ?key= parameter for viewer access
+    if (requiredRole === 'viewer') {
+      const expectedKey = process.env.TROOP_APP_KEY || TROOP_APP_KEY;
+      const providedKey = req.headers['x-troop-key'] || req.query.key;
+      if (providedKey && providedKey === expectedKey) {
+        req.user = { role: 'viewer', exp: null };
+        return next();
+      }
+    }
+
+    return res.status(401).json({ error: 'Authentication token required.' });
+  };
+}
+
+const requireViewerAuth = requireRole('viewer');
+const requireCoordinatorAuth = requireRole('coordinator');
+const requireAppAuth = requireViewerAuth; // Alias for consistency
+
 const cache = {
   rosterBuffer: null,
   rosterSummary: null,
@@ -26,8 +129,8 @@ const cache = {
   eventsTimestamp: 0,
   eventsTtlMs: 2 * 60 * 60 * 1000, // 2 hours
 
-  carpoolByEventId: new Map(), // eventId -> { data, timestamp }
-  carpoolTtlMs: 2 * 60 * 1000, // 2 minutes (keeps carpool state fresh without overloading TWH)
+  carpoolByEventId: new Map(), // in-memory carpool cache
+  carpoolTtlMs: CARPOOL_CACHE_TTL_MS, // 0 = live queries; >0 = configurable TTL in ms
 
   adultTrainingMap: null,
   adultTrainingTimestamp: 0,
@@ -2229,10 +2332,8 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
     throw new Error('Event ID is required.');
   }
 
-  const cached = cache.carpoolByEventId.get(eventId);
-  if (!forceRefresh && cached && Date.now() - cached.timestamp < cache.carpoolTtlMs) {
-    return cached.data;
-  }
+  // Note: Server-side carpool memory caching is shelved due to container lifecycle / spin-up characteristics on Render.
+  // Every request fetches live from TroopWebHost, retaining activeCarpoolPromises to deduplicate concurrent in-flight requests.
 
   if (activeCarpoolPromises.has(eventId)) {
     return activeCarpoolPromises.get(eventId);
@@ -2480,7 +2581,152 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
 }
 
 // Routes
-app.post('/api/export-roster', async (req, res) => {
+app.post('/api/auth/token', (req, res) => {
+  const { appKey, password } = req.body || {};
+  const expectedKey = process.env.TROOP_APP_KEY || TROOP_APP_KEY;
+  const expectedPassword = process.env.COORDINATOR_PASSWORD;
+
+  if (password && typeof password === 'string') {
+    const passBuf = Buffer.from(password);
+    const expBuf = Buffer.from(expectedPassword);
+    const isValid = passBuf.length === expBuf.length && crypto.timingSafeEqual(passBuf, expBuf);
+
+    if (!isValid) {
+      return res.status(401).json({ error: 'Incorrect coordinator password.' });
+    }
+
+    const now = Date.now();
+    const expiresInMs = COORDINATOR_IDLE_TIMEOUT_MS;
+    const payload = {
+      role: 'coordinator',
+      authAt: now,
+      exp: now + expiresInMs,
+    };
+    const token = createSignedToken(payload);
+
+    return res.status(200).json({
+      ok: true,
+      token,
+      role: 'coordinator',
+      expiresIn: Math.floor(expiresInMs / 1000),
+      expiresInMs,
+      expiresAt: payload.exp,
+      authAt: payload.authAt,
+      maxSessionMs: COORDINATOR_MAX_SESSION_MS,
+      idleTimeoutMs: COORDINATOR_IDLE_TIMEOUT_MS,
+    });
+  }
+
+  if (appKey && typeof appKey === 'string') {
+    const keyBuf = Buffer.from(appKey);
+    const expKeyBuf = Buffer.from(expectedKey);
+    const isValid = keyBuf.length === expKeyBuf.length && crypto.timingSafeEqual(keyBuf, expKeyBuf);
+
+    if (!isValid) {
+      return res.status(401).json({ error: 'Incorrect troop application key.' });
+    }
+
+    const now = Date.now();
+    const expiresInMs = VIEWER_SESSION_TIMEOUT_MS;
+    const payload = {
+      role: 'viewer',
+      authAt: now,
+      exp: now + expiresInMs,
+    };
+    const token = createSignedToken(payload);
+
+    return res.status(200).json({
+      ok: true,
+      token,
+      role: 'viewer',
+      expiresIn: Math.floor(expiresInMs / 1000),
+      expiresInMs,
+      expiresAt: payload.exp,
+      authAt: payload.authAt,
+    });
+  }
+
+  return res.status(400).json({ error: 'Either appKey or password is required.' });
+});
+
+app.post('/api/auth/coordinator-login', (req, res) => {
+  const { password } = req.body || {};
+  const expectedPassword = process.env.COORDINATOR_PASSWORD;
+
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Password is required.' });
+  }
+
+  const passBuf = Buffer.from(password);
+  const expBuf = Buffer.from(expectedPassword);
+  const isValid = passBuf.length === expBuf.length && crypto.timingSafeEqual(passBuf, expBuf);
+
+  if (!isValid) {
+    return res.status(401).json({ error: 'Incorrect coordinator password.' });
+  }
+
+  const now = Date.now();
+  const expiresInMs = COORDINATOR_IDLE_TIMEOUT_MS;
+  const payload = {
+    role: 'coordinator',
+    authAt: now,
+    exp: now + expiresInMs,
+  };
+  const token = createSignedToken(payload);
+
+  return res.status(200).json({
+    ok: true,
+    token,
+    role: 'coordinator',
+    expiresIn: Math.floor(expiresInMs / 1000),
+    expiresInMs,
+    expiresAt: payload.exp,
+    authAt: payload.authAt,
+    maxSessionMs: COORDINATOR_MAX_SESSION_MS,
+    idleTimeoutMs: COORDINATOR_IDLE_TIMEOUT_MS,
+  });
+});
+
+app.post('/api/auth/refresh', (req, res) => {
+  const token = extractBearerToken(req);
+  if (!token) {
+    return res.status(401).json({ error: 'Session token required for refresh.' });
+  }
+
+  const payload = verifySignedToken(token);
+  if (!payload) {
+    return res.status(401).json({ error: 'Invalid or expired session token. Please re-enter the coordinator password.' });
+  }
+
+  const now = Date.now();
+  const authAt = payload.authAt || (payload.exp ? payload.exp - COORDINATOR_IDLE_TIMEOUT_MS : now);
+  if (now - authAt > COORDINATOR_MAX_SESSION_MS) {
+    return res.status(401).json({ error: 'Session exceeded maximum allowed duration (24-hour cap). Please re-enter the coordinator password.' });
+  }
+
+  const isCoord = payload.role === 'coordinator';
+  const expiresInMs = isCoord ? COORDINATOR_IDLE_TIMEOUT_MS : VIEWER_SESSION_TIMEOUT_MS;
+  const newPayload = {
+    ...payload,
+    authAt,
+    exp: now + expiresInMs,
+  };
+  const newToken = createSignedToken(newPayload);
+
+  return res.status(200).json({
+    ok: true,
+    token: newToken,
+    role: payload.role,
+    expiresIn: Math.floor(expiresInMs / 1000),
+    expiresInMs,
+    expiresAt: newPayload.exp,
+    authAt,
+    maxSessionMs: COORDINATOR_MAX_SESSION_MS,
+    idleTimeoutMs: COORDINATOR_IDLE_TIMEOUT_MS,
+  });
+});
+
+app.post('/api/export-roster', requireAppAuth, async (req, res) => {
   const { forceRefresh } = req.body || {};
 
   try {
@@ -2497,7 +2743,7 @@ app.post('/api/export-roster', async (req, res) => {
   }
 });
 
-app.get('/api/roster/summary', async (req, res) => {
+app.get('/api/roster/summary', requireAppAuth, async (req, res) => {
   const { forceRefresh } = req.query;
 
   try {
@@ -2520,7 +2766,7 @@ app.get('/api/roster/summary', async (req, res) => {
   }
 });
 
-app.get('/api/events', async (req, res) => {
+app.get('/api/events', requireAppAuth, async (req, res) => {
   const days = req.query.days ? parseInt(req.query.days, 10) : 90;
   const forceRefresh = req.query.forceRefresh === 'true';
 
@@ -2538,7 +2784,7 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-app.get('/api/events/:id/carpool', async (req, res) => {
+app.get('/api/events/:id/carpool', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   const forceRefresh = req.query.forceRefresh === 'true';
 
@@ -2560,7 +2806,7 @@ app.get('/api/events/:id/carpool', async (req, res) => {
   }
 });
 
-app.get('/api/events/:id/carpool.xlsx', async (req, res) => {
+app.get('/api/events/:id/carpool.xlsx', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   const forceRefresh = req.query.forceRefresh === 'true';
 
@@ -2597,7 +2843,7 @@ app.get('/api/events/:id/carpool.xlsx', async (req, res) => {
   }
 });
 
-app.post('/api/events/:id/carpool.xlsx', async (req, res) => {
+app.post('/api/events/:id/carpool.xlsx', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   if (!eventId || !/^\d+$/.test(eventId)) {
     return res.status(400).json({ error: 'Valid numeric event ID is required.' });
@@ -2633,7 +2879,7 @@ app.post('/api/events/:id/carpool.xlsx', async (req, res) => {
   }
 });
 
-app.get('/api/events/:id/tabular.xlsx', async (req, res) => {
+app.get('/api/events/:id/tabular.xlsx', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   const forceRefresh = req.query.forceRefresh === 'true';
 
@@ -2680,7 +2926,7 @@ app.get('/api/events/:id/tabular.xlsx', async (req, res) => {
   }
 });
 
-app.post('/api/events/:id/tabular.xlsx', async (req, res) => {
+app.post('/api/events/:id/tabular.xlsx', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   if (!eventId || !/^\d+$/.test(eventId)) {
     return res.status(400).json({ error: 'Valid numeric event ID is required.' });
@@ -2916,7 +3162,7 @@ async function updateEventDriverInTWH({
   };
 }
 
-app.post('/api/events/:id/driver-update', async (req, res) => {
+app.post('/api/events/:id/driver-update', requireCoordinatorAuth, async (req, res) => {
   const eventId = req.params.id;
   if (!eventId || !/^\d+$/.test(eventId)) {
     return res.status(400).json({ error: 'Valid numeric event ID is required.' });
@@ -2970,7 +3216,7 @@ app.post('/api/events/:id/driver-update', async (req, res) => {
   }
 });
 
-app.get('/api/events/:id/twh-status', async (req, res) => {
+app.get('/api/events/:id/twh-status', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   if (!eventId || !/^\d+$/.test(eventId)) {
     return res.status(400).json({ error: 'Valid numeric event ID is required.' });
@@ -3037,9 +3283,14 @@ export {
   firstMatches,
   NICKNAMES,
   buildTabularWorkbook,
+  createSignedToken,
+  verifySignedToken,
+  requireRole,
   normalizeCommentForComparison,
   areCommentsFunctionallyEquivalent,
   buildNameDictionary,
+  COORDINATOR_IDLE_TIMEOUT_MS,
+  COORDINATOR_MAX_SESSION_MS,
 };
 
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;

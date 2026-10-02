@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { app } from '../server.js';
+import { app, createSignedToken, verifySignedToken, COORDINATOR_IDLE_TIMEOUT_MS, COORDINATOR_MAX_SESSION_MS } from '../server.js';
 
 let server;
 let baseUrl;
+const TROOP_KEY_HEADER = { 'x-troop-key': 'troop402-app-access' };
+const coordinatorToken = createSignedToken({ role: 'coordinator' });
+const COORD_AUTH_HEADER = {
+  ...TROOP_KEY_HEADER,
+  'Authorization': `Bearer ${coordinatorToken}`,
+  'Content-Type': 'application/json',
+};
 
 before(() => {
   server = app.listen(0);
@@ -38,7 +45,7 @@ describe('API smoke tests', () => {
     try {
       response = await fetch(`${baseUrl}/api/export-roster`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { ...TROOP_KEY_HEADER, 'content-type': 'application/json' },
         body: JSON.stringify({}),
       });
     } finally {
@@ -64,7 +71,9 @@ describe('API smoke tests', () => {
 
     let response;
     try {
-      response = await fetch(`${baseUrl}/api/roster/summary`);
+      response = await fetch(`${baseUrl}/api/roster/summary`, {
+        headers: TROOP_KEY_HEADER,
+      });
     } finally {
       Object.assign(process.env, environment);
     }
@@ -88,7 +97,9 @@ describe('API smoke tests', () => {
 
     let response;
     try {
-      response = await fetch(`${baseUrl}/api/events?days=30`);
+      response = await fetch(`${baseUrl}/api/events?days=30`, {
+        headers: TROOP_KEY_HEADER,
+      });
     } finally {
       Object.assign(process.env, environment);
     }
@@ -100,7 +111,9 @@ describe('API smoke tests', () => {
   });
 
   it('rejects invalid event ID for carpool endpoint with 400', async () => {
-    const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool`);
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool`, {
+      headers: TROOP_KEY_HEADER,
+    });
 
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), {
@@ -109,7 +122,9 @@ describe('API smoke tests', () => {
   });
 
   it('rejects invalid event ID for carpool.xlsx endpoint with 400', async () => {
-    const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool.xlsx`);
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool.xlsx`, {
+      headers: TROOP_KEY_HEADER,
+    });
 
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), {
@@ -120,7 +135,7 @@ describe('API smoke tests', () => {
   it('rejects invalid event ID for POST carpool.xlsx endpoint with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/not-an-id/carpool.xlsx`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...TROOP_KEY_HEADER, 'Content-Type': 'application/json' },
       body: JSON.stringify({ toDrivers: [] }),
     });
 
@@ -131,7 +146,9 @@ describe('API smoke tests', () => {
   });
 
   it('rejects invalid event ID for tabular.xlsx endpoint with 400', async () => {
-    const response = await fetch(`${baseUrl}/api/events/not-an-id/tabular.xlsx`);
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/tabular.xlsx`, {
+      headers: TROOP_KEY_HEADER,
+    });
 
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), {
@@ -142,7 +159,7 @@ describe('API smoke tests', () => {
   it('rejects invalid event ID for POST tabular.xlsx endpoint with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/not-an-id/tabular.xlsx`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...TROOP_KEY_HEADER, 'Content-Type': 'application/json' },
       body: JSON.stringify({ columns: ['trip_leg'] }),
     });
 
@@ -155,7 +172,7 @@ describe('API smoke tests', () => {
   it('rejects invalid event ID for driver-update with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/not-an-id/driver-update`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: COORD_AUTH_HEADER,
       body: JSON.stringify({ driverName: 'Test, Driver' }),
     });
 
@@ -168,7 +185,7 @@ describe('API smoke tests', () => {
   it('rejects missing driverName for driver-update with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/1957/driver-update`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: COORD_AUTH_HEADER,
       body: JSON.stringify({}),
     });
 
@@ -183,7 +200,7 @@ describe('API smoke tests', () => {
     assert.ok(longComment.length > 100);
     const response = await fetch(`${baseUrl}/api/events/1957/driver-update`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: COORD_AUTH_HEADER,
       body: JSON.stringify({
         driverName: 'Simone, Jason',
         updatedComment: longComment,
@@ -196,7 +213,9 @@ describe('API smoke tests', () => {
   });
 
   it('rejects invalid event ID for twh-status with 400', async () => {
-    const response = await fetch(`${baseUrl}/api/events/not-an-id/twh-status`);
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/twh-status`, {
+      headers: TROOP_KEY_HEADER,
+    });
 
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), {
@@ -220,6 +239,242 @@ describe('API smoke tests', () => {
     const response = await fetch(`${baseUrl}/manager`, { redirect: 'manual' });
     assert.equal(response.status, 302);
     assert.equal(response.headers.get('location'), '/manager.html');
+  });
+});
+
+describe('Authentication and authorization', () => {
+  it('rejects read endpoints without token or key with 401', async () => {
+    const resNoKey = await fetch(`${baseUrl}/api/events`);
+    assert.equal(resNoKey.status, 401);
+    assert.deepEqual(await resNoKey.json(), {
+      error: 'Authentication token required.',
+    });
+
+    const resWrongKey = await fetch(`${baseUrl}/api/events`, {
+      headers: { 'x-troop-key': 'incorrect-key' },
+    });
+    assert.equal(resWrongKey.status, 401);
+
+    const resWrongQueryKey = await fetch(`${baseUrl}/api/events?key=incorrect-key`);
+    assert.equal(resWrongQueryKey.status, 401);
+  });
+
+  it('accepts valid viewer bearer token and legacy key parameters', async () => {
+    // Valid viewer token reaches event handler
+    const viewerToken = createSignedToken({ role: 'viewer' });
+    const resBearer = await fetch(`${baseUrl}/api/events/not-an-id/carpool`, {
+      headers: { 'Authorization': `Bearer ${viewerToken}` },
+    });
+    assert.equal(resBearer.status, 400);
+
+    // Valid legacy header reaches event handler
+    const resHeader = await fetch(`${baseUrl}/api/events/not-an-id/carpool`, {
+      headers: { 'x-troop-key': 'troop402-app-access' },
+    });
+    assert.equal(resHeader.status, 400);
+
+    // Valid legacy query param reaches event handler
+    const resQuery = await fetch(`${baseUrl}/api/events/not-an-id/carpool?key=troop402-app-access`);
+    assert.equal(resQuery.status, 400);
+
+    // Valid token via ?token= query parameter reaches event handler
+    const resQueryToken = await fetch(`${baseUrl}/api/events/not-an-id/carpool?token=${viewerToken}`);
+    assert.equal(resQueryToken.status, 400);
+  });
+
+  it('handles token exchange via POST /api/auth/token', async () => {
+    // Missing body
+    const resMissing = await fetch(`${baseUrl}/api/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    assert.equal(resMissing.status, 400);
+    assert.deepEqual(await resMissing.json(), { error: 'Either appKey or password is required.' });
+
+    // Invalid app key
+    const resBadKey = await fetch(`${baseUrl}/api/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appKey: 'bad-key' }),
+    });
+    assert.equal(resBadKey.status, 401);
+
+    // Valid app key -> viewer role
+    const resViewer = await fetch(`${baseUrl}/api/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appKey: 'troop402-app-access' }),
+    });
+    assert.equal(resViewer.status, 200);
+    const viewerData = await resViewer.json();
+    assert.equal(viewerData.ok, true);
+    assert.equal(viewerData.role, 'viewer');
+    assert.equal(typeof viewerData.token, 'string');
+
+    // Valid coordinator password -> coordinator role
+    const validPassword = process.env.COORDINATOR_PASSWORD;
+    const resCoord = await fetch(`${baseUrl}/api/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: validPassword }),
+    });
+    assert.equal(resCoord.status, 200);
+    const coordData = await resCoord.json();
+    assert.equal(coordData.ok, true);
+    assert.equal(coordData.role, 'coordinator');
+    assert.equal(typeof coordData.token, 'string');
+    assert.equal(coordData.expiresIn, 300);
+  });
+
+  it('handles coordinator authentication flow via POST /api/auth/coordinator-login', async () => {
+    const validPassword = process.env.COORDINATOR_PASSWORD;
+    const resOk = await fetch(`${baseUrl}/api/auth/coordinator-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: validPassword }),
+    });
+    assert.equal(resOk.status, 200);
+    const data = await resOk.json();
+    assert.equal(data.ok, true);
+    assert.equal(data.role, 'coordinator');
+    assert.equal(typeof data.token, 'string');
+    assert.equal(data.expiresIn, 300);
+  });
+
+  it('protects driver-update with coordinator role requirements', async () => {
+    // Missing token
+    const resNoToken = await fetch(`${baseUrl}/api/events/1957/driver-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ driverName: 'Doe, John' }),
+    });
+    assert.equal(resNoToken.status, 401);
+    assert.deepEqual(await resNoToken.json(), {
+      error: 'Authentication token required.',
+    });
+
+    // Invalid token
+    const resBadToken = await fetch(`${baseUrl}/api/events/1957/driver-update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer invalid.fake.token',
+      },
+      body: JSON.stringify({ driverName: 'Doe, John' }),
+    });
+    assert.equal(resBadToken.status, 401);
+    assert.deepEqual(await resBadToken.json(), {
+      error: 'Invalid or expired session token.',
+    });
+
+    // Viewer role attempting driver-update is rejected with 403 Forbidden
+    const viewerToken = createSignedToken({ role: 'viewer' });
+    const resForbidden = await fetch(`${baseUrl}/api/events/1957/driver-update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${viewerToken}`,
+      },
+      body: JSON.stringify({ driverName: 'Doe, John' }),
+    });
+    assert.equal(resForbidden.status, 403);
+    assert.deepEqual(await resForbidden.json(), {
+      error: 'Forbidden: Coordinator privileges required.',
+    });
+
+    // Valid coordinator token passes auth and proceeds to handler (invalid event ID -> 400)
+    const validCoordToken = createSignedToken({ role: 'coordinator' });
+    const resValidToken = await fetch(`${baseUrl}/api/events/not-an-id/driver-update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${validCoordToken}`,
+      },
+      body: JSON.stringify({ driverName: 'Doe, John' }),
+    });
+    assert.equal(resValidToken.status, 400);
+    assert.deepEqual(await resValidToken.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
+  });
+
+  it('handles idle session refresh via POST /api/auth/refresh and enforces the 24-hour ceiling', async () => {
+    // 1. Missing token
+    const resNoToken = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    assert.equal(resNoToken.status, 401);
+    assert.deepEqual(await resNoToken.json(), {
+      error: 'Session token required for refresh.',
+    });
+
+    // 2. Expired token
+    const expiredToken = createSignedToken({
+      role: 'coordinator',
+      exp: Date.now() - 5000,
+      authAt: Date.now() - 60000,
+    });
+    const resExpired = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${expiredToken}`,
+      },
+    });
+    assert.equal(resExpired.status, 401);
+    assert.deepEqual(await resExpired.json(), {
+      error: 'Invalid or expired session token. Please re-enter the coordinator password.',
+    });
+
+    // 3. Valid active token refreshes successfully, slides expiration forward, and preserves original authAt
+    const originalAuthAt = Date.now() - 120000;
+    const activeToken = createSignedToken({
+      role: 'coordinator',
+      exp: Date.now() + 60000,
+      authAt: originalAuthAt,
+    });
+    const resRefresh = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${activeToken}`,
+      },
+    });
+    assert.equal(resRefresh.status, 200);
+    const refreshData = await resRefresh.json();
+    assert.equal(refreshData.ok, true);
+    assert.equal(refreshData.role, 'coordinator');
+    assert.equal(refreshData.authAt, originalAuthAt);
+    assert.equal(typeof refreshData.token, 'string');
+    assert.equal(refreshData.expiresInMs, COORDINATOR_IDLE_TIMEOUT_MS);
+    assert.ok(refreshData.expiresAt > Date.now());
+
+    // Refreshed token is valid and carries original authAt
+    const verifiedPayload = verifySignedToken(refreshData.token);
+    assert.ok(verifiedPayload);
+    assert.equal(verifiedPayload.role, 'coordinator');
+    assert.equal(verifiedPayload.authAt, originalAuthAt);
+
+    // 4. Token exceeding 24-hour absolute maximum session duration is rejected
+    const cappedAuthAt = Date.now() - (COORDINATOR_MAX_SESSION_MS + 1000);
+    const overCapToken = createSignedToken({
+      role: 'coordinator',
+      exp: Date.now() + 60000,
+      authAt: cappedAuthAt,
+    });
+    const resOverCap = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${overCapToken}`,
+      },
+    });
+    assert.equal(resOverCap.status, 401);
+
+    // verifySignedToken also rejects tokens that exceeded max session duration
+    assert.equal(verifySignedToken(overCapToken), null);
   });
 });
 

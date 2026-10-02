@@ -4,6 +4,9 @@ info:
   version: 0.2.0-alpha
   description: |
     Alpha API for troop data integration, TroopWebHost roster exports, upcoming events, and carpool intelligence.
+    Enforces a two-tier authentication architecture:
+    - Tier 1: Shared application key (`x-troop-key` header or `?key=` query param) for read-only troop endpoints.
+    - Tier 2: Signed coordinator session token (`Authorization: Bearer <token>`) for driver state mutations.
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -12,7 +15,11 @@ servers:
   - url: https://troop-api.internal
     description: Internal deployment URL
 
-security: []
+security:
+  - BearerAuth: []
+  - TroopAppKeyHeader: []
+  - TroopAppKeyQuery: []
+  - CoordinatorBearerAuth: []
 
 paths:
   /healthz:
@@ -20,6 +27,7 @@ paths:
       operationId: getHealthz
       summary: App health check
       description: Returns a basic success signal to confirm the service is running.
+      security: []
       responses:
         '200':
           description: Service is healthy
@@ -40,6 +48,163 @@ paths:
             text/plain:
               schema:
                 type: string
+
+  /api/auth/token:
+    post:
+      operationId: acquireAuthToken
+      summary: Acquire role-based session token
+      description: Validates application key or coordinator password and returns a signed bearer token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                appKey:
+                  type: string
+                  description: Application key for viewer role
+                password:
+                  type: string
+                  description: Coordinator password for coordinator role
+      responses:
+        '200':
+          description: Token successfully issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  token:
+                    type: string
+                  role:
+                    type: string
+                    enum: [viewer, coordinator]
+                  expiresIn:
+                    type: integer
+                  expiresInMs:
+                    type: integer
+                  expiresAt:
+                    type: integer
+                  authAt:
+                    type: integer
+                  maxSessionMs:
+                    type: integer
+                  idleTimeoutMs:
+                    type: integer
+        '400':
+          description: Either appKey or password is required
+        '401':
+          description: Incorrect key or password
+
+  /api/auth/coordinator-login:
+    post:
+      operationId: loginCoordinator
+      summary: Authenticate coordinator session
+      description: Validates coordinator password and returns a signed bearer token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  example: 'scouts-lead-the-way'
+      responses:
+        '200':
+          description: Session successfully authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  token:
+                    type: string
+                  expiresIn:
+                    type: integer
+                  expiresInMs:
+                    type: integer
+                  expiresAt:
+                    type: integer
+                  authAt:
+                    type: integer
+                  maxSessionMs:
+                    type: integer
+                  idleTimeoutMs:
+                    type: integer
+        '400':
+          description: Password is required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '401':
+          description: Incorrect password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/auth/refresh:
+    post:
+      operationId: refreshAuthToken
+      summary: Refresh active session token
+      description: Validates current unexpired bearer token, resets the idle timeout, and issues a new signed bearer token while preserving the original authentication timestamp up to the absolute session limit (e.g. 24 hours).
+      security:
+        - BearerAuth: []
+        - CoordinatorBearerAuth: []
+      responses:
+        '200':
+          description: Session successfully refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  token:
+                    type: string
+                  role:
+                    type: string
+                    enum: [viewer, coordinator]
+                  expiresIn:
+                    type: integer
+                  expiresInMs:
+                    type: integer
+                  expiresAt:
+                    type: integer
+                  authAt:
+                    type: integer
+                  maxSessionMs:
+                    type: integer
+                  idleTimeoutMs:
+                    type: integer
+        '401':
+          description: Session token invalid, expired, or 24-hour maximum duration exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
 
   /api/export-roster:
     post:
@@ -589,6 +754,8 @@ paths:
       operationId: updateEventDriver
       summary: Update driver comment and capacity directly in TroopWebHost
       description: Updates a driver's comments, seat count, and travel leg directly in the TroopWebHost event sign-up table with inline conflict checking.
+      security:
+        - CoordinatorBearerAuth: []
       parameters:
         - name: id
           in: path
@@ -738,4 +905,28 @@ paths:
                 properties:
                   error:
                     type: string
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Signed HMAC session bearer token issued by /api/auth/token
+    TroopAppKeyHeader:
+      type: apiKey
+      in: header
+      name: x-troop-key
+      description: Shared troop application access key for read-only operations
+    TroopAppKeyQuery:
+      type: apiKey
+      in: query
+      name: key
+      description: Shared troop application access key for read-only operations
+    CoordinatorBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Signed coordinator session bearer token issued by /api/auth/token or /api/auth/coordinator-login
+
 
