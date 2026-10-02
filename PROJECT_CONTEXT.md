@@ -13,7 +13,7 @@ The core vision established during early brainstorming:
 - **TroopWebHost as System of Record:** Read data from TWH directly rather than replacing it.
 - **In-Memory Cache First:** Use a 12-hour in-memory TTL cache with request coalescing/de-duplication to prevent duplicate logins and external load. Permanent serverless database solutions (e.g. Neon.tech PostgreSQL) are deferred until historical persistence or relational querying is genuinely needed.
 - **Developer Workflow:** Developed in VS Code (GitHub Codespaces) with AI pair programming, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render.
-- **Alpha Framing:** The project is in active alpha development (`0.3.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
+- **Alpha Framing:** The project is in active alpha development (`0.2.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
 
 ---
 

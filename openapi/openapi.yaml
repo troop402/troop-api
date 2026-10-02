@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: troop-api
-  version: 0.3.0-alpha
+  version: 0.2.0-alpha
   description: |
     Alpha API for troop data integration, TroopWebHost roster exports, upcoming events, and carpool intelligence.
     Enforces a two-tier authentication architecture:
