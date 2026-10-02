@@ -13,7 +13,7 @@ The core vision established during early brainstorming:
 - **TroopWebHost as System of Record:** Read data from TWH directly rather than replacing it.
 - **In-Memory Cache First:** Use a 12-hour in-memory TTL cache with request coalescing/de-duplication to prevent duplicate logins and external load. Permanent serverless database solutions (e.g. Neon.tech PostgreSQL) are deferred until historical persistence or relational querying is genuinely needed.
 - **Developer Workflow:** Developed in VS Code (GitHub Codespaces) with AI pair programming, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render.
-- **Alpha Framing:** The project is in early development (`0.1.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
+- **Alpha Framing:** The project is in active alpha development (`0.2.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
 
 ---
 
@@ -78,18 +78,17 @@ To prevent architectural drift and regressions across sessions, the repository m
 * **`PROJECT_CONTEXT.md` (this file):** The historical memory of decisions, discoveries, architecture, and trade-offs.
 * **`PROJECT_CONTRACT.md`:** The plain-language, numbered contract specifying active behavioral promises and endpoint requirements.
 * **`openapi/openapi.yaml`:** Machine-readable API contract (OpenAPI 3.0), validated during CI via Redocly.
-* **`README.md`:** Minimal, public-facing project description. (Hands-off for AI unless explicitly instructed).
-* **Version Control Policy:** Milestone release `v0.1.0-alpha` is tagged on `main` to document the pre-security baseline (what the system did *not* yet have: open read endpoints, no coordinator password, no authentication, no rate/scraper controls). Development of breaking security changes takes place on branch `feat/security-auth` at version `0.2.0-alpha` (matching `package.json` and `openapi/openapi.yaml`). The repository owner handles version tags and release merges.
+* **Version Control Policy:** Milestone releases `v0.1.0-alpha` (pre-security baseline) and `v0.2.0-alpha` (bidirectional website persistence and coordinator workflow) are tagged on `main`. Active development on branch `feat/security-auth` implements the two-tier security architecture and coordinator authentication for the upcoming release milestone. The repository owner handles version tags and release merges.
 
 ---
 
 ## 5. Current State & Roadmap
 
-### Current Status: `0.2.0-alpha` (Branch `feat/security-auth`)
+### Current Status: Security & Auth Milestone (Branch `feat/security-auth`)
 * **Two-Tier Authentication Architecture**:
   - **Tier 1 (Troop Application Key)**: Shared `x-troop-key` HTTP header (or `?key=` query param for direct browser file downloads) required across all read endpoints (`/api/roster/summary`, `/api/export-roster`, `/api/events`, `/api/events/:id/carpool`, `/api/events/:id/carpool.xlsx`, `/api/events/:id/tabular.xlsx`, `/api/events/:id/twh-status`). Dev fallback is `troop402-app-access`. Unauthenticated calls receive HTTP 401.
-  - **Tier 2 (Coordinator Password & Session Token)**: Write operations (`POST /api/events/:id/driver-update`) strictly require an `Authorization: Bearer <token>` signed HMAC session token issued by `POST /api/auth/coordinator-login` using the coordinator password (`COORDINATOR_PASSWORD`, dev fallback `scouts-lead-the-way`). Session tokens expire after 5 minutes (300 seconds).
-  - **Visual Full-Page Lockout Overlay**: The Coordinator Worksheet (`/coordinator.html`) is visually locked behind a full-page modal until unlocked with the coordinator password. An active toolbar countdown badge (`🔒 Unlocked (4:59) [Lock]`) tracks remaining session duration and auto-locks immediately upon expiration or 401 response.
+  - **Tier 2 (Coordinator Password & Session Token)**: Write operations (`POST /api/events/:id/driver-update`) strictly require an `Authorization: Bearer <token>` signed HMAC session token issued by `POST /api/auth/coordinator-login` using the coordinator password (`COORDINATOR_PASSWORD=Riptide` in `.env`). Server strictly fails fast on boot without fallback if unset. Session tokens expire after 5 minutes (300 seconds).
+  - **Visual Full-Page Lockout Overlay**: The Coordinator Worksheet (`/coordinator.html`) renders unauthenticated states with a full-page modal (`#coordinatorLockOverlay`) before any data loading indicator. Client utility `coordinatorFetch()` intercepts HTTP 401/403 responses and surfaces the challenge immediately.
 * **Shelved Server-Side In-Memory Carpool Cache**:
   - Server in-memory carpool cache TTL set to 0 (`carpoolTtlMs: 0`). The Node server always queries TroopWebHost live on event carpool requests.
   - Prominent floating refresh toast notification (`🔄 Checking...`, `✅ Up to date...`, `✨ Updated with latest...`, `⚠️ Error...`) provides continuous visual status feedback on both `carpool.html` and `coordinator.html`.
