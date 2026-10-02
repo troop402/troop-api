@@ -163,7 +163,8 @@ K.6 Does not require prior authentication or application key.
 8.1 Breaking changes are allowed in alpha, but they should be intentional and called out.
 8.2 The project should avoid silent regressions in endpoint behavior.
 8.3 When a behavior changes, the corresponding contract and tests should be updated.
-8.4 This file is a current promise list, not a historical document of every abandoned idea.
+8.4 Local Development Default: Unless the user explicitly requests to create a pull request or push changes live, all active iteration and testing MUST remain strictly local in the development environment. AI assistants and contributors must NOT merge changes into production (`main`) or deploy to live environments without explicit user approval.
+8.5 This file is a current promise list, not a historical document of every abandoned idea.
 
 ## 9. Reference summary
 9.1 This file is the current source of truth for what the project promises to do right now.
@@ -190,6 +191,10 @@ K.6 Does not require prior authentication or application key.
 10.15.1 A stored draft payload (`twh_coord_draft_${id}`) is valid ONLY if it contains active dirty drivers (`dirtyDrivers.length > 0`) that have verifiable differences from the live baseline (`isDriverTrulyDirty`). If no drivers are truly dirty, any stored draft payload MUST be purged immediately from `localStorage` on page load or refresh.
 10.15.2 Browser page reloads (e.g. F5, Cmd+R, navigation reload type) and explicit refresh actions MUST bypass in-memory server caches via `?forceRefresh=true` and trigger a full rebuild (`buildBaselineDraft()`) of all clean driver rows and data structures from freshly scraped and parsed TroopWebHost comments.
 10.15.3 The system MUST NEVER treat the mere presence of cached data in `localStorage` as a justification to retain obsolete drafts or display data inconsistent with the current codebase parsing logic. Clean driver rows are always reconstituted from live server truth.
+10.16 Dynamic Seat Surplus & Deficit KPI Card:
+10.16.1 The coordinator worksheet summary KPI row features a dedicated capacity balance card (`#kpiExtraCard`) that dynamically distinguishes between seat abundance and seat shortage across both trip legs.
+10.16.2 Seat Surplus (Blue Theme): When passenger seats provided meet or exceed attending scouts across both trip legs (`totalSeatsTo >= totalScouts && totalSeatsFrom >= totalScouts`), the card MUST be titled "Seat Surplus" with subtext "Seats to spare" (or "Exact ride capacity" when 0), display positive surplus integer counts for each trip leg, and style the entire card with a soft blue theme (`.kpi-surplus`, background `#eff6ff`, border `#bfdbfe`, accent `#2563eb`).
+10.16.3 Seat Deficit (Red Theme): When either trip leg has fewer passenger seats than attending scouts (`totalSeatsTo < totalScouts || totalSeatsFrom < totalScouts`), the card MUST be titled "Seat Deficit" with subtext "Capacity shortage", display positive integer numbers representing the additional seats needed on each leg, and style the entire card with a soft red theme (`.kpi-deficit`, background `#fef2f2`, border `#fecaca`, accent `#ef4444`).
 
 
 

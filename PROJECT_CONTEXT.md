@@ -11,8 +11,8 @@ The core vision established during early brainstorming:
 - **Zero-Cost Operation:** Run indefinitely on free-tier hosting (Render web service) without subscription fees.
 - **No Heavy Browser Automation:** Avoid resource-heavy headless browser frameworks (Playwright, Puppeteer, Chromium) or Docker containers. Maintain a tiny footprint (<50 MB RAM) to comfortably survive Render's 512 MB ceiling and 0.1 vCPU limits.
 - **TroopWebHost as System of Record:** Read data from TWH directly rather than replacing it.
-- **In-Memory Cache First:** Use a 12-hour in-memory TTL cache with request coalescing/de-duplication to prevent duplicate logins and external load. Permanent serverless database solutions (e.g. Neon.tech PostgreSQL) are deferred until historical persistence or relational querying is genuinely needed.
 - **Developer Workflow:** Developed in VS Code (GitHub Codespaces) with AI pair programming, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render.
+  - **Local Development Policy:** By default, all active iteration, refactoring, and testing remain strictly local in development on the active working branch. The AI MUST NOT open a pull request, push to live, or merge to production (`main`) unless the user explicitly requests to do so.
 - **Alpha Framing:** The project is in active alpha development (`0.2.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
 
 ---
@@ -453,6 +453,24 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
   - Browser page reloads (detected via `performance.getEntriesByType('navigation')[0].type === 'reload'`) and manual refreshes automatically send `?forceRefresh=true` to bypass in-memory server TTL.
   - Upon network resolution, clean driver rows are fully reconstructed via `buildBaselineDraft()`, ensuring immediate uptake of server comments and parsing updates.
   - Only active, verified dirty driver rows retain their in-flight edits, preventing stale local cache from corrupting clean data.
+
+### 9.22 Dynamic Seat Surplus (Blue) & Deficit (Red) KPI Card
+* **The Problem (Static Shortage Display on Sufficient Capacity)**:
+  - Previously, the 5th KPI card on `coordinator.html` was statically titled "Extra Seats Needed" with the subtext "Capacity shortage".
+  - When driver capacity was sufficient or surplus (e.g. 20 seats for 15 scouts), the card displayed `TO: 0` and `FROM: 0` with a green border, failing to inform coordinators how many actual *extra* seats were available and creating semantic confusion by calling an abundant state a "shortage".
+* **Two-State Dynamic Feedback Model**:
+  - The card (`#kpiExtraCard`) adapts dynamically based on whether passenger seats meet or exceed attending scouts (`diffTo = totalSeatsTo - totalScouts`, `diffFrom = totalSeatsFrom - totalScouts`):
+  1. **Seat Surplus (Blue Theme)**:
+     - Triggered when `diffTo >= 0 && diffFrom >= 0`.
+     - Titled **`Seat Surplus`** with subtext *"Seats to spare"* (or *"Exact ride capacity"* when both are 0).
+     - Displays positive integer values for surplus seats on each leg (`diffTo`, `diffFrom`).
+     - Tints the entire card soft blue (`.kpi-surplus`, background `#eff6ff`, border `#bfdbfe`, accent `#2563eb`), with matching deep blue title, split labels, numbers, and subtext.
+  2. **Seat Deficit (Red Theme)**:
+     - Triggered when `diffTo < 0 || diffFrom < 0`.
+     - Titled **`Seat Deficit`** with subtext *"Capacity shortage"* (or leg-specific note if single leg).
+     - Displays positive integer values for shortage counts (`Math.max(0, -diffTo)`, `Math.max(0, -diffFrom)`) indicating exactly how many more seats must be recruited.
+     - Tints the entire card soft red (`.kpi-deficit`, background `#fef2f2`, border `#fecaca`, accent `#ef4444`), with matching deep red title, split labels, numbers, and subtext.
+
 
 
 
