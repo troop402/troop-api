@@ -1,6 +1,14 @@
 {
-    "chat.tools.terminal.autoApprove": {
-        "npm install": true,
-        "mv": true
+  "commands.workspaceCommands": {
+    "Antigravity": {
+      "command": "workbench.action.browser.open",
+      "args": "https://antigravity.google.com",
+      "statusBar": {
+        "alignment": "right",
+        "text": "🚀 Antigravity",
+        "tooltip": "Open Antigravity in Integrated Browser",
+        "priority": 100
+      }
     }
+  }
 }
