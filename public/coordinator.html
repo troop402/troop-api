@@ -360,8 +360,9 @@
       flex-direction: column;
       justify-content: space-between;
       min-height: 62px;
-      width: 152px;
-      flex: 0 0 auto;
+      min-width: 148px;
+      flex: 1 1 148px;
+      max-width: 190px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.02);
     }
     .kpi-title {
@@ -1141,11 +1142,21 @@
 
       <!-- KPI Summary Row -->
       <div class="kpi-row no-print">
-        <!-- 1: Total Scouts -->
+        <!-- 1: Total Attending (Scouts / Adults) -->
         <div class="kpi-card">
-          <span class="kpi-title">Total Scouts</span>
-          <span class="kpi-val" id="kpiScouts">0</span>
-          <span class="kpi-sub">Attending event</span>
+          <span class="kpi-title">Total Attending</span>
+          <div class="kpi-split">
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">Scouts</span>
+              <span class="kpi-split-val" id="kpiScouts">0</span>
+            </div>
+            <div class="kpi-split-divider"></div>
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">Adults</span>
+              <span class="kpi-split-val" id="kpiAdults">0</span>
+            </div>
+          </div>
+          <span class="kpi-sub" id="kpiAttendingSub">Attending event</span>
         </div>
 
         <!-- 2: Total Drivers -->
@@ -1155,24 +1166,24 @@
           <span class="kpi-sub">Registered drivers</span>
         </div>
 
-        <!-- 3: Assigned Seats -->
+        <!-- 3: Total Seats -->
         <div class="kpi-card">
-          <span class="kpi-title">Assigned Seats</span>
+          <span class="kpi-title">Total Seats</span>
           <div class="kpi-split">
             <div class="kpi-split-item">
               <span class="kpi-split-label">TO</span>
-              <span class="kpi-split-val" id="kpiAssignedTo">0</span>
+              <span class="kpi-split-val" id="kpiTotalSeatsTo">0</span>
             </div>
             <div class="kpi-split-divider"></div>
             <div class="kpi-split-item">
               <span class="kpi-split-label">FROM</span>
-              <span class="kpi-split-val" id="kpiAssignedFrom">0</span>
+              <span class="kpi-split-val" id="kpiTotalSeatsFrom">0</span>
             </div>
           </div>
-          <span class="kpi-sub">Scouts in cars</span>
+          <span class="kpi-sub">Vehicle capacity</span>
         </div>
 
-        <!-- 4: Open Seats -->
+        <!-- 3: Open Seats -->
         <div class="kpi-card" id="kpiOpenCard">
           <span class="kpi-title">Open Seats</span>
           <div class="kpi-split">
@@ -1189,9 +1200,9 @@
           <span class="kpi-sub">Available in cars</span>
         </div>
 
-        <!-- 5: Needs Ride -->
+        <!-- 4: Waitlist -->
         <div class="kpi-card" id="kpiNeedsRideCard">
-          <span class="kpi-title">Needs Ride</span>
+          <span class="kpi-title">Waitlist</span>
           <div class="kpi-split">
             <div class="kpi-split-item">
               <span class="kpi-split-label">TO</span>
@@ -1206,7 +1217,7 @@
           <span class="kpi-sub" id="kpiNeedsTotalSub">0 scouts total</span>
         </div>
 
-        <!-- 6: Extra Seats Needed -->
+        <!-- 5: Extra Seats Needed -->
         <div class="kpi-card" id="kpiExtraCard">
           <span class="kpi-title" title="Additional passenger seats needed to accommodate all attending scouts">Extra Seats Needed</span>
           <div class="kpi-split">
@@ -3011,24 +3022,40 @@
       const marginTo = totalSeatsTo - totalScouts;
       const marginFrom = totalSeatsFrom - totalScouts;
 
-      // 1: Total Scouts
-      document.getElementById('kpiScouts').textContent = totalScouts;
+      // 1: Total Attending (Scouts / Adults)
+      const allAdults = (carpoolBaseline.adults || []).filter(a => a.attending !== 'N');
+      const totalAdults = allAdults.length;
+
+      const scoutsEl = document.getElementById('kpiScouts');
+      if (scoutsEl) scoutsEl.textContent = totalScouts;
+      const adultsEl = document.getElementById('kpiAdults');
+      if (adultsEl) adultsEl.textContent = totalAdults;
+      const attendingSubEl = document.getElementById('kpiAttendingSub');
+      if (attendingSubEl) attendingSubEl.textContent = `${totalScouts + totalAdults} total attending`;
 
       // 2: Total Drivers
-      document.getElementById('kpiDrivers').textContent = uniqueDrivers.size;
+      const driversEl = document.getElementById('kpiDrivers');
+      if (driversEl) driversEl.textContent = uniqueDrivers.size;
 
-      // 3: Assigned Seats
-      document.getElementById('kpiAssignedTo').textContent = assignedToCount;
-      document.getElementById('kpiAssignedFrom').textContent = assignedFromCount;
+      // 3: Total Seats (TO / FROM)
+      const totalSeatsToEl = document.getElementById('kpiTotalSeatsTo');
+      if (totalSeatsToEl) totalSeatsToEl.textContent = totalSeatsTo;
+      const totalSeatsFromEl = document.getElementById('kpiTotalSeatsFrom');
+      if (totalSeatsFromEl) totalSeatsFromEl.textContent = totalSeatsFrom;
 
-      // 4: Open Seats
-      document.getElementById('kpiOpenTo').textContent = openSeatsTo;
-      document.getElementById('kpiOpenFrom').textContent = openSeatsFrom;
+      // 3: Open Seats
+      const openToEl = document.getElementById('kpiOpenTo');
+      if (openToEl) openToEl.textContent = openSeatsTo;
+      const openFromEl = document.getElementById('kpiOpenFrom');
+      if (openFromEl) openFromEl.textContent = openSeatsFrom;
 
-      // 5: Needs Ride
-      document.getElementById('kpiNeedsTo').textContent = needsToCount;
-      document.getElementById('kpiNeedsFrom').textContent = needsFromCount;
-      document.getElementById('kpiNeedsTotalSub').textContent = `${waitlistTotal} scout${waitlistTotal === 1 ? '' : 's'} total`;
+      // 4: Waitlist
+      const needsToEl = document.getElementById('kpiNeedsTo');
+      if (needsToEl) needsToEl.textContent = needsToCount;
+      const needsFromEl = document.getElementById('kpiNeedsFrom');
+      if (needsFromEl) needsFromEl.textContent = needsFromCount;
+      const needsTotalSubEl = document.getElementById('kpiNeedsTotalSub');
+      if (needsTotalSubEl) needsTotalSubEl.textContent = `${waitlistTotal} scout${waitlistTotal === 1 ? '' : 's'} total`;
 
       const needsCard = document.getElementById('kpiNeedsRideCard');
       if (needsCard) {

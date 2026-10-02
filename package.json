@@ -1,6 +1,6 @@
 {
   "name": "troop-api",
-  "version": "0.1.0-alpha",
+  "version": "0.2.0-alpha",
   "description": "Alpha troop data integration and API proxy for TroopWebHost export workflows.",
   "type": "module",
   "scripts": {

@@ -7,10 +7,14 @@ import { fileURLToPath } from 'url';
 import { pathToFileURL } from 'url';
 import { buildCarpoolWorkbook, buildTabularWorkbook } from './excel-export.js';
 
+try {
+  process.loadEnvFile?.();
+} catch {}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3080;
 
 const cache = {
   rosterBuffer: null,
@@ -3041,7 +3045,8 @@ export {
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
 
 if (isMainModule) {
-  app.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
+  const HOST = process.env.HOST || '0.0.0.0';
+  app.listen(PORT, HOST, () => {
+    console.log(`Server listening on http://${HOST}:${PORT}`);
   });
 }
