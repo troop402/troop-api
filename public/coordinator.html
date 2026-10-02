@@ -2198,6 +2198,38 @@
       return str;
     }
 
+    function areRiderListsEquivalent(listA = [], listB = []) {
+      if (!listA && !listB) return true;
+      if ((listA?.length || 0) !== (listB?.length || 0)) return false;
+      if (listA.length === 0) return true;
+
+      const remainingB = [...listB];
+      for (const rA of listA) {
+        const normA = normalizeName(rA.name || rA.token || '');
+        const typeA = rA.type || 'scout';
+        const matchIdx = remainingB.findIndex(rB => {
+          const normB = normalizeName(rB.name || rB.token || '');
+          const typeB = rB.type || 'scout';
+          if (typeA !== typeB) return false;
+          if (normA === normB) return true;
+          // Support matching compact surname initial format e.g. "Elianna S" / "Elianna S." vs "Elianna Simone"
+          const partsA = normA.split(/\s+/);
+          const partsB = normB.split(/\s+/);
+          if (partsA[0] === partsB[0] && partsA.length >= 2 && partsB.length >= 2) {
+            const initA = partsA[1][0];
+            const initB = partsB[1][0];
+            if (initA && initB && initA === initB && (partsA[1].length <= 2 || partsB[1].length <= 2)) {
+              return true;
+            }
+          }
+          return false;
+        });
+        if (matchIdx === -1) return false;
+        remainingB.splice(matchIdx, 1);
+      }
+      return remainingB.length === 0;
+    }
+
     function isDriverTrulyDirty(driverName, targetDraft = localDraft, baseline = carpoolBaseline) {
       if (!driverName || !targetDraft || !baseline) return false;
       const norm = normalizeName(driverName);
@@ -2222,21 +2254,16 @@
       if (fromDriver && (fromDriver.seats || 0) !== baseFromSeats) return true;
 
       // Compare clean baseline driver built from baseline
-      const baseDraft = buildBaselineDraft();
+      const baseDraft = buildBaselineDraft(baseline);
       const baseTo = (baseDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
       const baseFrom = (baseDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
 
       const baseNote = (baseTo?.customNote || baseFrom?.customNote || '').trim();
       const curNote = (toDriver?.customNote || fromDriver?.customNote || '').trim();
-      if (baseNote !== curNote) return true;
+      if (baseNote.toLowerCase().replace(/\s+/g, ' ') !== curNote.toLowerCase().replace(/\s+/g, ' ')) return true;
 
-      const toRidersStr = (toDriver?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
-      const baseToRidersStr = (baseTo?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
-      if (toRidersStr !== baseToRidersStr) return true;
-
-      const fromRidersStr = (fromDriver?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
-      const baseFromRidersStr = (baseFrom?.riders || []).map(r => (r.name || '') + ':' + (r.type || '')).join('|');
-      if (fromRidersStr !== baseFromRidersStr) return true;
+      if (!areRiderListsEquivalent(toDriver?.riders, baseTo?.riders)) return true;
+      if (!areRiderListsEquivalent(fromDriver?.riders, baseFrom?.riders)) return true;
 
       return false;
     }
@@ -2315,7 +2342,12 @@
               carpoolBaseline = parsed.data;
               if (parsed.meta) carpoolBaseline.meta = parsed.meta;
               if (uncommittedDraftPayload && uncommittedDraftPayload.draft && uncommittedDraftPayload.dirtyDrivers && uncommittedDraftPayload.dirtyDrivers.length > 0) {
-                localDraft = uncommittedDraftPayload.draft;
+                const trulyDirty = uncommittedDraftPayload.dirtyDrivers.filter(d => isDriverTrulyDirty(d, uncommittedDraftPayload.draft, carpoolBaseline));
+                if (trulyDirty.length > 0) {
+                  localDraft = uncommittedDraftPayload.draft;
+                } else {
+                  localDraft = buildBaselineDraft();
+                }
               } else {
                 localDraft = buildBaselineDraft();
               }
@@ -2478,12 +2510,13 @@
       }
     }
 
-    function buildBaselineDraft() {
+    function buildBaselineDraft(sourceBaseline = carpoolBaseline) {
+      if (!sourceBaseline) return { toDrivers: [], fromDrivers: [], isCustom: false };
       // Map initial drivers and their claimed riders in exact parsed comment order
       const toDrivers = [];
       const fromDrivers = [];
 
-      (carpoolBaseline.drivers || []).forEach(d => {
+      (sourceBaseline.drivers || []).forEach(d => {
         // Available seats: subtract 1 driver from vehicle seats
         const defaultSeats = d.seats > 0 ? Math.max(0, d.seats - 1) : 0;
         const toSeats = (d.toSeats !== undefined && d.toSeats !== null) ? d.toSeats : defaultSeats;
@@ -2564,7 +2597,7 @@
         }
 
         // Cross-check with scouts to guarantee any scout assigned to this driver is in riders
-        (carpoolBaseline.scouts || []).forEach(s => {
+        (sourceBaseline.scouts || []).forEach(s => {
           const formattedScout = formatLastFirst(s.name);
           const normDriver = normalizeName(d.name);
 
@@ -4814,6 +4847,18 @@
       pendingStaleDraftPayload = draftPayload;
       const { savedAt, draft, dirtyDrivers } = draftPayload;
 
+      // Filter dirty drivers strictly to those with verified true user edits against fresh baseline
+      const verifiedDirty = (dirtyDrivers || []).filter(dName =>
+        isDriverTrulyDirty(dName, draft, freshBaseline)
+      );
+
+      // If no drivers are truly dirty (differences were only format optimizations),
+      // auto-discard the stale draft immediately and do not block coordinator!
+      if (verifiedDirty.length === 0) {
+        resolveStaleDraftDiscard();
+        return;
+      }
+
       const ageEl = document.getElementById('staleDraftAge');
       if (ageEl) {
         ageEl.textContent = formatRelativeTime(savedAt);
@@ -4823,46 +4868,36 @@
       if (!listEl) return;
       listEl.innerHTML = '';
 
-      const dirtySet = new Set(dirtyDrivers || []);
-      const allDraftDrivers = [...(draft?.toDrivers || []), ...(draft?.fromDrivers || [])];
-      const draftDriverNames = [...new Set(allDraftDrivers.map(d => d.name))];
-
       let cardsRendered = 0;
-      draftDriverNames.forEach(driverName => {
+      verifiedDirty.forEach(driverName => {
         const norm = normalizeName(driverName);
         const freshD = (freshBaseline?.drivers || []).find(fd => normalizeName(fd.name) === norm);
         const liveComment = freshD ? (freshD.comment || '') : '(No longer listed on website)';
         const proposedComment = synthesizeDriverComment(driverName, draft);
 
-        const isDirty = dirtySet.has(driverName);
-        const commentsDiff = !areCommentsFunctionallyEquivalent(liveComment, proposedComment);
-
-        if (isDirty || commentsDiff) {
-          cardsRendered++;
-          const card = document.createElement('div');
-          card.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem;';
-          card.innerHTML = `
-            <div style="font-weight:700; font-size:0.85rem; color:#1e293b; margin-bottom:0.4rem;">
-              🚗 ${escapeHtml(toDisplayName(driverName))}
-            </div>
-            <div style="font-size:0.72rem; color:#065f46; font-weight:700; text-transform:uppercase; margin-bottom:0.2rem;">
-              Live on Website (${liveComment.length}/100 chars):
-            </div>
-            <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:4px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#065f46; margin-bottom:0.5rem; word-break:break-word;">
-              ${escapeHtml(liveComment || '(Empty comment)')}
-            </div>
-            <div style="font-size:0.72rem; color:#0369a1; font-weight:700; text-transform:uppercase; margin-bottom:0.2rem;">
-              Your Stale Uncommitted Edit (${proposedComment.length}/100 chars):
-            </div>
-            <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#0369a1; word-break:break-word;">
-              ${escapeHtml(proposedComment || '(Empty comment)')}
-            </div>
-          `;
-          listEl.appendChild(card);
-        }
+        cardsRendered++;
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem;';
+        card.innerHTML = `
+          <div style="font-weight:700; font-size:0.85rem; color:#1e293b; margin-bottom:0.4rem;">
+            🚗 ${escapeHtml(toDisplayName(driverName))}
+          </div>
+          <div style="font-size:0.72rem; color:#065f46; font-weight:700; text-transform:uppercase; margin-bottom:0.2rem;">
+            Live on Website (${liveComment.length}/100 chars):
+          </div>
+          <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:4px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#065f46; margin-bottom:0.5rem; word-break:break-word;">
+            ${escapeHtml(liveComment || '(Empty comment)')}
+          </div>
+          <div style="font-size:0.72rem; color:#0369a1; font-weight:700; text-transform:uppercase; margin-bottom:0.2rem;">
+            Your Stale Uncommitted Edit (${proposedComment.length}/100 chars):
+          </div>
+          <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#0369a1; word-break:break-word;">
+            ${escapeHtml(proposedComment || '(Empty comment)')}
+          </div>
+        `;
+        listEl.appendChild(card);
       });
 
-      // If no cards were rendered (e.g. comments were functionally identical), auto-discard and don't block coordinator
       if (cardsRendered === 0) {
         resolveStaleDraftDiscard();
         return;
@@ -4912,16 +4947,18 @@
       const db = document.getElementById('draftBanner');
       if (db) db.style.display = 'inline-flex';
 
-      // Queue dirty drivers to persist to TWH
-      const driversToQueue = (dirtyDrivers && dirtyDrivers.length > 0)
-        ? dirtyDrivers
-        : [...new Set([...(localDraft.toDrivers || []), ...(localDraft.fromDrivers || [])].map(d => d.name))];
+      // Queue ONLY verified dirty drivers to persist to TWH
+      const verifiedDirty = (dirtyDrivers || []).filter(dName =>
+        isDriverTrulyDirty(dName, draft, carpoolBaseline)
+      );
 
-      driversToQueue.forEach(driverName => {
+      verifiedDirty.forEach(driverName => {
         queueDriverSync(driverName);
       });
 
-      flushPendingSyncs();
+      if (verifiedDirty.length > 0) {
+        flushPendingSyncs();
+      }
     }
 
     // Conflict Resolution Modal Handlers
