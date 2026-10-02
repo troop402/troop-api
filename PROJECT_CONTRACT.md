@@ -166,7 +166,7 @@ K.6 Does not require prior authentication or application key.
 8.4 Local Development Definition & Default: The term "dev" explicitly and exclusively refers to the user's local Unraid development environment currently running via npm (`npm run dev`). The user only ever runs dev locally. Unless the user explicitly requests to push to live or create a pull request, all active iteration, commits, and testing MUST remain strictly local in the development environment. AI assistants and contributors must NOT push commits to GitHub (`origin/main`) or trigger deployment to live/production (Render) without explicit user instruction.
 8.5 This file is a current promise list, not a historical document of every abandoned idea.
 8.6 Summary URL Delivery: When publishing changes or delivering summaries, the AI assistant MUST always supply direct, clickable URLs to the relevant endpoints:
-  - For local development iterations: provide links to local endpoints on the Unraid server (`http://localhost:3080/manager`, `http://localhost:3080/coordinator/1985`, `http://localhost:3080/carpool/1985`).
+  - For local development iterations: provide links to local endpoints on the Unraid server (`http://unraid:3000/manager`, `http://unraid:3000/coordinator/1985`, `http://unraid:3000/carpool/1985`).
   - When changes are merged or published live: provide links to the live Render deployment (`https://troop402-api.onrender.com/manager`, `https://troop402-api.onrender.com/coordinator/1985`, `https://troop402-api.onrender.com/carpool/1985`).
 
 ## 9. Reference summary

@@ -14,7 +14,7 @@ The core vision established during early brainstorming:
 - **Developer Workflow:** Developed in VS Code with AI pair programming on the user's local Unraid machine, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render on push to `origin/main`.
   - **Local Development Policy ("dev" = Local Unraid):** The user is only ever running "dev" on local. When the user says "dev", that explicitly and exclusively means their local Unraid development environment running via npm (`npm run dev`). By default, all active iteration, commits, refactoring, and testing remain strictly local in this development environment on the local `main` branch. The AI MUST NOT push to GitHub (`origin/main`), open a PR, or deploy to live/production (Render) unless the user explicitly instructs to push to live.
   - **Summary URL Delivery:** Whenever changes are summarized, the AI assistant supplies clickable URLs to the relevant endpoints:
-    - **Local dev**: `http://localhost:3080/manager`, `http://localhost:3080/coordinator/:id`, `http://localhost:3080/carpool/:id`.
+    - **Local dev** (Unraid box): `http://unraid:3000/manager`, `http://unraid:3000/coordinator/:id`, `http://unraid:3000/carpool/:id`.
     - **Live Render** (after PR merge): `https://troop402-api.onrender.com/manager`, `https://troop402-api.onrender.com/coordinator/:id`, `https://troop402-api.onrender.com/carpool/:id`.
 - **Alpha Framing:** The project is in active alpha development (`0.2.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
 
