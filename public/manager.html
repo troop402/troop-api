@@ -356,12 +356,7 @@
 
     <!-- Roster Status Card -->
     <div class="card">
-      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-        <span>👥 Troop Roster &amp; Member Sync</span>
-        <button id="refreshRosterBtn" class="btn" style="font-size: 0.78rem; padding: 0.3rem 0.65rem;" onclick="fetchRosterSummary(true)">
-          🔄 Sync Website Roster
-        </button>
-      </div>
+      <div class="card-title">👥 Troop Roster &amp; Member Sync</div>
       <div class="stat-grid">
         <div class="stat-box">
           <div class="number" id="totalMembers">-</div>
@@ -384,12 +379,7 @@
 
     <!-- Event Carpool Explorer -->
     <div class="card">
-      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-        <span>🚙 Event Carpool Hub</span>
-        <button id="refreshEventsBtn" class="btn" style="font-size: 0.78rem; padding: 0.3rem 0.65rem;" onclick="loadEvents(true)">
-          🔄 Refresh Events
-        </button>
-      </div>
+      <div class="card-title">🚙 Event Carpool Hub</div>
       <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">
         Select an event to open or share its dedicated carpool and departure roster.
       </p>
@@ -564,6 +554,11 @@
 
     const DEFAULT_TROOP_APP_KEY = 'troop402-app-access';
     function getTroopAppKey() {
+      const urlKey = new URLSearchParams(window.location.search).get('key');
+      if (urlKey) {
+        localStorage.setItem('twh_troop_app_key', urlKey);
+        return urlKey;
+      }
       return localStorage.getItem('twh_troop_app_key') || DEFAULT_TROOP_APP_KEY;
     }
 
@@ -573,48 +568,24 @@
       if (token && (!expiresAt || Date.now() < expiresAt)) {
         return token;
       }
-      return null;
-    }
-
-    async function getViewerToken() {
-      const coordToken = getCoordinatorToken();
-      if (coordToken) return coordToken;
-
-      let viewerToken = sessionStorage.getItem('twh_viewer_token');
-      const viewerExp = parseInt(sessionStorage.getItem('twh_viewer_expires_at') || '0', 10);
-      if (viewerToken && Date.now() < viewerExp) {
-        return viewerToken;
-      }
-      try {
-        const res = await fetch('/api/auth/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ appKey: getTroopAppKey() }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          sessionStorage.setItem('twh_viewer_token', data.token);
-          sessionStorage.setItem('twh_viewer_expires_at', String(data.expiresAt));
-          return data.token;
-        }
-      } catch (e) {
-        console.warn('Silent viewer token acquisition failed:', e);
+      if (token && expiresAt && Date.now() >= expiresAt) {
+        sessionStorage.removeItem('twh_coordinator_token');
+        sessionStorage.removeItem('twh_coordinator_expires_at');
+        sessionStorage.removeItem('twh_coordinator_idle_ms');
+        sessionStorage.removeItem('twh_coordinator_max_ms');
+        updateCoordAuthUi();
       }
       return null;
     }
 
-    async function getAuthHeaders(extraHeaders = {}) {
-      const headers = { ...extraHeaders };
+    function getAuthHeaders(extraHeaders = {}) {
+      const headers = {
+        'x-troop-key': getTroopAppKey(),
+        ...extraHeaders,
+      };
       const coordToken = getCoordinatorToken();
       if (coordToken) {
         headers['Authorization'] = `Bearer ${coordToken}`;
-        return headers;
-      }
-      const token = await getViewerToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      } else {
-        headers['x-troop-key'] = getTroopAppKey();
       }
       return headers;
     }
@@ -772,8 +743,8 @@
         resolvers.forEach(({ resolve }) => resolve(data.token));
 
         // Re-sync data now that we have elevated auth
-        fetchRosterSummary(false);
-        loadEvents(false);
+        fetchRosterSummary();
+        loadEvents();
       } catch (err) {
         if (errEl) {
           errEl.textContent = err.message;
@@ -791,8 +762,8 @@
     }
 
     async function managerFetch(url, options = {}, isRetry = false) {
-      const isAuthEndpoint = url.includes('/api/auth/token') || url.includes('/api/auth/refresh');
-      const headers = await getAuthHeaders(options.headers || {});
+      const isAuthEndpoint = url.includes('/api/auth/coordinator-login') || url.includes('/api/auth/refresh');
+      const headers = getAuthHeaders(options.headers || {});
       const fetchOpts = { ...options, headers };
 
       let res;
@@ -808,21 +779,32 @@
       }
 
       if (res.status === 401 || res.status === 403) {
-        let errorMsg = 'Session expired or authorization required. Please enter coordinator password.';
-        try {
-          const data = await res.clone().json();
-          if (data && data.error) errorMsg = data.error;
-        } catch {}
-
-        if (!isRetry) {
-          await promptCoordinatorPassword(errorMsg);
-          return managerFetch(url, options, true);
+        // Clear expired coordinator session if present
+        if (sessionStorage.getItem('twh_coordinator_token')) {
+          sessionStorage.removeItem('twh_coordinator_token');
+          sessionStorage.removeItem('twh_coordinator_expires_at');
+          sessionStorage.removeItem('twh_coordinator_idle_ms');
+          sessionStorage.removeItem('twh_coordinator_max_ms');
+          updateCoordAuthUi();
         }
 
-        const authErr = new Error(errorMsg);
-        authErr.status = res.status;
-        authErr.isAuthChallenge = true;
-        throw authErr;
+        if (options.requireCoordinator) {
+          let errorMsg = 'Session expired or coordinator authorization required.';
+          try {
+            const data = await res.clone().json();
+            if (data && data.error) errorMsg = data.error;
+          } catch {}
+
+          if (!isRetry) {
+            await promptCoordinatorPassword(errorMsg);
+            return managerFetch(url, options, true);
+          }
+
+          const authErr = new Error(errorMsg);
+          authErr.status = res.status;
+          authErr.isAuthChallenge = true;
+          throw authErr;
+        }
       }
 
       return res;
@@ -843,17 +825,11 @@
       }
     }
 
-    async function fetchRosterSummary(forceRefresh = false) {
-      const syncBtn = document.getElementById('refreshRosterBtn');
-      if (syncBtn) {
-        syncBtn.disabled = true;
-        syncBtn.textContent = '🔄 Syncing...';
-      }
-
-      // 1. Immediately render cached summary if available
+    async function fetchRosterSummary() {
+      // 1. Immediately render cached summary if available (0ms instant display)
       try {
         const cachedStr = localStorage.getItem('twh_manager_roster_summary');
-        if (cachedStr && !forceRefresh) {
+        if (cachedStr) {
           const cached = JSON.parse(cachedStr);
           if (cached && cached.totalMembers !== undefined) {
             renderRosterSummary(cached, true);
@@ -861,28 +837,20 @@
         }
       } catch (e) {}
 
+      // 2. Opportunistically fetch fresh copy and update seamlessly
       try {
-        const res = await managerFetch(`/api/roster/summary${forceRefresh ? '?forceRefresh=true' : ''}`);
+        const res = await managerFetch('/api/roster/summary');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
         localStorage.setItem('twh_manager_roster_summary', JSON.stringify(data));
         renderRosterSummary(data, false);
       } catch (err) {
-        if (!err.isAuthChallenge) {
-          console.warn('Roster summary error:', err);
-          const cachedStr = localStorage.getItem('twh_manager_roster_summary');
-          if (cachedStr) {
-            document.getElementById('cacheLabel').textContent = 'Sync Failed (Cached)';
-          } else {
-            document.getElementById('cacheAge').textContent = 'Error';
-            document.getElementById('cacheLabel').textContent = 'Sync Failed';
-          }
-        }
-      } finally {
-        if (syncBtn) {
-          syncBtn.disabled = false;
-          syncBtn.textContent = '🔄 Sync Website Roster';
+        console.warn('Roster summary background fetch:', err);
+        const cachedStr = localStorage.getItem('twh_manager_roster_summary');
+        if (!cachedStr) {
+          document.getElementById('cacheAge').textContent = 'Error';
+          document.getElementById('cacheLabel').textContent = 'Sync Failed';
         }
       }
     }
@@ -895,14 +863,8 @@
       if (allCountEl) allCountEl.textContent = allEvents.length;
     }
 
-    async function loadEvents(forceRefresh = false) {
-      const refreshBtn = document.getElementById('refreshEventsBtn');
-      if (refreshBtn) {
-        refreshBtn.disabled = true;
-        refreshBtn.textContent = '🔄 Refreshing...';
-      }
-
-      // 1. Immediate render from localStorage cache
+    async function loadEvents() {
+      // 1. Immediate render from localStorage cache (0ms instant display)
       try {
         const cachedStr = localStorage.getItem('twh_manager_events_cache');
         if (cachedStr && allEvents.length === 0) {
@@ -922,8 +884,9 @@
         }
       }
 
+      // 2. Opportunistically fetch fresh copy and update seamlessly
       try {
-        const res = await managerFetch(`/api/events${forceRefresh ? '?forceRefresh=true' : ''}`);
+        const res = await managerFetch('/api/events');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         allEvents = data.events || [];
@@ -931,16 +894,9 @@
         updateEventCounts();
         renderEventSelect();
       } catch (err) {
-        if (!err.isAuthChallenge) {
-          console.warn('Events loading error:', err);
-          if (allEvents.length === 0) {
-            document.getElementById('eventSelect').innerHTML = `<option value="">Error loading events: ${escapeHtml(err.message)}</option>`;
-          }
-        }
-      } finally {
-        if (refreshBtn) {
-          refreshBtn.disabled = false;
-          refreshBtn.textContent = '🔄 Refresh Events';
+        console.warn('Events loading error:', err);
+        if (allEvents.length === 0) {
+          document.getElementById('eventSelect').innerHTML = `<option value="">Error loading events: ${escapeHtml(err.message)}</option>`;
         }
       }
     }
@@ -1322,6 +1278,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
+          requireCoordinator: true,
         });
 
         if (!res.ok) throw new Error('Failed to generate tabular spreadsheet');

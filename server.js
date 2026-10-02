@@ -94,17 +94,21 @@ function requireRole(requiredRole = 'viewer') {
     const token = extractBearerToken(req);
     if (token) {
       const payload = verifySignedToken(token);
-      if (!payload) {
+      if (payload) {
+        if (requiredRole === 'coordinator' && payload.role !== 'coordinator') {
+          return res.status(403).json({ error: 'Forbidden: Coordinator privileges required.' });
+        }
+        req.user = payload;
+        if (payload.role === 'coordinator') {
+          req.coordinator = payload;
+        }
+        return next();
+      }
+      // If token is invalid or expired and coordinator role is required, fail with 401
+      if (requiredRole === 'coordinator') {
         return res.status(401).json({ error: 'Invalid or expired session token.' });
       }
-      if (requiredRole === 'coordinator' && payload.role !== 'coordinator') {
-        return res.status(403).json({ error: 'Forbidden: Coordinator privileges required.' });
-      }
-      req.user = payload;
-      if (payload.role === 'coordinator') {
-        req.coordinator = payload;
-      }
-      return next();
+      // For viewer role, do not abort immediately: fall through to check x-troop-key or ?key=
     }
 
     // Support legacy x-troop-key or ?key= parameter for viewer access
@@ -117,7 +121,7 @@ function requireRole(requiredRole = 'viewer') {
       }
     }
 
-    return res.status(401).json({ error: 'Authentication token required.' });
+    return res.status(401).json({ error: token ? 'Invalid or expired session token.' : 'Authentication token required.' });
   };
 }
 
