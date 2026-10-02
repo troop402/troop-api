@@ -1574,6 +1574,88 @@ describe('Driver comment parsing unit test', () => {
     assert.ok(tom);
     assert.ok(tom.tokens.includes('Tom'));
   });
+
+  it('parses Steve Spiker comment with non-attending roster scout using nickname (Madeline -> Maddy Spiker)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Spiker, Steve',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'taking both his kids, Lucy and Madeline',
+      },
+    ];
+
+    const scouts = []; // Neither Lucy nor Maddy is registered on the campout
+
+    const adults = [
+      { name: 'Spiker, Steve', leadership: 'Adult' },
+    ];
+
+    const rosterMembers = [
+      { name: 'Spiker, Steve', isAdult: true, patrol: '' },
+      { name: 'Spiker, Lucy', isAdult: false, patrol: 'Falcon' },
+      { name: 'Spiker, Maddy', isAdult: false, patrol: 'Dragon' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults, rosterMembers);
+    const driver = result.enrichedDrivers[0];
+
+    // Both Lucy Spiker and Maddy Spiker (via nickname Madeline) should be matched as confirmed non-attending scouts
+    assert.equal(driver.claimedScouts.length, 2);
+    const names = driver.claimedScouts.map((s) => s.name);
+    assert.ok(names.includes('Lucy Spiker'));
+    assert.ok(names.includes('Maddy Spiker'));
+    assert.ok(driver.claimedScouts.every((s) => s.notAttending === true));
+    assert.equal(driver.cleanNote, '');
+  });
+
+  it('prevents driver surname from becoming cleanNote when driver enters full name with typo or relative (Christina Polk & Jason Simone)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Polk, Christina',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'Christana polk , Megan polk',
+      },
+      {
+        name: 'Simone, Jason',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'Elianna Simone',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Polk, Megan', patrol: 'Falcon' },
+      { name: 'Simone, Elianna', patrol: 'Dragon' },
+    ];
+
+    const adults = [
+      { name: 'Polk, Christina', leadership: 'Adult' },
+      { name: 'Simone, Jason', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const polkDriver = result.enrichedDrivers.find((d) => d.name === 'Polk, Christina');
+    const simoneDriver = result.enrichedDrivers.find((d) => d.name === 'Simone, Jason');
+
+    // Megan Polk claimed, cleanNote should NOT contain "polk"
+    assert.equal(polkDriver.claimedScouts.length, 1);
+    assert.equal(polkDriver.claimedScouts[0].name, 'Megan Polk');
+    assert.equal(polkDriver.cleanNote, '');
+
+    // Elianna Simone claimed, cleanNote should NOT contain "simone"
+    assert.equal(simoneDriver.claimedScouts.length, 1);
+    assert.equal(simoneDriver.claimedScouts[0].name, 'Elianna Simone');
+    assert.equal(simoneDriver.cleanNote, '');
+  });
 });
 
 describe('Carpool Excel export unit test', () => {

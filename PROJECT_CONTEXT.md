@@ -458,18 +458,22 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
 * **The Problem (Static Shortage Display on Sufficient Capacity)**:
   - Previously, the 5th KPI card on `coordinator.html` was statically titled "Extra Seats Needed" with the subtext "Capacity shortage".
   - When driver capacity was sufficient or surplus (e.g. 20 seats for 15 scouts), the card displayed `TO: 0` and `FROM: 0` with a green border, failing to inform coordinators how many actual *extra* seats were available and creating semantic confusion by calling an abundant state a "shortage".
-* **Two-State Dynamic Feedback Model**:
-  - The card (`#kpiExtraCard`) adapts dynamically based on whether passenger seats meet or exceed attending scouts (`diffTo = totalSeatsTo - totalScouts`, `diffFrom = totalSeatsFrom - totalScouts`):
+* **Two-State & Mixed Dynamic Feedback Model**:
+  - The card (`#kpiExtraCard`) adapts dynamically based on true remaining seat balance relative to waitlisted scouts needing rides (`balanceTo = openSeatsTo - needsToCount`, `balanceFrom = openSeatsFrom - needsFromCount`):
   1. **Seat Surplus (Blue Theme)**:
-     - Triggered when `diffTo >= 0 && diffFrom >= 0`.
+     - Triggered when `balanceTo >= 0 && balanceFrom >= 0`.
      - Titled **`Seat Surplus`** with subtext *"Seats to spare"* (or *"Exact ride capacity"* when both are 0).
-     - Displays positive integer values for surplus seats on each leg (`diffTo`, `diffFrom`).
+     - Displays positive integer values for surplus seats on each leg (`balanceTo`, `balanceFrom`).
      - Tints the entire card soft blue (`.kpi-surplus`, background `#eff6ff`, border `#bfdbfe`, accent `#2563eb`), with matching deep blue title, split labels, numbers, and subtext.
   2. **Seat Deficit (Red Theme)**:
-     - Triggered when `diffTo < 0 || diffFrom < 0`.
-     - Titled **`Seat Deficit`** with subtext *"Capacity shortage"* (or leg-specific note if single leg).
-     - Displays positive integer values for shortage counts (`Math.max(0, -diffTo)`, `Math.max(0, -diffFrom)`) indicating exactly how many more seats must be recruited.
-     - Tints the entire card soft red (`.kpi-deficit`, background `#fef2f2`, border `#fecaca`, accent `#ef4444`), with matching deep red title, split labels, numbers, and subtext.
+     - Triggered when one or both legs have a shortage and neither has a surplus (e.g. `balanceTo < 0` and `balanceFrom <= 0`).
+     - Titled **`Seat Deficit`** with subtext *"Capacity shortage on both legs"* or leg-specific shortage note (e.g. *"Shortage on TO leg (1 seat needed)"*).
+     - Displays positive integer numbers indicating seats needed (e.g. `1 needed`) styled in deep red (`#b91c1c`), with `0 (Even)` in emerald green for balanced legs.
+     - Tints the entire card soft red (`.kpi-deficit`, background `#fef2f2`, border `#fecaca`, accent `#ef4444`).
+  3. **Seat Deficit & Surplus (Split Balance Theme)**:
+     - Triggered when legs diverge (one leg has a deficit and the other has a surplus, e.g. TO: -1, FROM: +2).
+     - Titled **`Seat Deficit & Surplus`** with subtext detailing both legs (`TO: 1 needed • FROM: 2 extra`).
+     - Styles each leg independently (red for deficit, blue for surplus) and tints the card with an amber alert border (`.kpi-split-balance`).
 
 ### 9.23 Configurable Coordinator Timeouts & Proactive Authentication Prompting
 * **Realistic & Configurable Idle Timeouts (`.env`)**:
@@ -488,6 +492,19 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
   - If a save fails or user is unauthenticated, dirty drivers are strictly retained in `pendingDriversToSync` and `localDraft`. The system never prematurely disables the save button or purges drafts when writeback does not succeed.
 * **Proactive Tab Visibility & Focus Detection**:
   - Window `focus` and `visibilitychange` event listeners proactively verify session freshness the instant a coordinator switches back to the browser tab, floating up the password prompt if the timeout elapsed in the background.
+
+### 9.24 Non-Attending Nickname Resolution, Surname Extraction Safeguards, and Direct Save Actions
+* **Non-Attending Roster Matching via Nicknames (Steve Spiker & Maddy Spiker)**:
+  - When drivers claim troop members who are not registered on the campout, backend Pass 6 now checks `NICKNAMES[first]` alongside exact first names. When driver Steve Spiker comments *"taking both his kids, Lucy and Madeline"*, the system recognizes `Madeline` as a nickname for `Maddy Spiker` in the troop roster, matching her as a confirmed non-attending scout rider (`notAttending: true`).
+  - `/api/events/:id/carpool` delivers the troop `roster` to the frontend, enabling `buildAmbiguityCandidateList()` in the Ambiguity Resolution Modal to search both registered scouts and roster members for nickname and family surname matches, surfacing suggestions like `Spiker, Maddy [Family Match] [Troop Roster (Not Registered)]`.
+* **Strict Surname & Self-Reference Removal in Note Extraction**:
+  - `extractDriverNote()` (`coordinator.html`) and `cleanNote` extraction (`server.js`) strictly strip driver surnames, driver full names, rider surnames, driver first names, common nicknames, and typo variations (Levenshtein distance <= 1, such as "Christana" for Christina Polk).
+  - Stopwords and relationship terms (`kids`, `son`, `daughter`, `family`, `chaperone`, `mom`, `dad`) are excluded so surnames like `Polk` or `Simone` are never mistakenly isolated as custom notes / special instructions.
+* **Direct Table-Row Save Action & Transparent Feedback**:
+  - Clicking the dirty `💾` icon in a driver table row directly invokes `saveDriverDirectly()`, displaying `#savingOverlay` with progress, persisting changes to TroopWebHost, prompting for password if unauthenticated, and confirming success with a toast (`✅ [Driver] saved to Website!`).
+  - The modal "Save to Website" button (`#noteSaveBtn`) immediately initiates HTTP persistence and displays saving state, eliminating user confusion between local drafts and live updates.
+* **Render Cold-Start & Spin-Down Status Indicator**:
+  - When submitting the coordinator password, if Render is waking from sleep, an animated spinner and status notice (`#coordSpinNotice`) display after 2.5 seconds informing the coordinator that the server is waking up, preventing confusion during Render cold starts.
 
 
 

@@ -1668,7 +1668,7 @@ function matchAttendeesInText(text, driverFirst, driverLast, scoutEntries, adult
 
   // -------------------------------------------------------------
   // PASS 6: Non-Attending Troop Roster Members (Fallback for drivers claiming roster members not registered on event)
-  // E.g. Heather Tzortzis claiming "Chris & Alina"
+  // E.g. Heather Tzortzis claiming "Chris & Alina" or Steve Spiker claiming "Lucy and Madeline" (Maddy Spiker)
   // -------------------------------------------------------------
   for (const sc of rosterScoutEntries) {
     if (sc.first === driverFirst && sc.last === driverLast) continue;
@@ -1678,16 +1678,19 @@ function matchAttendeesInText(text, driverFirst, driverLast, scoutEntries, adult
     let matched = false;
     let idx = 999;
 
-    if (isTokenAvailable(sc.last) && isTokenAvailable(sc.first)) {
+    const firstTokens = [sc.first, ...(NICKNAMES[sc.first] || [])];
+    const availableFirst = firstTokens.find((tok) => tok && isTokenAvailable(tok));
+
+    if (isTokenAvailable(sc.last) && availableFirst) {
       matched = true;
       recordConsumedToken(sc.last);
-      recordConsumedToken(sc.first);
-      idx = findTokenPosition(`${sc.first} ${sc.last}`);
-      if (idx === 999) idx = findTokenPosition(sc.first);
-    } else if (isFamily && isTokenAvailable(sc.first)) {
+      recordConsumedToken(availableFirst);
+      idx = findTokenPosition(`${availableFirst} ${sc.last}`);
+      if (idx === 999) idx = findTokenPosition(availableFirst);
+    } else if (isFamily && availableFirst) {
       matched = true;
-      recordConsumedToken(sc.first);
-      idx = findTokenPosition(sc.first);
+      recordConsumedToken(availableFirst);
+      idx = findTokenPosition(availableFirst);
     }
 
     if (matched) {
@@ -1711,16 +1714,19 @@ function matchAttendeesInText(text, driverFirst, driverLast, scoutEntries, adult
     let matched = false;
     let idx = 999;
 
-    if (isTokenAvailable(ad.last) && isTokenAvailable(ad.first)) {
+    const firstTokens = [ad.first, ...(NICKNAMES[ad.first] || [])];
+    const availableFirst = firstTokens.find((tok) => tok && isTokenAvailable(tok));
+
+    if (isTokenAvailable(ad.last) && availableFirst) {
       matched = true;
       recordConsumedToken(ad.last);
-      recordConsumedToken(ad.first);
-      idx = findTokenPosition(`${ad.first} ${ad.last}`);
-      if (idx === 999) idx = findTokenPosition(ad.first);
-    } else if (isFamily && isTokenAvailable(ad.first)) {
+      recordConsumedToken(availableFirst);
+      idx = findTokenPosition(`${availableFirst} ${ad.last}`);
+      if (idx === 999) idx = findTokenPosition(availableFirst);
+    } else if (isFamily && availableFirst) {
       matched = true;
-      recordConsumedToken(ad.first);
-      idx = findTokenPosition(ad.first);
+      recordConsumedToken(availableFirst);
+      idx = findTokenPosition(availableFirst);
     }
 
     if (matched) {
@@ -2070,30 +2076,83 @@ function parseDriverComments(drivers, scouts, adults, rosterMembers = [], existi
       if (takingMatch) {
         cleanNote = (takingMatch[2] || '').trim();
       } else {
-        // Strip matched rider names and boilerplate words to extract clean driver notes
+        // Strip matched rider names, driver name/surname, and boilerplate words to extract clean driver notes
         const riderWords = new Set();
         matchedScouts.forEach((sc) => {
           const scName = (typeof sc === 'string' ? sc : (sc.name || sc.displayName || '')).toLowerCase();
-          scName.replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean).forEach((w) => riderWords.add(w));
-          if (sc.originalName) sc.originalName.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean).forEach((w) => riderWords.add(w));
+          scName.replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean).forEach((w) => {
+            riderWords.add(w);
+            (NICKNAMES[w] || []).forEach((n) => riderWords.add(n));
+          });
+          if (sc.originalName) {
+            sc.originalName.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean).forEach((w) => {
+              riderWords.add(w);
+              (NICKNAMES[w] || []).forEach((n) => riderWords.add(n));
+            });
+          }
         });
         matchedAdults.forEach((ad) => {
           const adName = (typeof ad === 'string' ? ad : (ad.name || ad.displayName || '')).toLowerCase();
-          adName.replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean).forEach((w) => riderWords.add(w));
+          adName.replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean).forEach((w) => {
+            riderWords.add(w);
+            (NICKNAMES[w] || []).forEach((n) => riderWords.add(n));
+          });
         });
+
+        // Add driver's own name components so driver full name or surname is never treated as a special instruction
+        if (driverFirst) {
+          riderWords.add(driverFirst);
+          (NICKNAMES[driverFirst] || []).forEach((n) => riderWords.add(n));
+        }
+        if (driverLast) {
+          riderWords.add(driverLast);
+        }
+        if (d.name) {
+          d.name.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(Boolean).forEach((w) => riderWords.add(w));
+        }
+
         const boilerplate = new Set([
           'to', 'from', 'taking', 'takes', 'take', 'driving', 'drives', 'drive', 'with', 'and', 'seats',
           'seat', 'room', 'space', 'more', 'spots', 'spot', 'both', 'ways', 'way', 'only',
           'car', 'rides', 'ride', 'riding', 'for', 'scouts', 'scout', 'open', 'myself', 'self',
           'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
           'available', 'avaliable', 'return', 'trip', 'inbound', 'outbound', 'none', 'full', 'no',
+          'driver', 'me', 'i', 'mom', 'dad', 'parent', 'chaperone', 'kids', 'kid', 'son', 'sons',
+          'daughter', 'daughters', 'child', 'children', 'family', 'his', 'her', 'my', 'our', 'their',
         ]);
+
+        function isFuzzyNameMatch(word, target) {
+          if (!word || !target || word.length < 4 || target.length < 4) return false;
+          if (word === target) return true;
+          // Levenshtein distance 1 for typo tolerance (e.g. christana vs christina)
+          if (Math.abs(word.length - target.length) > 1) return false;
+          let diffs = 0;
+          let i = 0, j = 0;
+          while (i < word.length && j < target.length) {
+            if (word[i] !== target[j]) {
+              diffs++;
+              if (diffs > 1) return false;
+              if (word.length > target.length) i++;
+              else if (target.length > word.length) j++;
+              else { i++; j++; }
+            } else {
+              i++; j++;
+            }
+          }
+          return true;
+        }
+
         const sentences = comment.split(/(?<=[.!?])\s+/);
         const nonRiderSentences = [];
         for (const s of sentences) {
           const sNorm = s.toLowerCase().replace(/[^a-z0-9]/g, ' ');
           const words = sNorm.split(/\s+/).filter((w) => w.length > 2);
-          const meaningfulWords = words.filter((w) => !boilerplate.has(w) && !riderWords.has(w));
+          const meaningfulWords = words.filter((w) => {
+            if (boilerplate.has(w) || riderWords.has(w)) return false;
+            if (driverFirst && isFuzzyNameMatch(w, driverFirst)) return false;
+            if (driverLast && isFuzzyNameMatch(w, driverLast)) return false;
+            return true;
+          });
           if (meaningfulWords.length > 0) {
             nonRiderSentences.push(s.trim());
           }
@@ -2570,6 +2629,11 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
       drivers,
       adults,
       scouts,
+      roster: (rosterMembers || []).map((m) => ({
+        name: m.name,
+        isAdult: Boolean(m.isAdult),
+        patrol: m.patrol || '',
+      })),
       nameMap: nameMap || nameDictionary.toPlainObject(),
       cachedAt: new Date().toISOString(),
     };
