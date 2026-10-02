@@ -506,6 +506,19 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
 * **Render Cold-Start & Spin-Down Status Indicator**:
   - When submitting the coordinator password, if Render is waking from sleep, an animated spinner and status notice (`#coordSpinNotice`) display after 2.5 seconds informing the coordinator that the server is waking up, preventing confusion during Render cold starts.
 
+### 9.25 Manager Console Proactive Coordinator Auth & Cold-Start Resilience
+* **Coordinator Authentication Modal on Manager Console (`manager.html`)**:
+  - Integrated the `#coordinatorLockOverlay` password prompt modal directly into `manager.html` with Render spin-down detection (2.5s and 15s wake notices).
+  - Displays coordinator authentication status in the console header with a live status button (`🔒 Coordinator Login` / `🔓 Coordinator Active`), allowing coordinators to unlock or manage sessions directly.
+  - Automatically intercepts HTTP 401/403 responses across all manager endpoints (`/api/roster/summary`, `/api/events`, `/api/events/:id/carpool`, spreadsheets) via `managerFetch()`, floats up the password prompt with context, and automatically resumes/retries the failed operation once unlocked.
+* **Render Cold-Start & Network Spin-Down Resilience**:
+  - Automatically retries network failures once with a 2.5s backoff if the Render web instance is cold-starting from idle.
+  - Caches upcoming events (`twh_manager_events_cache`) and roster summary (`twh_manager_roster_summary`) in browser `localStorage`. On page load, cached events and member counts render instantly (0ms) so the carpool event list and default selection (e.g. Lassen) populate immediately even if the server is waking up.
+* **On-Demand Roster & Event Synchronization**:
+  - Added dedicated action buttons to the Manager Console cards: `🔄 Sync Website Roster` (`/api/roster/summary?forceRefresh=true`) and `🔄 Refresh Events` (`/api/events?forceRefresh=true`).
+  - Legacy spreadsheet downloads (`#downloadExcelBtn`) route through authenticated `managerFetch()`, generating a blob download and prompting for coordinator credentials if unauthenticated instead of failing with 401.
+
+
 
 
 

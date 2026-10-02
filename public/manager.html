@@ -319,6 +319,24 @@
       cursor: pointer;
       accent-color: #0f766e;
     }
+
+    .toast-spin {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .btn-coord-active {
+      background: #ecfdf5 !important;
+      color: #065f46 !important;
+      border-color: #a7f3d0 !important;
+      font-weight: 700;
+    }
+    .btn-coord-active:hover {
+      background: #d1fae5 !important;
+    }
   </style>
 </head>
 <body>
@@ -328,15 +346,21 @@
         <h1>Troop 402 Manager Console</h1>
         <p>Operational control, website roster cache, and event carpool hub.</p>
       </div>
-      <div>
+      <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <button id="btnHeaderCoordAuth" class="btn" onclick="toggleCoordinatorAuthModal()" style="font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+          <span id="coordAuthStatusIcon">🔒</span> <span id="coordAuthStatusText">Coordinator Login</span>
+        </button>
         <a href="/" class="btn" style="font-size: 0.8rem;">Public Status &rarr;</a>
       </div>
     </header>
 
     <!-- Roster Status Card -->
     <div class="card">
-      <div class="card-title">
+      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
         <span>👥 Troop Roster &amp; Member Sync</span>
+        <button id="refreshRosterBtn" class="btn" style="font-size: 0.78rem; padding: 0.3rem 0.65rem;" onclick="fetchRosterSummary(true)">
+          🔄 Sync Website Roster
+        </button>
       </div>
       <div class="stat-grid">
         <div class="stat-box">
@@ -360,8 +384,11 @@
 
     <!-- Event Carpool Explorer -->
     <div class="card">
-      <div class="card-title">
+      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
         <span>🚙 Event Carpool Hub</span>
+        <button id="refreshEventsBtn" class="btn" style="font-size: 0.78rem; padding: 0.3rem 0.65rem;" onclick="loadEvents(true)">
+          🔄 Refresh Events
+        </button>
       </div>
       <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">
         Select an event to open or share its dedicated carpool and departure roster.
@@ -410,9 +437,9 @@
           <button id="tabularExportBtn" type="button" class="btn" style="font-size: 0.95rem; padding: 0.65rem 1rem;" onclick="openTabularExportModal()" title="Export flat cartesian spreadsheet with customizable columns">
             📑 Custom Report (.xlsx)
           </button>
-          <a id="downloadExcelLink" href="#" class="btn" style="font-size: 0.95rem; padding: 0.65rem 1rem;">
+          <button id="downloadExcelBtn" type="button" class="btn" style="font-size: 0.95rem; padding: 0.65rem 1rem;" onclick="downloadCarpoolExcel()">
             📥 Legacy Spreadsheet (.xlsx)
-          </a>
+          </button>
         </div>
       </div>
     </div>
@@ -486,6 +513,40 @@
       </div>
     </div>
 
+    <!-- Modal: Coordinator Password Login / Unlock -->
+    <div id="coordinatorLockOverlay" class="modal-overlay" style="display: none; background: rgba(15, 23, 42, 0.75); z-index: 99999;" onclick="handleModalOverlayClick(event, 'coordinatorLockOverlay')">
+      <div class="modal-dialog" style="max-width: 440px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
+        <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid var(--border); padding: 1.25rem 1.5rem;">
+          <h3 id="coordLockTitle" style="display:flex; align-items:center; gap:0.5rem; font-size:1.15rem; color:#0f172a; margin:0;">
+            <span>🔒</span> Coordinator Access Required
+          </h3>
+          <button class="modal-close" onclick="cancelCoordinatorAuthPrompt()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem;">
+          <p id="coordLockSubtitle" style="font-size: 0.88rem; color: #475569; margin-bottom: 1.25rem; line-height: 1.45;">
+            This console provides operational access to roster synchronization, spreadsheets, and event carpool management. Please enter the coordinator password to continue.
+          </p>
+          <form id="coordinatorLoginForm" onsubmit="handleCoordinatorLogin(event)">
+            <div style="margin-bottom: 1.25rem;">
+              <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.35rem;">COORDINATOR PASSWORD</label>
+              <input type="password" id="coordPasswordInput" style="width:100%; padding:0.7rem 0.85rem; font-size:1rem; border:1px solid #cbd5e1; border-radius:6px; outline:none; box-sizing:border-box;" placeholder="Enter password" autofocus required />
+              <div id="coordLoginError" style="display:none; color:#dc2626; font-size:0.8rem; margin-top:0.4rem; font-weight:600;"></div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:0.6rem; align-items:center;">
+              <button type="button" id="btnCancelCoordLogin" class="btn" onclick="cancelCoordinatorAuthPrompt()" style="padding:0.65rem 1rem;">Cancel</button>
+              <button type="submit" id="btnUnlockConsole" class="btn btn-primary" style="padding:0.65rem 1.25rem; font-weight:700;">Unlock Console</button>
+            </div>
+          </form>
+          <div id="coordSpinNotice" style="display:none; margin-top:1rem; padding:0.6rem 0.85rem; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; font-size:0.82rem; color:#1e40af;">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <span class="toast-spin" style="font-size:1.1rem; display:inline-block;">⏳</span>
+              <span id="coordSpinNoticeText">Connecting to server / waking up service... (Render instances may take 20–40s to wake from idle)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: 2rem;">
       Troop 402 Lafayette • Internal Management Console • Deployed on Render
     </div>
@@ -494,18 +555,31 @@
   <script>
     let allEvents = [];
     let currentFilter = 'carpool'; // 'carpool' or 'all'
+    let pendingAuthResolvers = [];
+    let sessionExpiryTimeout = null;
+    let lastUserActivity = Date.now();
+
+    window.addEventListener('click', () => { lastUserActivity = Date.now(); });
+    window.addEventListener('keydown', () => { lastUserActivity = Date.now(); });
 
     const DEFAULT_TROOP_APP_KEY = 'troop402-app-access';
     function getTroopAppKey() {
       return localStorage.getItem('twh_troop_app_key') || DEFAULT_TROOP_APP_KEY;
     }
 
-    async function getViewerToken() {
-      const coordToken = sessionStorage.getItem('twh_coordinator_token');
-      const coordExp = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
-      if (coordToken && Date.now() < coordExp) {
-        return coordToken;
+    function getCoordinatorToken() {
+      const token = sessionStorage.getItem('twh_coordinator_token');
+      const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      if (token && (!expiresAt || Date.now() < expiresAt)) {
+        return token;
       }
+      return null;
+    }
+
+    async function getViewerToken() {
+      const coordToken = getCoordinatorToken();
+      if (coordToken) return coordToken;
+
       let viewerToken = sessionStorage.getItem('twh_viewer_token');
       const viewerExp = parseInt(sessionStorage.getItem('twh_viewer_expires_at') || '0', 10);
       if (viewerToken && Date.now() < viewerExp) {
@@ -531,6 +605,11 @@
 
     async function getAuthHeaders(extraHeaders = {}) {
       const headers = { ...extraHeaders };
+      const coordToken = getCoordinatorToken();
+      if (coordToken) {
+        headers['Authorization'] = `Bearer ${coordToken}`;
+        return headers;
+      }
       const token = await getViewerToken();
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -540,42 +619,329 @@
       return headers;
     }
 
-    async function fetchRosterSummary() {
-      try {
-        const res = await fetch('/api/roster/summary', {
-          headers: await getAuthHeaders(),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+    function updateCoordAuthUi() {
+      const token = getCoordinatorToken();
+      const icon = document.getElementById('coordAuthStatusIcon');
+      const text = document.getElementById('coordAuthStatusText');
+      const btn = document.getElementById('btnHeaderCoordAuth');
+      if (!icon || !text || !btn) return;
 
-        document.getElementById('totalMembers').textContent = data.totalMembers;
-        document.getElementById('scoutsCount').textContent = data.scoutsCount;
-        document.getElementById('adultsCount').textContent = data.adultsCount;
-
-        const date = new Date(data.cachedAt);
-        document.getElementById('cacheAge').textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        document.getElementById('cacheLabel').textContent = data.fresh ? 'Cached at' : 'Just Updated';
-      } catch (err) {
-        document.getElementById('cacheAge').textContent = 'Error';
+      if (token) {
+        icon.textContent = '🔓';
+        const exp = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+        const remMin = exp ? Math.max(1, Math.round((exp - Date.now()) / 60000)) : null;
+        text.textContent = remMin ? `Coordinator Active (${remMin}m)` : 'Coordinator Active';
+        btn.classList.add('btn-coord-active');
+        btn.title = 'Coordinator authenticated. Click to manage session.';
+      } else {
+        icon.textContent = '🔒';
+        text.textContent = 'Coordinator Login';
+        btn.classList.remove('btn-coord-active');
+        btn.title = 'Click to log in with coordinator password.';
       }
     }
 
-    async function loadEvents() {
+    function scheduleSessionExpiry(expiresAt) {
+      if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
+      const remainingMs = expiresAt - Date.now();
+      if (remainingMs <= 0) {
+        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.');
+        return;
+      }
+      sessionExpiryTimeout = setTimeout(() => {
+        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.');
+      }, remainingMs);
+    }
+
+    function lockCoordinatorSession(reasonMsg = '') {
+      if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
+      sessionStorage.removeItem('twh_coordinator_token');
+      sessionStorage.removeItem('twh_coordinator_expires_at');
+      sessionStorage.removeItem('twh_coordinator_auth_at');
+      sessionStorage.removeItem('twh_coordinator_idle_ms');
+      sessionStorage.removeItem('twh_coordinator_max_ms');
+      updateCoordAuthUi();
+
+      if (reasonMsg) {
+        promptCoordinatorPassword(reasonMsg);
+      }
+    }
+
+    function toggleCoordinatorAuthModal() {
+      const token = getCoordinatorToken();
+      if (token) {
+        if (confirm('Coordinator session is currently active. Would you like to lock/log out now?')) {
+          lockCoordinatorSession();
+        }
+      } else {
+        promptCoordinatorPassword('Enter coordinator password to unlock coordinator operations.');
+      }
+    }
+
+    function promptCoordinatorPassword(reasonMsg = 'Please enter coordinator password to continue.') {
+      return new Promise((resolve, reject) => {
+        pendingAuthResolvers.push({ resolve, reject });
+
+        const overlay = document.getElementById('coordinatorLockOverlay');
+        const subtitleEl = document.getElementById('coordLockSubtitle');
+        const errEl = document.getElementById('coordLoginError');
+        const passInput = document.getElementById('coordPasswordInput');
+
+        if (subtitleEl) {
+          subtitleEl.innerHTML = `<span style="display:inline-block; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:0.5rem 0.75rem; border-radius:6px; font-weight:600; font-size:0.84rem; width:100%; box-sizing:border-box;">🔒 ${escapeHtml(reasonMsg)}</span>`;
+        }
+        if (errEl) {
+          errEl.textContent = '';
+          errEl.style.display = 'none';
+        }
+        if (passInput) {
+          passInput.value = '';
+        }
+        if (overlay) overlay.style.display = 'flex';
+        setTimeout(() => { if (passInput) passInput.focus(); }, 100);
+      });
+    }
+
+    function cancelCoordinatorAuthPrompt() {
+      const overlay = document.getElementById('coordinatorLockOverlay');
+      if (overlay) overlay.style.display = 'none';
+      const resolvers = [...pendingAuthResolvers];
+      pendingAuthResolvers = [];
+      const err = new Error('Coordinator authentication cancelled.');
+      err.isAuthChallenge = true;
+      resolvers.forEach(({ reject }) => reject(err));
+    }
+
+    async function handleCoordinatorLogin(e) {
+      if (e) e.preventDefault();
+      const passInput = document.getElementById('coordPasswordInput');
+      const btn = document.getElementById('btnUnlockConsole');
+      const errEl = document.getElementById('coordLoginError');
+      const password = passInput ? passInput.value : '';
+
+      if (!password) return;
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="toast-spin" style="display:inline-block; margin-right:0.35rem;">⏳</span> Verifying...';
+      if (errEl) errEl.style.display = 'none';
+
+      const spinNotice = document.getElementById('coordSpinNotice');
+      const spinNoticeText = document.getElementById('coordSpinNoticeText');
+      if (spinNotice) spinNotice.style.display = 'none';
+
+      const wakeTimer1 = setTimeout(() => {
+        if (spinNotice && btn.disabled) {
+          if (spinNoticeText) spinNoticeText.textContent = 'Connecting to server / waking up service... (Render instances may take 20–40s to wake from idle)';
+          spinNotice.style.display = 'block';
+        }
+      }, 2500);
+
+      const wakeTimer2 = setTimeout(() => {
+        if (spinNotice && btn.disabled) {
+          if (spinNoticeText) spinNoticeText.textContent = 'Still connecting to server... Almost ready, please wait.';
+        }
+      }, 15000);
+
       try {
-        const res = await fetch('/api/events', {
-          headers: await getAuthHeaders(),
+        const res = await fetch('/api/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
         });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Incorrect password.');
+        }
+
+        sessionStorage.setItem('twh_coordinator_token', data.token);
+        sessionStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
+        if (data.authAt) sessionStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
+        if (data.idleTimeoutMs) sessionStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
+        if (data.maxSessionMs) sessionStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+        lastUserActivity = Date.now();
+
+        updateCoordAuthUi();
+        scheduleSessionExpiry(data.expiresAt);
+
+        const overlay = document.getElementById('coordinatorLockOverlay');
+        if (overlay) overlay.style.display = 'none';
+
+        const resolvers = [...pendingAuthResolvers];
+        pendingAuthResolvers = [];
+        resolvers.forEach(({ resolve }) => resolve(data.token));
+
+        // Re-sync data now that we have elevated auth
+        fetchRosterSummary(false);
+        loadEvents(false);
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message;
+          errEl.style.display = 'block';
+        }
+        if (passInput) passInput.select();
+      } finally {
+        clearTimeout(wakeTimer1);
+        clearTimeout(wakeTimer2);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = 'Unlock Console';
+        }
+      }
+    }
+
+    async function managerFetch(url, options = {}, isRetry = false) {
+      const isAuthEndpoint = url.includes('/api/auth/token') || url.includes('/api/auth/refresh');
+      const headers = await getAuthHeaders(options.headers || {});
+      const fetchOpts = { ...options, headers };
+
+      let res;
+      try {
+        res = await fetch(url, fetchOpts);
+      } catch (networkErr) {
+        if (!isRetry && !isAuthEndpoint) {
+          console.warn(`Network error on ${url}, retrying once in 2.5s (server may be waking up)...`, networkErr);
+          await new Promise(r => setTimeout(r, 2500));
+          return managerFetch(url, options, true);
+        }
+        throw networkErr;
+      }
+
+      if (res.status === 401 || res.status === 403) {
+        let errorMsg = 'Session expired or authorization required. Please enter coordinator password.';
+        try {
+          const data = await res.clone().json();
+          if (data && data.error) errorMsg = data.error;
+        } catch {}
+
+        if (!isRetry) {
+          await promptCoordinatorPassword(errorMsg);
+          return managerFetch(url, options, true);
+        }
+
+        const authErr = new Error(errorMsg);
+        authErr.status = res.status;
+        authErr.isAuthChallenge = true;
+        throw authErr;
+      }
+
+      return res;
+    }
+
+    function renderRosterSummary(data, isCached = false) {
+      document.getElementById('totalMembers').textContent = data.totalMembers !== undefined ? data.totalMembers : '-';
+      document.getElementById('scoutsCount').textContent = data.scoutsCount !== undefined ? data.scoutsCount : '-';
+      document.getElementById('adultsCount').textContent = data.adultsCount !== undefined ? data.adultsCount : '-';
+
+      if (data.cachedAt) {
+        const date = new Date(data.cachedAt);
+        document.getElementById('cacheAge').textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('cacheLabel').textContent = isCached ? 'Cached (Offline)' : (data.fresh ? 'Cached at' : 'Just Updated');
+      } else {
+        document.getElementById('cacheAge').textContent = 'Ready';
+        document.getElementById('cacheLabel').textContent = 'Cache Status';
+      }
+    }
+
+    async function fetchRosterSummary(forceRefresh = false) {
+      const syncBtn = document.getElementById('refreshRosterBtn');
+      if (syncBtn) {
+        syncBtn.disabled = true;
+        syncBtn.textContent = '🔄 Syncing...';
+      }
+
+      // 1. Immediately render cached summary if available
+      try {
+        const cachedStr = localStorage.getItem('twh_manager_roster_summary');
+        if (cachedStr && !forceRefresh) {
+          const cached = JSON.parse(cachedStr);
+          if (cached && cached.totalMembers !== undefined) {
+            renderRosterSummary(cached, true);
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const res = await managerFetch(`/api/roster/summary${forceRefresh ? '?forceRefresh=true' : ''}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        localStorage.setItem('twh_manager_roster_summary', JSON.stringify(data));
+        renderRosterSummary(data, false);
+      } catch (err) {
+        if (!err.isAuthChallenge) {
+          console.warn('Roster summary error:', err);
+          const cachedStr = localStorage.getItem('twh_manager_roster_summary');
+          if (cachedStr) {
+            document.getElementById('cacheLabel').textContent = 'Sync Failed (Cached)';
+          } else {
+            document.getElementById('cacheAge').textContent = 'Error';
+            document.getElementById('cacheLabel').textContent = 'Sync Failed';
+          }
+        }
+      } finally {
+        if (syncBtn) {
+          syncBtn.disabled = false;
+          syncBtn.textContent = '🔄 Sync Website Roster';
+        }
+      }
+    }
+
+    function updateEventCounts() {
+      const carpoolCandidates = allEvents.filter(e => e.isCarpoolCandidate);
+      const carpoolCountEl = document.getElementById('carpoolEventsCount');
+      const allCountEl = document.getElementById('allEventsCount');
+      if (carpoolCountEl) carpoolCountEl.textContent = carpoolCandidates.length;
+      if (allCountEl) allCountEl.textContent = allEvents.length;
+    }
+
+    async function loadEvents(forceRefresh = false) {
+      const refreshBtn = document.getElementById('refreshEventsBtn');
+      if (refreshBtn) {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = '🔄 Refreshing...';
+      }
+
+      // 1. Immediate render from localStorage cache
+      try {
+        const cachedStr = localStorage.getItem('twh_manager_events_cache');
+        if (cachedStr && allEvents.length === 0) {
+          const cached = JSON.parse(cachedStr);
+          if (Array.isArray(cached) && cached.length > 0) {
+            allEvents = cached;
+            updateEventCounts();
+            renderEventSelect();
+          }
+        }
+      } catch (e) {}
+
+      if (allEvents.length === 0) {
+        const select = document.getElementById('eventSelect');
+        if (select) {
+          select.innerHTML = '<option value="">-- Connecting to server & loading upcoming events... --</option>';
+        }
+      }
+
+      try {
+        const res = await managerFetch(`/api/events${forceRefresh ? '?forceRefresh=true' : ''}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         allEvents = data.events || [];
-
-        const carpoolCandidates = allEvents.filter(e => e.isCarpoolCandidate);
-        document.getElementById('carpoolEventsCount').textContent = carpoolCandidates.length;
-        document.getElementById('allEventsCount').textContent = allEvents.length;
-
+        localStorage.setItem('twh_manager_events_cache', JSON.stringify(allEvents));
+        updateEventCounts();
         renderEventSelect();
       } catch (err) {
-        document.getElementById('eventSelect').innerHTML = `<option value="">Error loading events: ${err.message}</option>`;
+        if (!err.isAuthChallenge) {
+          console.warn('Events loading error:', err);
+          if (allEvents.length === 0) {
+            document.getElementById('eventSelect').innerHTML = `<option value="">Error loading events: ${escapeHtml(err.message)}</option>`;
+          }
+        }
+      } finally {
+        if (refreshBtn) {
+          refreshBtn.disabled = false;
+          refreshBtn.textContent = '🔄 Refresh Events';
+        }
       }
     }
 
@@ -592,6 +958,7 @@
         ? allEvents.filter(e => e.isCarpoolCandidate)
         : allEvents;
 
+      const previousValue = select.value;
       select.innerHTML = '<option value="">-- Select an Event to View Carpool --</option>';
       filtered.forEach(e => {
         const opt = document.createElement('option');
@@ -602,11 +969,22 @@
         select.appendChild(opt);
       });
 
-      // Default to last selected event from localStorage if present
+      // Default selection strategy:
+      // 1. Maintain currently selected value if still in filtered list
+      // 2. Or pick last selected event from localStorage
+      // 3. Or pick first candidate
       const lastPickedId = localStorage.getItem('twh_manager_last_event_id');
-      const foundLast = lastPickedId ? filtered.find(e => String(e.id) === String(lastPickedId)) : null;
-      if (foundLast) {
-        select.value = foundLast.id;
+      const targetId = (previousValue && filtered.some(e => String(e.id) === String(previousValue)))
+        ? previousValue
+        : lastPickedId;
+
+      const found = targetId ? filtered.find(e => String(e.id) === String(targetId)) : null;
+      if (found) {
+        select.value = found.id;
+        onEventSelected();
+      } else if (filtered.length > 0 && !previousValue) {
+        // Default to first candidate
+        select.value = filtered[0].id;
         onEventSelected();
       } else {
         select.value = '';
@@ -637,7 +1015,6 @@
       const carpoolUrl = `/carpool.html?id=${eventId}`;
       document.getElementById('openCarpoolLink').href = carpoolUrl;
       document.getElementById('openCoordinatorLink').href = `/coordinator.html?id=${eventId}`;
-      document.getElementById('downloadExcelLink').href = `/api/events/${eventId}/carpool.xlsx?key=${encodeURIComponent(getTroopAppKey())}`;
       box.style.display = 'block';
 
       // Quick preview of capacity
@@ -645,9 +1022,7 @@
       indicator.innerHTML = '<span class="muted">Loading quick capacity preview...</span>';
 
       try {
-        const res = await fetch(`/api/events/${eventId}/carpool`, {
-          headers: await getAuthHeaders(),
-        });
+        const res = await managerFetch(`/api/events/${eventId}/carpool`);
         if (res.ok) {
           const cp = await res.json();
 
@@ -682,6 +1057,45 @@
       }
     }
 
+    async function downloadCarpoolExcel() {
+      const select = document.getElementById('eventSelect');
+      const eventId = select ? select.value : '';
+      if (!eventId) {
+        alert('Please select an event first.');
+        return;
+      }
+      const btn = document.getElementById('downloadExcelBtn');
+      const origText = btn ? btn.textContent : '';
+      try {
+        if (btn) {
+          btn.textContent = '⏳ Downloading...';
+          btn.disabled = true;
+        }
+        const res = await managerFetch(`/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`);
+        if (!res.ok) throw new Error('Failed to download carpool spreadsheet');
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const ev = allEvents.find(e => String(e.id) === String(eventId));
+        const safeTitle = (ev?.title || 'event').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+        a.download = `carpool_${eventId}_${safeTitle}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        if (!err.isAuthChallenge) {
+          alert('Error downloading carpool spreadsheet: ' + err.message);
+        }
+      } finally {
+        if (btn) {
+          btn.textContent = origText || '📥 Legacy Spreadsheet (.xlsx)';
+          btn.disabled = false;
+        }
+      }
+    }
+
     // ==========================================
     // TABULAR CARTESIAN EXPORT MODAL LOGIC
     // ==========================================
@@ -703,14 +1117,11 @@
     ];
 
     const TABULAR_COLUMNS = [
-      // Trip & Event Details
       { id: 'trip_leg', label: 'Trip Leg', category: 'Trip & Event' },
       { id: 'seat_number', label: 'Seat #', category: 'Trip & Event' },
       { id: 'event_title', label: 'Event Title', category: 'Trip & Event' },
       { id: 'event_date', label: 'Event Date', category: 'Trip & Event' },
       { id: 'event_location', label: 'Event Location', category: 'Trip & Event' },
-
-      // Adult / Driver Details
       { id: 'adult_name', label: 'Driver Name', category: 'Adult / Driver' },
       { id: 'adult_cell', label: 'Driver Cell', category: 'Adult / Driver' },
       { id: 'adult_email', label: 'Driver Email', category: 'Adult / Driver' },
@@ -727,8 +1138,6 @@
       { id: 'adult_attending', label: 'Adult Attending?', category: 'Adult / Driver' },
       { id: 'adult_comment', label: 'Driver Comment', category: 'Adult / Driver' },
       { id: 'adult_custom_note', label: 'Coordinator Note', category: 'Adult / Driver' },
-
-      // Rider / Passenger Details
       { id: 'rider_type', label: 'Rider Type', category: 'Rider / Passenger' },
       { id: 'rider_name', label: 'Rider Name', category: 'Rider / Passenger' },
       { id: 'rider_parent_names', label: 'Parent / Emergency Contact', category: 'Rider / Passenger' },
@@ -795,7 +1204,11 @@
 
     function handleModalOverlayClick(event, id) {
       if (event.target && event.target.id === id) {
-        closeModal(id);
+        if (id === 'coordinatorLockOverlay') {
+          cancelCoordinatorAuthPrompt();
+        } else {
+          closeModal(id);
+        }
       }
     }
 
@@ -803,7 +1216,6 @@
       const container = document.getElementById('tabularColumnsContainer');
       const selectedSet = new Set(selectedColIds);
 
-      // Group by category
       const categories = ['Trip & Event', 'Adult / Driver', 'Rider / Passenger'];
       let html = '';
 
@@ -892,7 +1304,6 @@
         const includeOpenSeats = document.getElementById('tabOptIncludeOpenSeats').checked;
         const includeUnassigned = document.getElementById('tabOptIncludeUnassigned').checked;
 
-        // Persist preferences
         saveTabularSettings({
           columns: checkedCols,
           splitTripLegs,
@@ -907,9 +1318,9 @@
           includeUnassigned,
         };
 
-        const res = await fetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
+        const res = await managerFetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
           method: 'POST',
-          headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
 
@@ -929,7 +1340,9 @@
 
         closeModal('tabularExportModal');
       } catch (err) {
-        alert('Error downloading tabular spreadsheet: ' + err.message);
+        if (!err.isAuthChallenge) {
+          alert('Error downloading tabular spreadsheet: ' + err.message);
+        }
       } finally {
         btn.textContent = origText;
         btn.disabled = false;
@@ -949,10 +1362,12 @@
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         closeModal('tabularExportModal');
+        cancelCoordinatorAuthPrompt();
       }
     });
 
-    // Init
+    // Initialize UI and load data
+    updateCoordAuthUi();
     fetchRosterSummary();
     loadEvents();
   </script>

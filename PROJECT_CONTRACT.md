@@ -207,6 +207,12 @@ K.6 Does not require prior authentication or application key.
 10.18.3 Strict Surname & Driver Self-Reference Stripping: Custom driver note extraction (`extractDriverNote` and `cleanNote`) MUST strip driver surnames, driver full names, rider surnames, driver first names, nicknames, relationship stopwords (`kids`, `son`, `daughter`), and typo matches (Levenshtein distance <= 1), guaranteeing surnames are never mistakenly treated as special instructions or custom notes.
 10.18.4 Direct Row-Level Writebacks: Clicking the dirty save icon (`💾`) in a driver table row MUST initiate an immediate HTTP writeback (`saveDriverDirectly`), display `#savingOverlay` with progress, and confirm success via toast notification, while reserving the note link/button for modal editing.
 10.18.5 Render Spin-Up & Cold-Start Indicator: The coordinator password modal MUST display a loading spinner and an explicit status notice (`#coordSpinNotice`) if the verification request takes longer than 2.5 seconds, informing coordinators that the Render web service is waking from sleep.
+10.19 Manager Console Authentication, Caching & Cold-Start Resilience:
+10.19.1 Proactive Coordinator Unlock on Manager Console: The manager console (`manager.html`) MUST provide the `#coordinatorLockOverlay` password modal and header session status controls (`#btnHeaderCoordAuth`), allowing coordinators to authenticate directly. If an operational endpoint (roster sync, events, spreadsheets) returns 401 or 403, the client MUST proactively prompt for the coordinator password and automatically resume the pending operation upon successful unlock.
+10.19.2 Instant 0ms Cold-Start Caching: Upcoming events (`twh_manager_events_cache`) and troop roster summary (`twh_manager_roster_summary`) MUST be persisted in client `localStorage`. On page load, cached events and summary counts render immediately (0ms) so the carpool dropdown and last selected event (e.g. Lassen) are fully interactive without blocking on Render spin-up.
+10.19.3 Network Spin-Up Auto-Retry: API calls executed through `managerFetch` MUST catch cold-start network failures and retry once with a 2.5-second backoff while the service is waking up from idle before displaying any error states.
+10.19.4 Authenticated Spreadsheet Downloads: Spreadsheet generation actions on the Manager Console MUST route through authenticated `managerFetch`, downloading blobs directly and prompting for credentials if unauthorized rather than exposing raw unauthenticated endpoints.
+
 
 
 
