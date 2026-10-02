@@ -324,7 +324,7 @@ describe('Authentication and authorization', () => {
     assert.equal(coordData.ok, true);
     assert.equal(coordData.role, 'coordinator');
     assert.equal(typeof coordData.token, 'string');
-    assert.equal(coordData.expiresIn, 300);
+    assert.equal(coordData.expiresIn, Math.floor(COORDINATOR_IDLE_TIMEOUT_MS / 1000));
   });
 
   it('handles coordinator authentication flow via POST /api/auth/coordinator-login', async () => {
@@ -339,7 +339,7 @@ describe('Authentication and authorization', () => {
     assert.equal(data.ok, true);
     assert.equal(data.role, 'coordinator');
     assert.equal(typeof data.token, 'string');
-    assert.equal(data.expiresIn, 300);
+    assert.equal(data.expiresIn, Math.floor(COORDINATOR_IDLE_TIMEOUT_MS / 1000));
   });
 
   it('protects driver-update with coordinator role requirements', async () => {
@@ -475,6 +475,23 @@ describe('Authentication and authorization', () => {
 
     // verifySignedToken also rejects tokens that exceeded max session duration
     assert.equal(verifySignedToken(overCapToken), null);
+  });
+
+  it('supports configurable coordinator idle timeout (default 25 minutes) and max session duration', async () => {
+    assert.equal(COORDINATOR_IDLE_TIMEOUT_MS, 25 * 60 * 1000);
+    assert.equal(COORDINATOR_MAX_SESSION_MS, 24 * 3600 * 1000);
+
+    const validPassword = process.env.COORDINATOR_PASSWORD;
+    const res = await fetch(`${baseUrl}/api/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: validPassword }),
+    });
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.idleTimeoutMs, 25 * 60 * 1000);
+    assert.equal(data.expiresIn, 25 * 60);
+    assert.equal(data.maxSessionMs, 24 * 3600 * 1000);
   });
 });
 
@@ -1556,6 +1573,88 @@ describe('Driver comment parsing unit test', () => {
     const tom = dict.get('Renno, Thomas');
     assert.ok(tom);
     assert.ok(tom.tokens.includes('Tom'));
+  });
+
+  it('parses Steve Spiker comment with non-attending roster scout using nickname (Madeline -> Maddy Spiker)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Spiker, Steve',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'taking both his kids, Lucy and Madeline',
+      },
+    ];
+
+    const scouts = []; // Neither Lucy nor Maddy is registered on the campout
+
+    const adults = [
+      { name: 'Spiker, Steve', leadership: 'Adult' },
+    ];
+
+    const rosterMembers = [
+      { name: 'Spiker, Steve', isAdult: true, patrol: '' },
+      { name: 'Spiker, Lucy', isAdult: false, patrol: 'Falcon' },
+      { name: 'Spiker, Maddy', isAdult: false, patrol: 'Dragon' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults, rosterMembers);
+    const driver = result.enrichedDrivers[0];
+
+    // Both Lucy Spiker and Maddy Spiker (via nickname Madeline) should be matched as confirmed non-attending scouts
+    assert.equal(driver.claimedScouts.length, 2);
+    const names = driver.claimedScouts.map((s) => s.name);
+    assert.ok(names.includes('Lucy Spiker'));
+    assert.ok(names.includes('Maddy Spiker'));
+    assert.ok(driver.claimedScouts.every((s) => s.notAttending === true));
+    assert.equal(driver.cleanNote, '');
+  });
+
+  it('prevents driver surname from becoming cleanNote when driver enters full name with typo or relative (Christina Polk & Jason Simone)', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Polk, Christina',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'Christana polk , Megan polk',
+      },
+      {
+        name: 'Simone, Jason',
+        attending: 'Y',
+        seats: 4,
+        drivingToFrom: 'Both',
+        comment: 'Elianna Simone',
+      },
+    ];
+
+    const scouts = [
+      { name: 'Polk, Megan', patrol: 'Falcon' },
+      { name: 'Simone, Elianna', patrol: 'Dragon' },
+    ];
+
+    const adults = [
+      { name: 'Polk, Christina', leadership: 'Adult' },
+      { name: 'Simone, Jason', leadership: 'Adult' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults);
+    const polkDriver = result.enrichedDrivers.find((d) => d.name === 'Polk, Christina');
+    const simoneDriver = result.enrichedDrivers.find((d) => d.name === 'Simone, Jason');
+
+    // Megan Polk claimed, cleanNote should NOT contain "polk"
+    assert.equal(polkDriver.claimedScouts.length, 1);
+    assert.equal(polkDriver.claimedScouts[0].name, 'Megan Polk');
+    assert.equal(polkDriver.cleanNote, '');
+
+    // Elianna Simone claimed, cleanNote should NOT contain "simone"
+    assert.equal(simoneDriver.claimedScouts.length, 1);
+    assert.equal(simoneDriver.claimedScouts[0].name, 'Elianna Simone');
+    assert.equal(simoneDriver.cleanNote, '');
   });
 });
 

@@ -310,35 +310,37 @@
       to { transform: rotate(360deg); }
     }
 
-    /* Visual Saving Overlay */
+    /* Visual Saving Overlay - High-Contrast Blocking Screen */
     .saving-overlay {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(15, 23, 42, 0.4);
-      backdrop-filter: blur(2px);
-      z-index: 10000;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 999999;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: opacity 0.2s ease;
+      cursor: wait;
+      pointer-events: all;
+      user-select: none;
     }
     .saving-card {
       background: white;
-      padding: 1.25rem 2rem;
+      padding: 1.75rem 2.25rem;
       border-radius: 12px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
       display: flex;
       align-items: center;
-      gap: 1rem;
-      font-weight: 600;
-      font-size: 0.95rem;
-      color: #1e293b;
+      gap: 1.25rem;
+      max-width: 480px;
+      border: 1px solid #e2e8f0;
     }
     .saving-spinner {
-      width: 24px;
-      height: 24px;
-      border: 3px solid #cbd5e1;
-      border-top-color: #2563eb;
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #0284c7;
       border-radius: 50%;
       animation: spin 0.75s linear infinite;
     }
@@ -406,6 +408,24 @@
     }
     .kpi-card.kpi-deficit .kpi-sub {
       color: #b91c1c !important;
+    }
+
+    .kpi-card.kpi-split-balance {
+      background: #fffbeb !important;
+      border: 1px solid #fde68a !important;
+      border-left: 3px solid #d97706 !important;
+    }
+    .kpi-card.kpi-split-balance .kpi-title {
+      color: #92400e !important;
+    }
+    .kpi-card.kpi-split-balance .kpi-split-label {
+      color: #b45309 !important;
+    }
+    .kpi-card.kpi-split-balance .kpi-split-divider {
+      background: #fde68a !important;
+    }
+    .kpi-card.kpi-split-balance .kpi-sub {
+      color: #b45309 !important;
     }
     .kpi-title {
       font-size: 0.67rem;
@@ -1177,8 +1197,8 @@
   <div id="coordinatorLockOverlay">
     <div style="background:white; border-radius:12px; max-width:440px; width:100%; padding:2.25rem; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align:center;">
       <div style="font-size:3rem; margin-bottom:0.75rem; line-height:1;">🔒</div>
-      <h2 style="font-size:1.35rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Coordinator Access Required</h2>
-      <p style="font-size:0.875rem; color:#64748b; line-height:1.5; margin-bottom:1.5rem;">
+      <h2 id="coordLockTitle" style="font-size:1.35rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Coordinator Access Required</h2>
+      <p id="coordLockSubtitle" style="font-size:0.875rem; color:#64748b; line-height:1.5; margin-bottom:1.5rem;">
         This page allows editing carpool rosters and updating TroopWebHost directly. Please enter the coordinator password to unlock.
       </p>
       <form id="coordinatorLoginForm" onsubmit="handleCoordinatorLogin(event)">
@@ -1187,12 +1207,21 @@
           <input type="password" id="coordPasswordInput" style="width:100%; padding:0.7rem 0.85rem; font-size:1rem; border:1px solid #cbd5e1; border-radius:6px; outline:none;" placeholder="Enter password" autofocus required />
         </div>
         <div id="coordLoginError" style="display:none; background:#fee2e2; color:#991b1b; padding:0.6rem 0.8rem; border-radius:6px; font-size:0.82rem; font-weight:600; margin-bottom:1rem; text-align:left;"></div>
-        <button type="submit" id="btnUnlockWorksheet" class="btn btn-primary" style="width:100%; padding:0.75rem; font-size:1rem; justify-content:center; font-weight:700; background:#0284c7; border-color:#0284c7;">
-          🔓 Unlock Coordinator Worksheet
-        </button>
+        <div style="display:flex; gap:0.5rem;">
+          <button type="button" id="btnCancelCoordLogin" class="btn" style="display:none; flex:1; padding:0.75rem; font-size:0.95rem; justify-content:center; font-weight:600;" onclick="cancelCoordinatorAuthPrompt()">
+            Cancel
+          </button>
+          <button type="submit" id="btnUnlockWorksheet" class="btn btn-primary" style="flex:2; padding:0.75rem; font-size:1rem; justify-content:center; font-weight:700; background:#0284c7; border-color:#0284c7;">
+            🔓 Unlock
+          </button>
+        </div>
+        <div id="coordSpinNotice" style="display:none; margin-top:0.75rem; font-size:0.8rem; color:#d97706; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:0.5rem 0.75rem; text-align:left; line-height:1.4;">
+          <span class="toast-spin" style="display:inline-block; margin-right:0.35rem;">⏳</span>
+          <span id="coordSpinNoticeText">Connecting to server / waking up service...</span>
+        </div>
       </form>
       <div style="margin-top:1.5rem; border-top:1px solid #e2e8f0; padding-top:1rem;">
-        <a id="lockCarpoolReturnLink" href="#" style="font-size:0.85rem; color:#64748b; text-decoration:none; font-weight:600;">&larr; Return to View-Only Carpool</a>
+        <a id="lockCarpoolReturnLink" href="#" style="font-size:0.85rem; color:#64748b; text-decoration:none; font-weight:600;" onclick="cancelCoordinatorAuthPrompt()">&larr; Return to View-Only Carpool</a>
       </div>
     </div>
   </div>
@@ -1372,18 +1401,35 @@
           <span class="kpi-sub" id="kpiNeedsTotalSub">0 scouts total</span>
         </div>
 
-        <!-- 5: Seat Surplus / Deficit -->
-        <div class="kpi-card" id="kpiExtraCard">
-          <span class="kpi-title" id="kpiExtraTitle" title="Passenger seat balance relative to attending scouts">Seat Surplus</span>
+        <!-- 5: Extra Seats Needed (Deficit - Red) -->
+        <div class="kpi-card kpi-deficit" id="kpiDeficitCard" style="display: none;">
+          <span class="kpi-title" id="kpiDeficitTitle" title="Passenger seat shortage relative to scouts needing rides">Extra Seats Needed</span>
           <div class="kpi-split">
             <div class="kpi-split-item">
               <span class="kpi-split-label">TO</span>
-              <span class="kpi-split-val" id="kpiExtraTo">0</span>
+              <span class="kpi-split-val" id="kpiDeficitTo" style="color:#b91c1c;">0</span>
             </div>
             <div class="kpi-split-divider"></div>
             <div class="kpi-split-item">
               <span class="kpi-split-label">FROM</span>
-              <span class="kpi-split-val" id="kpiExtraFrom">0</span>
+              <span class="kpi-split-val" id="kpiDeficitFrom" style="color:#b91c1c;">0</span>
+            </div>
+          </div>
+          <span class="kpi-sub" id="kpiDeficitSub">Seats needed</span>
+        </div>
+
+        <!-- 6: Extra Seats (Surplus - Blue) -->
+        <div class="kpi-card kpi-surplus" id="kpiExtraCard">
+          <span class="kpi-title" id="kpiExtraTitle" title="Surplus passenger seats available beyond scouts needing rides">Extra Seats</span>
+          <div class="kpi-split">
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">TO</span>
+              <span class="kpi-split-val" id="kpiExtraTo" style="color:#1d4ed8;">0</span>
+            </div>
+            <div class="kpi-split-divider"></div>
+            <div class="kpi-split-item">
+              <span class="kpi-split-label">FROM</span>
+              <span class="kpi-split-val" id="kpiExtraFrom" style="color:#1d4ed8;">0</span>
             </div>
           </div>
           <span class="kpi-sub" id="kpiExtraSub">Seats to spare</span>
@@ -1817,11 +1863,18 @@
         </div>
       </div>
     </div>
-  <!-- Saving Overlay (Brief grey screen with spinning save icon) -->
+  <!-- Saving Overlay (Prominent blocking screen with spinning save icon) -->
   <div id="savingOverlay" class="saving-overlay" style="display:none;">
     <div class="saving-card">
       <div class="saving-spinner"></div>
-      <div id="savingOverlayText">Saving changes to Website...</div>
+      <div>
+        <div id="savingOverlayTitle" style="font-weight: 800; font-size: 1.15rem; color: #0f172a; margin-bottom: 0.25rem;">
+          Saving changes to Website...
+        </div>
+        <div id="savingOverlayText" style="font-size: 0.88rem; color: #475569;">
+          Updating driver on TroopWebHost...
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1889,6 +1942,37 @@
       window.addEventListener(evt, recordUserActivity, { passive: true });
     });
 
+    // Proactive check when switching back to tab
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        const token = getCoordinatorToken();
+        if (token) {
+          const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+          const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+          const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+          const now = Date.now();
+          if (authAt && (now - authAt > maxMs)) {
+            lockCoordinatorSession('Coordinator session reached maximum duration (24 hours). Please enter password again.');
+          } else if (expiresAt && now >= expiresAt) {
+            lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.');
+          } else {
+            maybeRefreshCoordinatorSession();
+          }
+        }
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      const token = getCoordinatorToken();
+      if (token) {
+        const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+        const now = Date.now();
+        if (expiresAt && now >= expiresAt) {
+          lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.');
+        }
+      }
+    });
+
     let refreshPromise = null;
     async function refreshCoordinatorSession() {
       if (refreshPromise) return refreshPromise;
@@ -1946,7 +2030,7 @@
       if (!token) return false;
 
       const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
-      const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '300000', 10);
+      const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '1500000', 10);
       const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
       const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
 
@@ -1969,9 +2053,48 @@
       return true;
     }
 
-    async function coordinatorFetch(url, options = {}) {
-      if (!url.includes('/api/auth/token') && !url.includes('/api/auth/refresh')) {
-        await maybeRefreshCoordinatorSession();
+    // Pending Auth Resolvers for Seamless Request Continuation & Retry
+    let pendingAuthResolvers = [];
+
+    function promptCoordinatorPassword(reasonMsg = 'Please enter coordinator password to continue.') {
+      return new Promise((resolve, reject) => {
+        pendingAuthResolvers.push({ resolve, reject });
+        lockCoordinatorSession(reasonMsg);
+      });
+    }
+
+    function cancelCoordinatorAuthPrompt() {
+      const overlay = document.getElementById('coordinatorLockOverlay');
+      if (overlay) overlay.style.display = 'none';
+      const resolvers = [...pendingAuthResolvers];
+      pendingAuthResolvers = [];
+      const err = new Error('Coordinator authentication cancelled.');
+      err.isAuthChallenge = true;
+      resolvers.forEach(({ reject }) => reject(err));
+    }
+
+    async function coordinatorFetch(url, options = {}, isRetry = false) {
+      const isAuthEndpoint = url.includes('/api/auth/token') || url.includes('/api/auth/refresh');
+      if (!isAuthEndpoint) {
+        const token = getCoordinatorToken();
+        const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+        const authAt = parseInt(sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+        const maxMs = parseInt(sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+        const now = Date.now();
+
+        if (authAt && (now - authAt > maxMs)) {
+          await promptCoordinatorPassword('Coordinator session reached maximum 24-hour duration. Please enter password to continue.');
+        } else if (!token || (expiresAt && now >= expiresAt)) {
+          let promptReason = 'Coordinator session expired. Please enter password to continue.';
+          if (url.includes('driver-update')) {
+            promptReason = 'Coordinator password required to save changes to Website.';
+          } else if (url.includes('.xlsx')) {
+            promptReason = 'Coordinator password required to download spreadsheet.';
+          }
+          await promptCoordinatorPassword(promptReason);
+        } else {
+          await maybeRefreshCoordinatorSession();
+        }
       }
 
       const headers = getAuthHeaders(options.headers || {});
@@ -1989,6 +2112,18 @@
           const data = await res.clone().json();
           if (data && data.error) errorMsg = data.error;
         } catch {}
+
+        if (!isRetry) {
+          let promptReason = errorMsg;
+          if (url.includes('driver-update')) {
+            promptReason = `Session expired (${errorMsg}). Enter coordinator password to save changes to Website.`;
+          } else if (url.includes('.xlsx')) {
+            promptReason = `Session expired (${errorMsg}). Enter coordinator password to download spreadsheet.`;
+          }
+          await promptCoordinatorPassword(promptReason);
+          return await coordinatorFetch(url, options, true); // Auto-retry once with freshly obtained token!
+        }
+
         lockCoordinatorSession(errorMsg);
         const authErr = new Error(errorMsg);
         authErr.status = res.status;
@@ -2011,7 +2146,7 @@
 
       const checkDelayMs = remainingMs > 5000 ? remainingMs - 5000 : remainingMs;
       sessionExpiryTimeout = setTimeout(async () => {
-        const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '300000', 10);
+        const idleMs = parseInt(sessionStorage.getItem('twh_coordinator_idle_ms') || '1500000', 10);
         const timeSinceActivity = Date.now() - lastUserActivity;
         if (timeSinceActivity < idleMs) {
           const ok = await refreshCoordinatorSession();
@@ -2038,15 +2173,33 @@
       if (loadingEl) loadingEl.style.display = 'none';
       if (overlay) overlay.style.display = 'flex';
 
+      const titleEl = document.getElementById('coordLockTitle');
+      const subtitleEl = document.getElementById('coordLockSubtitle');
       const errEl = document.getElementById('coordLoginError');
-      if (errEl) {
+
+      if (titleEl) {
+        titleEl.textContent = 'Coordinator Access Required';
+      }
+      if (subtitleEl) {
         if (reasonMsg) {
-          errEl.textContent = reasonMsg;
-          errEl.style.display = 'block';
+          subtitleEl.innerHTML = `<span style="display:inline-block; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:0.5rem 0.75rem; border-radius:6px; font-weight:600; font-size:0.84rem; text-align:left; width:100%; box-sizing:border-box;">🔒 ${escapeHtml(reasonMsg)}</span>`;
         } else {
-          errEl.style.display = 'none';
+          subtitleEl.textContent = 'This page allows editing carpool rosters and updating TroopWebHost directly. Please enter the coordinator password to unlock.';
         }
       }
+
+      if (errEl) {
+        errEl.textContent = '';
+        errEl.style.display = 'none';
+      }
+
+      // Show cancel button if worksheet content is already rendered so user can dismiss if needed
+      const cancelBtn = document.getElementById('btnCancelCoordLogin');
+      const contentEl = document.getElementById('content');
+      if (cancelBtn) {
+        cancelBtn.style.display = (contentEl && contentEl.style.display !== 'none') ? 'inline-block' : 'none';
+      }
+
       const passInput = document.getElementById('coordPasswordInput');
       if (passInput) {
         passInput.value = '';
@@ -2064,8 +2217,25 @@
       if (!password) return;
 
       btn.disabled = true;
-      btn.textContent = 'Verifying...';
+      btn.innerHTML = '<span class="toast-spin" style="display:inline-block; margin-right:0.35rem;">⏳</span> Verifying...';
       if (errEl) errEl.style.display = 'none';
+
+      const spinNotice = document.getElementById('coordSpinNotice');
+      const spinNoticeText = document.getElementById('coordSpinNoticeText');
+      if (spinNotice) spinNotice.style.display = 'none';
+
+      const wakeTimer1 = setTimeout(() => {
+        if (spinNotice && btn.disabled) {
+          if (spinNoticeText) spinNoticeText.textContent = 'Connecting to server / waking up service... (Render instances may take 20–40s to wake from idle)';
+          spinNotice.style.display = 'block';
+        }
+      }, 2500);
+
+      const wakeTimer2 = setTimeout(() => {
+        if (spinNotice && btn.disabled) {
+          if (spinNoticeText) spinNoticeText.textContent = 'Still connecting to server... Almost ready, please wait.';
+        }
+      }, 15000);
 
       try {
         const res = await fetch('/api/auth/token', {
@@ -2091,6 +2261,11 @@
         if (overlay) overlay.style.display = 'none';
         scheduleSessionExpiry(data.expiresAt);
 
+        // Resolve any pending auth resolvers so ongoing/retried calls proceed immediately
+        const resolvers = [...pendingAuthResolvers];
+        pendingAuthResolvers = [];
+        resolvers.forEach(({ resolve }) => resolve(data.token));
+
         // Resume or initialize coordinator
         const contentEl = document.getElementById('content');
         if (!contentEl || contentEl.style.display === 'none') {
@@ -2107,8 +2282,11 @@
         }
         if (passInput) passInput.select();
       } finally {
+        clearTimeout(wakeTimer1);
+        clearTimeout(wakeTimer2);
+        if (spinNotice) spinNotice.style.display = 'none';
         btn.disabled = false;
-        btn.textContent = '🔓 Unlock Coordinator Worksheet';
+        btn.textContent = '🔓 Unlock';
       }
     }
 
@@ -2302,6 +2480,10 @@
         if (firstNameOnly && firstNameOnly.length > 1 && firstNameOnly !== first) {
           namesToRemove.push(firstNameOnly);
         }
+        // Rider surname should never leak into custom note
+        if (last && last.length > 1) {
+          namesToRemove.push(last);
+        }
 
         // Common adult nicknames (e.g. Thomas -> Tom)
         if (firstNameOnly.toLowerCase() === 'thomas') namesToRemove.push('Tom');
@@ -2309,7 +2491,59 @@
         if (firstNameOnly.toLowerCase() === 'robert') namesToRemove.push('Bob', 'Rob');
         if (firstNameOnly.toLowerCase() === 'richard') namesToRemove.push('Rick', 'Dick');
         if (firstNameOnly.toLowerCase() === 'james') namesToRemove.push('Jim');
+        if (firstNameOnly.toLowerCase() === 'christina' || firstNameOnly.toLowerCase() === 'christine') namesToRemove.push('Chris', 'Christa');
       });
+
+      // 5. Driver's own name components and self-references must be completely removed
+      if (driverName) {
+        let driverFirst = '';
+        let driverLast = '';
+        if (driverName.includes(',')) {
+          const parts = driverName.split(',');
+          driverLast = parts[0].trim();
+          driverFirst = (parts[1] || '').trim().split(/\s+/)[0];
+        } else {
+          const parts = driverName.trim().split(/\s+/);
+          driverLast = parts.pop() || '';
+          driverFirst = parts[0] || '';
+        }
+        if (driverFirst && driverLast) {
+          namesToRemove.push(`${driverFirst} ${driverLast}`);
+          namesToRemove.push(`${driverLast}, ${driverFirst}`);
+          namesToRemove.push(`${driverLast} ${driverFirst}`);
+        }
+        if (driverFirst && driverFirst.length > 1) {
+          namesToRemove.push(driverFirst);
+          if (driverFirst.toLowerCase() === 'christina' || driverFirst.toLowerCase() === 'christine') {
+            namesToRemove.push('Chris', 'Christa', 'Christy');
+          }
+        }
+        if (driverLast && driverLast.length > 1) {
+          namesToRemove.push(driverLast);
+        }
+
+        // Check comment words for typo-matches to driver name (e.g. "Christana" for "Christina")
+        const commentWords = str.replace(/[^a-zA-Z]/g, ' ').split(/\s+/).filter(w => w.length >= 4);
+        function isFuzzyMatch(w1, w2) {
+          if (!w1 || !w2 || Math.abs(w1.length - w2.length) > 1) return false;
+          let diffs = 0, i = 0, j = 0;
+          while (i < w1.length && j < w2.length) {
+            if (w1[i] !== w2[j]) {
+              diffs++;
+              if (diffs > 1) return false;
+              if (w1.length > w2.length) i++;
+              else if (w2.length > w1.length) j++;
+              else { i++; j++; }
+            } else { i++; j++; }
+          }
+          return true;
+        }
+        commentWords.forEach(cw => {
+          const low = cw.toLowerCase();
+          if (driverFirst && isFuzzyMatch(low, driverFirst.toLowerCase())) namesToRemove.push(cw);
+          if (driverLast && isFuzzyMatch(low, driverLast.toLowerCase())) namesToRemove.push(cw);
+        });
+      }
 
       // Sort names by length descending so longer full names are replaced before single first names
       namesToRemove.sort((a, b) => b.length - a.length);
@@ -2325,22 +2559,8 @@
         str = str.replace(regex, ' ');
       }
 
-      // 5. Remove driver self-references AFTER full rider names are removed
-      str = str.replace(/\b(?:driving|drives|drive|taking|takes|take)?\s*(?:with\s+)?(?:myself|self|driver)\b/gi, ' ');
-
-      if (driverName) {
-        let driverFirst = '';
-        if (driverName.includes(',')) {
-          const parts = driverName.split(',');
-          driverFirst = (parts[1] || '').trim().split(/\s+/)[0];
-        } else {
-          driverFirst = driverName.trim().split(/\s+/)[0];
-        }
-        if (driverFirst && driverFirst.length > 1) {
-          const dFirstRegex = new RegExp(`\\b${escapeRegex(driverFirst)}\\b`, 'gi');
-          str = str.replace(dFirstRegex, ' ');
-        }
-      }
+      // Remove driver self-references AFTER full rider names and driver names are removed
+      str = str.replace(/\b(?:driving|drives|drive|taking|takes|take)?\s*(?:with\s+)?(?:myself|self|driver|me|i|mom|dad|parent|chaperone)\b/gi, ' ');
 
       // 6. Remove boilerplate intro phrases
       str = str.replace(/\b(?:driving|drives|drive|taking|takes|take)\s+(?:with\s+)?/gi, ' ');
@@ -2358,8 +2578,13 @@
         .replace(/(?:,\s*)+(?:and|&|\+)?\s*(?:,\s*)+/gi, ', ')
         .replace(/(?:,\s*)+/g, ', ')
         .replace(/\b(?:and|&|\+)\b(?:\s*,\s*|\s+and\b|\s*&|\s*\+)+/gi, ' ')
-        .replace(/^[,\s;&+.]+|[,\s;&+]+$/g, '')
+        .replace(/^[,\s;&+.]+|[,\s;&+.]+$|^\b(?:and|&|\+)\b/gi, '')
         .trim();
+
+      // If only stopwords remain (e.g. "and", "with"), clear it
+      if (/^(?:and|with|for|\+|&|,|\.)+$/i.test(str)) {
+        str = '';
+      }
 
       // Unwrap redundant outer parentheses: e.g. "(rest for family, 0 available)" -> "rest for family, 0 available"
       str = str.replace(/^\(([^()]+)\)$/, '$1').trim();
@@ -3443,7 +3668,7 @@
 
         let saveBtnHtml = '';
         if (hasUserEdits) {
-          saveBtnHtml = `<button type="button" class="btn-row-save dirty" title="⚠️ Unsaved edits! Click to review and save to Website" onclick="openDriverSaveModal('${escapeHtml(d.name)}')">💾</button>`;
+          saveBtnHtml = `<button type="button" class="btn-row-save dirty" title="⚠️ Unsaved edits! Click to save directly to Website" onclick="saveDriverDirectly('${escapeHtml(d.name)}')">💾</button>`;
         } else if (isFormatDiscrepant) {
           saveBtnHtml = `<button type="button" class="btn-row-save format-opt" title="Format optimization available: Click to review and format comment on Website" onclick="openDriverSaveModal('${escapeHtml(d.name)}')">💾</button>`;
         } else {
@@ -3621,68 +3846,75 @@
         }
       }
 
-      // 5: Seat Surplus / Deficit Card
-      const diffTo = totalSeatsTo - totalScouts;
-      const diffFrom = totalSeatsFrom - totalScouts;
-      const isDeficit = diffTo < 0 || diffFrom < 0;
+      // 5 & 6: Extra Seats Needed (Deficit) & Extra Seats (Surplus) Cards
+      // True seat balance for scouts needing rides:
+      // balance = openSeats (available in cars) - waitlist (needsToCount/needsFromCount)
+      const balanceTo = openSeatsTo - needsToCount;
+      const balanceFrom = openSeatsFrom - needsFromCount;
+      const isDeficitTo = balanceTo < 0;
+      const isDeficitFrom = balanceFrom < 0;
+      const isSurplusTo = balanceTo > 0;
+      const isSurplusFrom = balanceFrom > 0;
 
-      const extraTitleEl = document.getElementById('kpiExtraTitle');
-      const extraSubEl = document.getElementById('kpiExtraSub');
-      const extraToEl = document.getElementById('kpiExtraTo');
-      const extraFromEl = document.getElementById('kpiExtraFrom');
-      const extraCard = document.getElementById('kpiExtraCard');
+      const hasDeficit = isDeficitTo || isDeficitFrom;
+      const hasSurplus = isSurplusTo || isSurplusFrom;
 
-      if (extraToEl) extraToEl.style.color = '';
-      if (extraFromEl) extraFromEl.style.color = '';
-      if (extraCard) extraCard.style.borderLeft = '';
+      const deficitCard = document.getElementById('kpiDeficitCard');
+      const deficitToEl = document.getElementById('kpiDeficitTo');
+      const deficitFromEl = document.getElementById('kpiDeficitFrom');
+      const deficitSubEl = document.getElementById('kpiDeficitSub');
 
-      if (isDeficit) {
-        // Seat Deficit: not enough seats on one or both trip legs (red box)
-        if (extraTitleEl) {
-          extraTitleEl.textContent = 'Seat Deficit';
-          extraTitleEl.title = 'Passenger seat shortage relative to attending scouts';
-        }
-        const neededTo = Math.max(0, -diffTo);
-        const neededFrom = Math.max(0, -diffFrom);
-        if (extraToEl) extraToEl.textContent = neededTo;
-        if (extraFromEl) extraFromEl.textContent = neededFrom;
+      const surplusCard = document.getElementById('kpiExtraCard');
+      const surplusTitleEl = document.getElementById('kpiExtraTitle');
+      const surplusToEl = document.getElementById('kpiExtraTo');
+      const surplusFromEl = document.getElementById('kpiExtraFrom');
+      const surplusSubEl = document.getElementById('kpiExtraSub');
 
-        if (extraSubEl) {
-          if (diffTo < 0 && diffFrom < 0) {
-            extraSubEl.textContent = 'Capacity shortage';
-          } else if (diffTo < 0) {
-            extraSubEl.textContent = 'Shortage on TO leg';
-          } else {
-            extraSubEl.textContent = 'Shortage on FROM leg';
+      const neededTo = Math.max(0, -balanceTo);
+      const neededFrom = Math.max(0, -balanceFrom);
+      const extraTo = Math.max(0, balanceTo);
+      const extraFrom = Math.max(0, balanceFrom);
+
+      // Populate Deficit Card (Extra Seats Needed - Red)
+      if (deficitCard) {
+        if (hasDeficit) {
+          deficitCard.style.display = 'flex';
+          if (deficitToEl) deficitToEl.textContent = neededTo;
+          if (deficitFromEl) deficitFromEl.textContent = neededFrom;
+          if (deficitSubEl) {
+            if (isDeficitTo && isDeficitFrom) {
+              deficitSubEl.textContent = 'Capacity shortage on both legs';
+            } else if (isDeficitTo) {
+              deficitSubEl.textContent = `Shortage on TO leg (${neededTo} needed)`;
+            } else {
+              deficitSubEl.textContent = `Shortage on FROM leg (${neededFrom} needed)`;
+            }
           }
+        } else {
+          deficitCard.style.display = 'none';
         }
+      }
 
-        if (extraCard) {
-          extraCard.classList.remove('kpi-surplus');
-          extraCard.classList.add('kpi-deficit');
-        }
-      } else {
-        // Seat Surplus: enough or extra seats on both trip legs (blue box)
-        if (extraTitleEl) {
-          extraTitleEl.textContent = 'Seat Surplus';
-          extraTitleEl.title = 'Surplus passenger seats available beyond attending scouts';
-        }
-        const surplusTo = Math.max(0, diffTo);
-        const surplusFrom = Math.max(0, diffFrom);
-        if (extraToEl) extraToEl.textContent = surplusTo;
-        if (extraFromEl) extraFromEl.textContent = surplusFrom;
-
-        if (extraSubEl) {
-          if (surplusTo === 0 && surplusFrom === 0) {
-            extraSubEl.textContent = 'Exact ride capacity';
-          } else {
-            extraSubEl.textContent = 'Seats to spare';
+      // Populate Surplus Card (Extra Seats - Blue)
+      if (surplusCard) {
+        if (hasSurplus || !hasDeficit) {
+          surplusCard.style.display = 'flex';
+          if (surplusTitleEl) surplusTitleEl.textContent = 'Extra Seats';
+          if (surplusToEl) surplusToEl.textContent = extraTo;
+          if (surplusFromEl) surplusFromEl.textContent = extraFrom;
+          if (surplusSubEl) {
+            if (extraTo === 0 && extraFrom === 0) {
+              surplusSubEl.textContent = 'Exact ride capacity';
+            } else if (isSurplusTo && isSurplusFrom) {
+              surplusSubEl.textContent = 'Seats to spare on both legs';
+            } else if (isSurplusTo) {
+              surplusSubEl.textContent = `${extraTo} extra on TO leg`;
+            } else {
+              surplusSubEl.textContent = `${extraFrom} extra on FROM leg`;
+            }
           }
-        }
-
-        if (extraCard) {
-          extraCard.classList.remove('kpi-deficit');
-          extraCard.classList.add('kpi-surplus');
+        } else {
+          surplusCard.style.display = 'none';
         }
       }
     }
@@ -3770,6 +4002,136 @@
     let resolvingContext = null;
     let ambiguousGroupsMap = new Map();
 
+    function buildAmbiguityCandidateList(driverName, token, rawCandidates = []) {
+      const allScouts = carpoolBaseline?.scouts || [];
+      const allRoster = carpoolBaseline?.roster || [];
+      const results = [];
+      const seen = new Set();
+
+      // Extract driver surname
+      let driverLast = '';
+      if (driverName) {
+        if (driverName.includes(',')) {
+          driverLast = driverName.split(',')[0].trim().toLowerCase();
+        } else {
+          const parts = driverName.trim().split(/\s+/);
+          driverLast = parts[parts.length - 1].toLowerCase();
+        }
+      }
+
+      // 1. Add candidates explicitly provided by server
+      rawCandidates.forEach(candName => {
+        const norm = normalizeName(candName);
+        if (seen.has(norm)) return;
+        seen.add(norm);
+        const found = allScouts.find(s => normalizeName(s.name) === norm || s.name.toLowerCase().includes(candName.toLowerCase()));
+        if (found) {
+          results.push({ name: found.name, patrol: found.patrol || '', isRoster: false, isFamily: false });
+        } else {
+          const rFound = allRoster.find(r => normalizeName(r.name) === norm || r.name.toLowerCase().includes(candName.toLowerCase()));
+          results.push({
+            name: rFound ? rFound.name : candName,
+            patrol: rFound ? (rFound.patrol || '') : '',
+            isRoster: !found,
+            isFamily: false,
+          });
+        }
+      });
+
+      // 2. Token search across scouts & roster:
+      // Check nicknames, surname matches, and family connections
+      const tokClean = (token || '').toLowerCase().replace(/[^a-z]/g, '');
+      const tokNicknames = [];
+      if (tokClean) {
+        tokNicknames.push(tokClean);
+        const NICK_LOOKUP = {
+          maddy: ['madeline', 'madelaine', 'madison', 'maddie', 'madi'],
+          maddie: ['madeline', 'madelaine', 'madison', 'maddy', 'madi'],
+          madeline: ['maddy', 'maddie', 'madi', 'madison'],
+          madi: ['maddy', 'maddie', 'madeline', 'madison'],
+          lucy: ['lucia', 'lucille'],
+          chris: ['christopher', 'christina', 'christine'],
+          tom: ['thomas', 'tommy'],
+          thomas: ['tom', 'tommy'],
+          will: ['william', 'bill', 'billy'],
+          bill: ['william', 'will', 'billy'],
+          mike: ['michael', 'mikey'],
+          michael: ['mike', 'mikey'],
+          matt: ['matthew'],
+          dan: ['daniel', 'danny'],
+          dave: ['david'],
+          alex: ['alexander', 'alexandra', 'alexis'],
+          sam: ['samuel', 'samantha'],
+          nick: ['nicholas'],
+          kate: ['katherine', 'catherine', 'katie'],
+          katie: ['katherine', 'catherine', 'kate'],
+          liz: ['elizabeth', 'lizzie', 'beth', 'ellie'],
+        };
+        (NICK_LOOKUP[tokClean] || []).forEach(n => tokNicknames.push(n));
+        Object.entries(NICK_LOOKUP).forEach(([primary, aliases]) => {
+          if (aliases.includes(tokClean)) tokNicknames.push(primary);
+        });
+      }
+
+      // Check both allScouts (attending) and allRoster (non-attending troop members)
+      const pool = [
+        ...allScouts.map(s => ({ ...s, isRoster: false })),
+        ...allRoster.filter(r => !r.isAdult && !allScouts.some(s => normalizeName(s.name) === normalizeName(r.name))).map(r => ({ ...r, isRoster: true }))
+      ];
+
+      pool.forEach(c => {
+        const norm = normalizeName(c.name);
+        if (seen.has(norm)) return;
+
+        let cLast = '';
+        let cFirst = '';
+        if (c.name.includes(',')) {
+          const parts = c.name.split(',');
+          cLast = parts[0].trim().toLowerCase();
+          cFirst = (parts[1] || '').trim().split(/\s+/)[0].toLowerCase();
+        } else {
+          const parts = c.name.trim().split(/\s+/);
+          cLast = parts[parts.length - 1].toLowerCase();
+          cFirst = parts[0].toLowerCase();
+        }
+
+        const isFamily = Boolean(driverLast && cLast === driverLast);
+        const firstMatch = tokNicknames.includes(cFirst);
+        const lastMatch = Boolean(tokClean && cLast.includes(tokClean));
+
+        if (isFamily && (firstMatch || tokClean.length <= 2)) {
+          seen.add(norm);
+          results.unshift({
+            name: c.name,
+            patrol: c.patrol || '',
+            isRoster: c.isRoster,
+            isFamily: true,
+            priority: 1,
+          });
+        } else if (firstMatch && lastMatch) {
+          seen.add(norm);
+          results.unshift({
+            name: c.name,
+            patrol: c.patrol || '',
+            isRoster: c.isRoster,
+            isFamily,
+            priority: 1,
+          });
+        } else if (firstMatch || lastMatch) {
+          seen.add(norm);
+          results.push({
+            name: c.name,
+            patrol: c.patrol || '',
+            isRoster: c.isRoster,
+            isFamily,
+            priority: 2,
+          });
+        }
+      });
+
+      return results;
+    }
+
     function openResolveAmbiguityModalByKey(key) {
       const item = ambiguousGroupsMap.get(key);
       if (!item) return;
@@ -3794,22 +4156,17 @@
       `;
 
       const candidateContainer = document.getElementById('resolveCandidateList');
-      const allScouts = carpoolBaseline.scouts || [];
-
-      const candidateScouts = [];
-      (item.candidates || []).forEach(candName => {
-        const found = allScouts.find(s => normalizeName(s.name) === normalizeName(candName) || s.name.toLowerCase().includes(candName.toLowerCase()));
-        if (found) candidateScouts.push(found);
-        else candidateScouts.push({ name: candName, patrol: '' });
-      });
+      const candidateScouts = buildAmbiguityCandidateList(item.driverName, item.token, item.candidates || []);
 
       if (candidateScouts.length === 0) {
         candidateContainer.innerHTML = `<div style="text-align:center; padding:1rem; color:var(--text-muted);">No candidate suggestions found.</div>`;
       } else {
         candidateContainer.innerHTML = candidateScouts.map(c => `
-          <div class="modal-scout-item" onclick="resolveAmbiguousToScout('${escapeHtml(formatLastFirst(c.name))}')">
+          <div class="modal-scout-item" onclick="resolveAmbiguousToScout('${escapeHtml(formatLastFirst(c.name))}', ${Boolean(c.isRoster)})">
             <div>
               <strong>${escapeHtml(formatLastFirst(c.name))}</strong>
+              ${c.isFamily ? `<span class="badge" style="background:#eff6ff; color:#1d4ed8; font-size:0.7rem; margin-left:0.4rem;">Family Match</span>` : ''}
+              ${c.isRoster ? `<span class="badge" style="background:#fef3c7; color:#92400e; font-size:0.7rem; margin-left:0.4rem;">Troop Roster (Not Registered)</span>` : ''}
               ${c.patrol ? `<span style="font-size:0.75rem; color:var(--text-muted); margin-left:0.5rem;">${escapeHtml(c.patrol)}</span>` : ''}
             </div>
             <span style="color:var(--primary); font-weight:700; font-size:0.8rem;">Assign &rarr;</span>
@@ -3847,22 +4204,17 @@
       `;
 
       const candidateContainer = document.getElementById('resolveCandidateList');
-      const allScouts = carpoolBaseline.scouts || [];
-
-      const candidateScouts = [];
-      (rider.candidates || []).forEach(candName => {
-        const found = allScouts.find(s => normalizeName(s.name) === normalizeName(candName) || s.name.toLowerCase().includes(candName.toLowerCase()));
-        if (found) candidateScouts.push(found);
-        else candidateScouts.push({ name: candName, patrol: '' });
-      });
+      const candidateScouts = buildAmbiguityCandidateList(driver.name, rider.token, rider.candidates || []);
 
       if (candidateScouts.length === 0) {
         candidateContainer.innerHTML = `<div style="text-align:center; padding:1rem; color:var(--text-muted);">No candidate suggestions found.</div>`;
       } else {
         candidateContainer.innerHTML = candidateScouts.map(c => `
-          <div class="modal-scout-item" onclick="resolveAmbiguousToScout('${escapeHtml(formatLastFirst(c.name))}')">
+          <div class="modal-scout-item" onclick="resolveAmbiguousToScout('${escapeHtml(formatLastFirst(c.name))}', ${Boolean(c.isRoster)})">
             <div>
               <strong>${escapeHtml(formatLastFirst(c.name))}</strong>
+              ${c.isFamily ? `<span class="badge" style="background:#eff6ff; color:#1d4ed8; font-size:0.7rem; margin-left:0.4rem;">Family Match</span>` : ''}
+              ${c.isRoster ? `<span class="badge" style="background:#fef3c7; color:#92400e; font-size:0.7rem; margin-left:0.4rem;">Troop Roster (Not Registered)</span>` : ''}
               ${c.patrol ? `<span style="font-size:0.75rem; color:var(--text-muted); margin-left:0.5rem;">${escapeHtml(c.patrol)}</span>` : ''}
             </div>
             <span style="color:var(--primary); font-weight:700; font-size:0.8rem;">Assign &rarr;</span>
@@ -3873,11 +4225,14 @@
       openModal('resolveModal');
     }
 
-    async function resolveAmbiguousToScout(scoutFormattedName) {
+    async function resolveAmbiguousToScout(scoutFormattedName, isFromRoster = false) {
       if (!resolvingContext) return;
       const { driverName, token, occurrences } = resolvingContext;
       const firstOcc = (occurrences && occurrences[0]) || { dir: 'TO', slotIdx: 0, driverIdx: 0 };
       const otherOcc = findMatchingAmbiguousOccurrence(driverName, firstOcc.dir, token, token);
+
+      const allScouts = carpoolBaseline?.scouts || [];
+      const isNotAttending = Boolean(isFromRoster || !allScouts.some(s => normalizeName(s.name) === normalizeName(scoutFormattedName)));
 
       let applyToBoth = false;
       closeModal('resolveModal');
@@ -3899,12 +4254,14 @@
           d.riders[firstOcc.slotIdx] = {
             name: scoutFormattedName,
             type: 'scout',
+            notAttending: isNotAttending,
           };
         }
         if (otherOcc.driver && otherOcc.driver.riders && otherOcc.driver.riders[otherOcc.slotIdx]) {
           otherOcc.driver.riders[otherOcc.slotIdx] = {
             name: scoutFormattedName,
             type: 'scout',
+            notAttending: isNotAttending,
           };
         }
       } else {
@@ -3915,6 +4272,7 @@
           d.riders[firstOcc.slotIdx] = {
             name: scoutFormattedName,
             type: 'scout',
+            notAttending: isNotAttending,
           };
         }
       }
@@ -4326,6 +4684,12 @@
         return;
       }
 
+      const saveBtn = document.getElementById('noteSaveBtn');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="toast-spin" style="display:inline-block; margin-right:0.35rem;">⏳</span> Saving to Website...';
+      }
+
       const driverToSave = activeNoteDriverName;
       const norm = normalizeName(driverToSave);
       const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
@@ -4336,22 +4700,73 @@
       if (toDriver) toDriver.customNote = newNote;
       if (fromDriver) fromDriver.customNote = newNote;
 
+      // 1. First trigger the full-page blocking saving overlay so screen stays greyed out
+      showSavingOverlay(`Updating ${toDisplayName(driverToSave)} on TroopWebHost...`, 'Saving changes to Website...');
+
+      // 2. Close the modal dialog so user does not attempt additional edits
       modalInitialNote = null;
       closeDriverUndoMenu();
       closeModal('noteModal');
       activeNoteDriverName = null;
 
-      showSavingOverlay(`Saving ${toDisplayName(driverToSave)} to Website...`);
       try {
-        await persistDriverChange(driverToSave);
-        // Remove from pending dirty drivers
-        for (const name of Array.from(pendingDriversToSync)) {
-          if (normalizeName(name) === norm) {
-            pendingDriversToSync.delete(name);
-          }
+        const savedOk = await persistDriverChange(driverToSave);
+        if (savedOk) {
+          saveDraft();
+          renderPage();
+          showRefreshToast(`✅ ${toDisplayName(driverToSave)} saved to Website!`, '✅', false, 3500);
+        } else {
+          // If conflict or validation prevented save, preserve draft and dirty highlighting
+          markDriverDirty(driverToSave);
+          saveDraft();
+          renderPage();
         }
+      } catch (err) {
+        console.error('Failed to persist driver change to TWH:', err);
+        markDriverDirty(driverToSave);
         saveDraft();
         renderPage();
+        updateSyncBadge('error', `⚠️ Save Failed: ${err.message}`);
+        if (!err.isAuthChallenge) {
+          showRefreshToast(`⚠️ Save failed: ${err.message}. Changes saved locally.`, '⚠️', false, 5000);
+          alert(`Failed to save ${toDisplayName(driverToSave)} to Website: ${err.message}\n\nYour changes have been saved locally on the worksheet and marked with an unsaved indicator so you can retry.`);
+        }
+      } finally {
+        hideSavingOverlay();
+      }
+    }
+
+    async function saveDriverDirectly(driverName) {
+      if (!driverName) return;
+      const updatedComment = synthesizeDriverComment(driverName);
+      if (updatedComment.length > 100) {
+        updateSyncBadge('error', `⚠️ Over 100 chars (${updatedComment.length}/100)`);
+        openTrimCommentModal(driverName);
+        return;
+      }
+
+      showSavingOverlay(`Updating ${toDisplayName(driverName)} on TroopWebHost...`, 'Saving changes to Website...');
+      try {
+        const savedOk = await persistDriverChange(driverName);
+        if (savedOk) {
+          saveDraft();
+          renderPage();
+          showRefreshToast(`✅ ${toDisplayName(driverName)} saved to Website!`, '✅', false, 3500);
+        } else {
+          markDriverDirty(driverName);
+          saveDraft();
+          renderPage();
+        }
+      } catch (err) {
+        console.error(`Failed to save ${driverName} to Website:`, err);
+        markDriverDirty(driverName);
+        saveDraft();
+        renderPage();
+        updateSyncBadge('error', `⚠️ Save Failed: ${err.message}`);
+        if (!err.isAuthChallenge) {
+          showRefreshToast(`⚠️ Save failed: ${err.message}. Changes saved locally.`, '⚠️', false, 5000);
+          alert(`Failed to save ${toDisplayName(driverName)} to Website: ${err.message}\n\nYour changes have been saved locally on the worksheet and marked with an unsaved indicator so you can retry.`);
+        }
       } finally {
         hideSavingOverlay();
       }
@@ -4746,9 +5161,11 @@
     const pendingDriversToSync = new Set();
     let isSyncInProgress = false;
 
-    function showSavingOverlay(message) {
+    function showSavingOverlay(message, title = 'Saving changes to Website...') {
       const el = document.getElementById('savingOverlay');
+      const titleEl = document.getElementById('savingOverlayTitle');
       const txt = document.getElementById('savingOverlayText');
+      if (titleEl) titleEl.textContent = title;
       if (txt && message) txt.textContent = message;
       if (el) el.style.display = 'flex';
     }
@@ -4796,34 +5213,42 @@
       showSavingOverlay('Saving changes to Website...');
 
       try {
-        while (pendingDriversToSync.size > 0) {
-          const driverName = pendingDriversToSync.values().next().value;
-          pendingDriversToSync.delete(driverName);
-
+        const dirtyList = Array.from(pendingDriversToSync);
+        for (const driverName of dirtyList) {
           if (!isDriverTrulyDirty(driverName)) {
+            pendingDriversToSync.delete(driverName);
             continue;
           }
 
           showSavingOverlay(`Saving ${toDisplayName(driverName)} to Website...`);
           try {
-            await persistDriverChange(driverName);
-          } catch (err) {
-            if (err.isAuthChallenge) {
-              pendingDriversToSync.add(driverName);
-              return;
+            const savedOk = await persistDriverChange(driverName);
+            if (!savedOk) {
+              break;
             }
-            throw err;
+          } catch (err) {
+            console.error(`Error saving ${driverName}:`, err);
+            updateSyncBadge('error', `⚠️ Save Failed: ${err.message}`);
+            if (!err.isAuthChallenge) {
+              alert(`Failed to save ${toDisplayName(driverName)} to Website: ${err.message}`);
+            }
+            break;
           }
         }
 
-        // All pending syncs are complete! Clear draft and update baseline cache
-        try {
-          localStorage.removeItem(legacyDraftKey);
-          localStorage.removeItem(draftStorageKey);
-          if (localDraft) localDraft.isCustom = false;
-          const db = document.getElementById('draftBanner');
-          if (db) db.style.display = 'none';
-        } catch (e) {}
+        saveDraft();
+        renderPage();
+
+        if (pendingDriversToSync.size === 0) {
+          // All pending syncs are complete! Clear draft and update baseline cache
+          try {
+            localStorage.removeItem(legacyDraftKey);
+            localStorage.removeItem(draftStorageKey);
+            if (localDraft) localDraft.isCustom = false;
+            const db = document.getElementById('draftBanner');
+            if (db) db.style.display = 'none';
+          } catch (e) {}
+        }
       } finally {
         isSyncInProgress = false;
         hideSavingOverlay();
@@ -4835,13 +5260,13 @@
       const toDriver = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === norm);
       const fromDriver = (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === norm);
 
-      if (!toDriver && !fromDriver) return;
+      if (!toDriver && !fromDriver) return false;
 
       const updatedComment = synthesizeDriverComment(driverName);
       if (updatedComment.length > 100) {
         updateSyncBadge('error', `⚠️ Over 100 chars (${updatedComment.length}/100)`);
         openTrimCommentModal(driverName);
-        return;
+        return false;
       }
 
       const passengerSeats = Math.max(toDriver?.seats || 0, fromDriver?.seats || 0);
@@ -4885,7 +5310,7 @@
             }
             saveDraft();
             updateSyncBadge('success', '✓ In sync with Website');
-            return;
+            return true;
           }
 
           activeConflict = {
@@ -4898,7 +5323,7 @@
           };
           updateSyncBadge('conflict', '⚠️ Conflict on Website');
           openConflictModal(activeConflict);
-          return;
+          return false;
         }
 
         if (!res.ok) {
@@ -4946,9 +5371,11 @@
         } catch (e) {}
 
         updateSyncBadge('success', '✓ Saved to Website');
+        return true;
       } catch (err) {
         console.error('Failed to persist driver change to TWH:', err);
         updateSyncBadge('error', `⚠️ Save to Website Failed: ${err.message}`);
+        throw err;
       }
     }
 
@@ -5740,16 +6167,15 @@
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-
-        btn.textContent = origText;
-        btn.disabled = false;
+        showRefreshToast('Carpool spreadsheet (.xlsx) downloaded', '📥', false, 3000);
       } catch (err) {
         if (!err.isAuthChallenge) {
           alert('Error downloading Excel: ' + err.message);
         }
+      } finally {
         const btn = document.getElementById('downloadExcelBtn');
         if (btn) {
-          btn.textContent = '📥 Download Excel (.xlsx)';
+          btn.textContent = origText || '📥 Download Excel (.xlsx)';
           btn.disabled = false;
         }
       }
@@ -5990,6 +6416,7 @@
         window.URL.revokeObjectURL(url);
 
         closeModal('tabularExportModal');
+        showRefreshToast('Custom report (.xlsx) downloaded', '📥', false, 3000);
       } catch (err) {
         if (!err.isAuthChallenge) {
           alert('Error downloading tabular spreadsheet: ' + err.message);

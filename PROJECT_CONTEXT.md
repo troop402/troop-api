@@ -11,8 +11,8 @@ The core vision established during early brainstorming:
 - **Zero-Cost Operation:** Run indefinitely on free-tier hosting (Render web service) without subscription fees.
 - **No Heavy Browser Automation:** Avoid resource-heavy headless browser frameworks (Playwright, Puppeteer, Chromium) or Docker containers. Maintain a tiny footprint (<50 MB RAM) to comfortably survive Render's 512 MB ceiling and 0.1 vCPU limits.
 - **TroopWebHost as System of Record:** Read data from TWH directly rather than replacing it.
-- **In-Memory Cache First:** Use a 12-hour in-memory TTL cache with request coalescing/de-duplication to prevent duplicate logins and external load. Permanent serverless database solutions (e.g. Neon.tech PostgreSQL) are deferred until historical persistence or relational querying is genuinely needed.
-- **Developer Workflow:** Developed in VS Code (GitHub Codespaces) with AI pair programming, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render.
+- **Developer Workflow:** Developed in VS Code with AI pair programming on the user's local Unraid machine, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render on push to `origin/main`.
+  - **Local Development Policy ("dev" = Local Unraid):** The user is only ever running "dev" on local. When the user says "dev", that explicitly and exclusively means their local Unraid development environment running via npm (`npm run dev`). By default, all active iteration, commits, refactoring, and testing remain strictly local in this development environment on the local `main` branch. The AI MUST NOT push to GitHub (`origin/main`), open a PR, or deploy to live/production (Render) unless the user explicitly instructs to push to live.
 - **Alpha Framing:** The project is in active alpha development (`0.2.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
 
 ---
@@ -87,8 +87,8 @@ To prevent architectural drift and regressions across sessions, the repository m
 ### Current Status: `0.3.0-alpha` (Branch `feat/security-auth`)
 * **Two-Tier Authentication Architecture**:
   - **Tier 1 (Troop Application Key)**: Shared `x-troop-key` HTTP header (or `?key=` query param for direct browser file downloads) required across all read endpoints (`/api/roster/summary`, `/api/export-roster`, `/api/events`, `/api/events/:id/carpool`, `/api/events/:id/carpool.xlsx`, `/api/events/:id/tabular.xlsx`, `/api/events/:id/twh-status`). Dev fallback is `troop402-app-access`. Unauthenticated calls receive HTTP 401.
-  - **Tier 2 (Coordinator Password & Session Token)**: Write operations (`POST /api/events/:id/driver-update`) strictly require an `Authorization: Bearer <token>` signed HMAC session token issued by `POST /api/auth/coordinator-login` using the coordinator password (`COORDINATOR_PASSWORD=Riptide` in `.env`). Server strictly fails fast on boot without fallback if unset. Session tokens expire after 5 minutes (300 seconds).
-  - **Visual Full-Page Lockout Overlay**: The Coordinator Worksheet (`/coordinator.html`) renders unauthenticated states with a full-page modal (`#coordinatorLockOverlay`) before any data loading indicator. Client utility `coordinatorFetch()` intercepts HTTP 401/403 responses and surfaces the challenge immediately.
+  - **Tier 2 (Coordinator Password & Session Token)**: Write operations (`POST /api/events/:id/driver-update`) strictly require an `Authorization: Bearer <token>` signed HMAC session token issued by `POST /api/auth/coordinator-login` using the coordinator password (`COORDINATOR_PASSWORD=Riptide` in `.env`). Server strictly fails fast on boot without fallback if unset. Session tokens feature a configurable idle timeout defaulting to 25 minutes (1500 seconds / 1,500,000 ms; configurable via `COORDINATOR_IDLE_TIMEOUT_MINUTES` or `COORDINATOR_IDLE_TIMEOUT_MS`) and a configurable absolute session cap of 24 hours (`COORDINATOR_MAX_SESSION_HOURS` / `COORDINATOR_MAX_SESSION_MS`).
+  - **Visual Full-Page Lockout Overlay**: The Coordinator Worksheet (`/coordinator.html`) renders unauthenticated states with a full-page modal (`#coordinatorLockOverlay`) before any data loading indicator. Client utility `coordinatorFetch()` proactively checks session freshness, prompts with context-specific messages, and automatically retries upon authentication challenge.
 * **Shelved Server-Side In-Memory Carpool Cache**:
   - Server in-memory carpool cache TTL set to 0 (`carpoolTtlMs: 0`). The Node server always queries TroopWebHost live on event carpool requests.
   - Prominent floating refresh toast notification (`🔄 Checking...`, `✅ Up to date...`, `✨ Updated with latest...`, `⚠️ Error...`) provides continuous visual status feedback on both `carpool.html` and `coordinator.html`.
@@ -453,6 +453,64 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
   - Browser page reloads (detected via `performance.getEntriesByType('navigation')[0].type === 'reload'`) and manual refreshes automatically send `?forceRefresh=true` to bypass in-memory server TTL.
   - Upon network resolution, clean driver rows are fully reconstructed via `buildBaselineDraft()`, ensuring immediate uptake of server comments and parsing updates.
   - Only active, verified dirty driver rows retain their in-flight edits, preventing stale local cache from corrupting clean data.
+
+### 9.22 Dynamic Seat Deficit (Red) & Surplus (Blue) Dual KPI Cards
+* **The Problem & Clarified User Intent**:
+  - The user requested clean numeric representation in the KPI split values (pure integer numbers, not inline bold text sentences) and preferred the classic clear titles: **"Extra Seats Needed"** when seats are needed, and **"Extra Seats"** when surplus capacity exists.
+  - When trip legs diverge (e.g. TO has a deficit and FROM has a surplus), instead of forcing both concepts into one card with conflicting labels, the worksheet renders **both boxes simultaneously side-by-side**.
+* **Clean Number Representation & Dual Card Coexistence**:
+  - The values in the TO and FROM split slots are always clean, pure numbers (e.g. `1`, `0`, `2`).
+  - **Extra Seats Needed (`#kpiDeficitCard`, Red)**: Displays when a deficit exists on any leg. Styled with `.kpi-deficit` (soft red `#fef2f2`, red border `#fecaca`, red numbers `#b91c1c`), titled **`Extra Seats Needed`**, with subtext identifying shortage legs (e.g. *"Shortage on TO leg (1 needed)"*).
+  - **Extra Seats (`#kpiExtraCard`, Blue)**: Displays when surplus capacity exists on any leg (or exact 0/0 capacity). Styled with `.kpi-surplus` (soft blue `#eff6ff`, blue border `#bfdbfe`, blue numbers `#1d4ed8`), titled **`Extra Seats`**, with subtext identifying extra capacity (e.g. *"2 extra on FROM leg"* or *"Seats to spare"*).
+  - **Dual Card Display on Mixed Legs**: When one leg has a shortage and the other has a surplus (e.g. TO: -1, FROM: +2), both cards are visible side-by-side: "Extra Seats Needed" shows `TO: 1, FROM: 0`, and "Extra Seats" shows `TO: 0, FROM: 2`.
+
+### 9.23 Configurable Coordinator Timeouts & Proactive Authentication Prompting
+* **Realistic & Configurable Idle Timeouts (`.env`)**:
+  - Following the transition from short demo intervals to production carpool coordination, coordinator password sessions default to a realistic **25 minutes** of inactivity (1,500,000 ms).
+  - Timeouts are fully configurable in `.env` and documented in `.env.example`:
+    - `COORDINATOR_IDLE_TIMEOUT_MINUTES=25` (or `COORDINATOR_IDLE_TIMEOUT_MS=1500000`).
+    - `COORDINATOR_MAX_SESSION_HOURS=24` (or `COORDINATOR_MAX_SESSION_MS=86400000`) enforcing an absolute 24-hour upper ceiling regardless of refresh activity.
+  - Endpoints (`/api/auth/token`, `/api/auth/coordinator-login`, `/api/auth/refresh`) return explicit metadata (`idleTimeoutMs`, `maxSessionMs`, `expiresAt`, `authAt`, `expiresIn`).
+* **Proactive Password Prompting & Action Continuation**:
+  - When a coordinator clicks **Save** (`submitSaveDriverToTWH`), **Save All**, or **Download Spreadsheet** (`downloadCoordinatorExcel`, `downloadTabularExcel`):
+    - `coordinatorFetch()` performs a pre-flight freshness check. If unauthenticated or if the session has expired (`now >= expiresAt`), it immediately floats up `#coordinatorLockOverlay` with a context-specific message (e.g. *"Coordinator password required to save changes to Website"* or *"Coordinator password required to download spreadsheet"*).
+    - If a backend service call fails with HTTP 401 or 403, `coordinatorFetch()` immediately intercepts the challenge, prompts for the password, and **automatically retries the pending request once authenticated** without dropping the user's action.
+  - On spreadsheet downloads, successful completion surfaces a floating toast notification (`📥 Carpool spreadsheet (.xlsx) downloaded` or `📥 Custom report (.xlsx) downloaded`).
+* **Preserving Dirty Edits Across Auth Failures**:
+  - `persistDriverChange()` throws on error rather than silently swallowing failed updates.
+  - If a save fails or user is unauthenticated, dirty drivers are strictly retained in `pendingDriversToSync` and `localDraft`. The system never prematurely disables the save button or purges drafts when writeback does not succeed.
+* **Proactive Tab Visibility & Focus Detection**:
+  - Window `focus` and `visibilitychange` event listeners proactively verify session freshness the instant a coordinator switches back to the browser tab, floating up the password prompt if the timeout elapsed in the background.
+
+### 9.24 Non-Attending Nickname Resolution, Surname Extraction Safeguards, and Direct Save Actions
+* **Non-Attending Roster Matching via Nicknames (Steve Spiker & Maddy Spiker)**:
+  - When drivers claim troop members who are not registered on the campout, backend Pass 6 now checks `NICKNAMES[first]` alongside exact first names. When driver Steve Spiker comments *"taking both his kids, Lucy and Madeline"*, the system recognizes `Madeline` as a nickname for `Maddy Spiker` in the troop roster, matching her as a confirmed non-attending scout rider (`notAttending: true`).
+  - `/api/events/:id/carpool` delivers the troop `roster` to the frontend, enabling `buildAmbiguityCandidateList()` in the Ambiguity Resolution Modal to search both registered scouts and roster members for nickname and family surname matches, surfacing suggestions like `Spiker, Maddy [Family Match] [Troop Roster (Not Registered)]`.
+* **Strict Surname & Self-Reference Removal in Note Extraction**:
+  - `extractDriverNote()` (`coordinator.html`) and `cleanNote` extraction (`server.js`) strictly strip driver surnames, driver full names, rider surnames, driver first names, common nicknames, and typo variations (Levenshtein distance <= 1, such as "Christana" for Christina Polk).
+  - Stopwords and relationship terms (`kids`, `son`, `daughter`, `family`, `chaperone`, `mom`, `dad`) are excluded so surnames like `Polk` or `Simone` are never mistakenly isolated as custom notes / special instructions.
+* **Direct Table-Row Save Action & Transparent Feedback**:
+  - Clicking the dirty `💾` icon in a driver table row directly invokes `saveDriverDirectly()`, displaying `#savingOverlay` with progress, persisting changes to TroopWebHost, prompting for password if unauthenticated, and confirming success with a toast (`✅ [Driver] saved to Website!`).
+  - The modal "Save to Website" button (`#noteSaveBtn`) immediately initiates HTTP persistence and displays saving state, eliminating user confusion between local drafts and live updates.
+* **Render Cold-Start & Spin-Down Status Indicator**:
+  - When submitting the coordinator password, if Render is waking from sleep, an animated spinner and status notice (`#coordSpinNotice`) display after 2.5 seconds informing the coordinator that the server is waking up, preventing confusion during Render cold starts.
+
+### 9.25 Manager Console Authentication, Opportunistic Loading & Cold-Start Resilience
+* **Coordinator Authentication Modal on Manager Console (`manager.html`)**:
+  - Integrated the `#coordinatorLockOverlay` password prompt modal directly into `manager.html` with Render spin-down detection (2.5s and 15s wake notices).
+  - Displays coordinator authentication status in the console header with a live status button (`🔒 Coordinator Login` / `🔓 Coordinator Active`), allowing coordinators to unlock or manage sessions directly.
+  - Segregates viewer endpoints (roster summary, upcoming events) to authenticate seamlessly via `x-troop-key`, while reserving coordinator password prompts for privileged actions like tabular spreadsheet exports.
+* **Server Fallback for Viewer Access (`server.js`)**:
+  - `requireRole('viewer')` allows requests with invalid or expired Bearer tokens to fall through to `x-troop-key` verification, guaranteeing that client read requests succeed seamlessly even if an older session token has expired in the browser.
+* **0ms Instant Cache & Opportunistic Seamless Background Loading**:
+  - Automatically caches upcoming events (`twh_manager_events_cache`) and roster summary (`twh_manager_roster_summary`) in browser `localStorage`.
+  - On page load, cached events and summary counts render instantly (0ms). The console opportunistically fetches fresh data in the background and seamlessly updates the UI upon arrival, eliminating the need for cluttering manual sync/refresh buttons.
+* **Render Cold-Start & Network Spin-Down Resilience**:
+  - Automatically retries network failures once with a 2.5s backoff if the Render web instance is cold-starting from idle.
+* **Authenticated Spreadsheet Downloads**:
+  - Spreadsheet generation actions on the Manager Console route through authenticated `managerFetch`, downloading blobs directly and prompting for coordinator credentials if unauthorized rather than exposing raw unauthenticated endpoints.
+
+
 
 
 
