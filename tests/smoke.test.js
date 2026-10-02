@@ -313,10 +313,11 @@ describe('Authentication and authorization', () => {
     assert.equal(typeof viewerData.token, 'string');
 
     // Valid coordinator password -> coordinator role
+    const validPassword = process.env.COORDINATOR_PASSWORD;
     const resCoord = await fetch(`${baseUrl}/api/auth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'Riptide' }),
+      body: JSON.stringify({ password: validPassword }),
     });
     assert.equal(resCoord.status, 200);
     const coordData = await resCoord.json();
@@ -327,10 +328,11 @@ describe('Authentication and authorization', () => {
   });
 
   it('handles coordinator authentication flow via POST /api/auth/coordinator-login', async () => {
+    const validPassword = process.env.COORDINATOR_PASSWORD;
     const resOk = await fetch(`${baseUrl}/api/auth/coordinator-login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'Riptide' }),
+      body: JSON.stringify({ password: validPassword }),
     });
     assert.equal(resOk.status, 200);
     const data = await resOk.json();

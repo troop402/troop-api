@@ -19,8 +19,19 @@ const PORT = process.env.PORT || 3080;
 
 // Security & Authentication Configuration
 const TROOP_APP_KEY = process.env.TROOP_APP_KEY || 'troop402-app-access';
-const COORDINATOR_PASSWORD = process.env.COORDINATOR_PASSWORD || 'Riptide';
-const SESSION_SECRET = process.env.SESSION_SECRET || COORDINATOR_PASSWORD || 'troop402-session-secret-salt';
+const COORDINATOR_PASSWORD = process.env.COORDINATOR_PASSWORD;
+
+if (!COORDINATOR_PASSWORD) {
+  if (process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT)) {
+    process.env.COORDINATOR_PASSWORD = 'test-coordinator-password';
+  } else {
+    console.error('FATAL ERROR: COORDINATOR_PASSWORD environment variable is not set.');
+    console.error('Please define COORDINATOR_PASSWORD in your .env file or environment variables before starting the server.');
+    process.exit(1);
+  }
+}
+
+const SESSION_SECRET = process.env.SESSION_SECRET || process.env.COORDINATOR_PASSWORD || 'troop402-session-secret-salt';
 const COORDINATOR_SESSION_TIMEOUT_MS = parseInt(process.env.COORDINATOR_SESSION_TIMEOUT_MS || '300000', 10); // default 5 minutes
 const VIEWER_SESSION_TIMEOUT_MS = parseInt(process.env.VIEWER_SESSION_TIMEOUT_MS || '86400000', 10); // default 24 hours
 const CARPOOL_CACHE_TTL_MS = process.env.CARPOOL_CACHE_TTL_MS !== undefined ? parseInt(process.env.CARPOOL_CACHE_TTL_MS, 10) : 0;
@@ -2568,7 +2579,7 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
 app.post('/api/auth/token', (req, res) => {
   const { appKey, password } = req.body || {};
   const expectedKey = process.env.TROOP_APP_KEY || TROOP_APP_KEY;
-  const expectedPassword = process.env.COORDINATOR_PASSWORD || COORDINATOR_PASSWORD;
+  const expectedPassword = process.env.COORDINATOR_PASSWORD;
 
   if (password && typeof password === 'string') {
     const passBuf = Buffer.from(password);
@@ -2627,7 +2638,7 @@ app.post('/api/auth/token', (req, res) => {
 
 app.post('/api/auth/coordinator-login', (req, res) => {
   const { password } = req.body || {};
-  const expectedPassword = process.env.COORDINATOR_PASSWORD || COORDINATOR_PASSWORD;
+  const expectedPassword = process.env.COORDINATOR_PASSWORD;
 
   if (!password || typeof password !== 'string') {
     return res.status(400).json({ error: 'Password is required.' });
