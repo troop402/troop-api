@@ -1193,50 +1193,41 @@
 
     /* Coordinator Lock Overlay */
     #coordinatorLockOverlay {
-      display: flex;
+      display: none;
       position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.95);
-      backdrop-filter: blur(10px);
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
       z-index: 999999;
       align-items: center;
       justify-content: center;
       padding: 1.5rem;
+      box-sizing: border-box;
     }
 
-    /* Loading indicator (hidden by default when unauthenticated) */
+    /* Centered Loading Splash (displayed by default while initializing) */
     #loading {
-      display: none;
-      padding: 3rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 55vh;
+      padding: 3rem 1.5rem;
       text-align: center;
-    }
-
-    /* When pre-render authenticated session exists, hide overlay and show loading */
-    html.coord-authed #coordinatorLockOverlay {
-      display: none;
-    }
-    html.coord-authed #loading {
-      display: block;
+      width: 100%;
+      box-sizing: border-box;
     }
   </style>
-  <script>
-    // Immediate pre-render session check: if already authenticated, add class to avoid lock flash
-    try {
-      const t = localStorage.getItem('twh_coordinator_token') || sessionStorage.getItem('twh_coordinator_token');
-      const exp = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
-      const authAt = parseInt(localStorage.getItem('twh_coordinator_auth_at') || sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
-      const maxMs = parseInt(localStorage.getItem('twh_coordinator_max_ms') || sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
-      const now = Date.now();
-      if (t && now < exp && (!authAt || (now - authAt <= maxMs))) {
-        document.documentElement.classList.add('coord-authed');
-      }
-    } catch (e) {}
-  </script>
 </head>
 <body>
-  <!-- Full-Page Coordinator Lockout Overlay (Visible by default until authenticated) -->
+  <!-- Full-Page Coordinator Lockout Overlay (Hidden by default until challenge) -->
   <div id="coordinatorLockOverlay">
-    <div style="background:white; border-radius:12px; max-width:440px; width:100%; padding:2.25rem; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align:center;">
+    <div style="background:white; border-radius:12px; max-width:440px; width:100%; margin:auto; padding:2.25rem; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align:center; box-sizing:border-box;">
       <div style="font-size:3rem; margin-bottom:0.75rem; line-height:1;">🔒</div>
       <h2 id="coordLockTitle" style="font-size:1.35rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Coordinator Access Required</h2>
       <p id="coordLockSubtitle" style="font-size:0.875rem; color:#64748b; line-height:1.5; margin-bottom:1.5rem;">
@@ -1275,8 +1266,9 @@
 
   <div class="container">
     <div id="loading">
-      <h2 style="font-size: 1.3rem; margin-bottom: 0.5rem;">🚗 Loading Coordinator Worksheet...</h2>
-      <p style="color: var(--text-muted);">Fetching driver rosters and scout attendance...</p>
+      <div style="font-size: 2.75rem; margin-bottom: 0.75rem; line-height: 1;">🚗</div>
+      <h2 style="font-size: 1.35rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Loading Coordinator Worksheet...</h2>
+      <p style="color: #64748b; font-size: 0.95rem; margin: 0;">Fetching driver rosters and scout attendance...</p>
     </div>
 
     <div id="content" style="display: none;">
@@ -2035,7 +2027,7 @@
             const contentEl = document.getElementById('content');
             if (!contentEl || contentEl.style.display === 'none') {
               const loadingEl = document.getElementById('loading');
-              if (loadingEl) loadingEl.style.display = 'block';
+              if (loadingEl) loadingEl.style.display = 'flex';
               initCoordinator();
             }
           }
@@ -2358,7 +2350,7 @@
         const contentEl = document.getElementById('content');
         if (!contentEl || contentEl.style.display === 'none') {
           const loadingEl = document.getElementById('loading');
-          if (loadingEl) loadingEl.style.display = 'block';
+          if (loadingEl) loadingEl.style.display = 'flex';
           initCoordinator();
         } else {
           showRefreshToast('Coordinator session unlocked', '✅', false, 3000);
@@ -2400,6 +2392,8 @@
         return false;
       }
 
+      const overlay = document.getElementById('coordinatorLockOverlay');
+      if (overlay) overlay.style.display = 'none';
       scheduleSessionExpiry(expiresAt);
       return true;
     }
@@ -2828,7 +2822,7 @@
       if (returnLink) returnLink.href = `/carpool.html?id=${encodeURIComponent(eventId)}`;
       if (checkCoordinatorSession()) {
         const loadingEl = document.getElementById('loading');
-        if (loadingEl) loadingEl.style.display = 'block';
+        if (loadingEl) loadingEl.style.display = 'flex';
         initCoordinator();
       }
     }
