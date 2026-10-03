@@ -528,6 +528,31 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
     4. Pressing the `Escape` key.
   - Implemented uniformly across `manager.html`, `coordinator.html`, and `carpool.html`.
 
+### 9.27 Pre-Warmed Sign-Up Form Caching, Proactive Keep-Alive & Sub-2s Save Latency
+* **Pre-Warmed Sign-Up Form Caching (`server.js`)**:
+  - TWH driver updates require loading `FormDetail.aspx` (a massive 1.5MB page with thousands of form inputs) before submitting changes via POST.
+  - To eliminate the 6-8s GET latency on every save, the backend implements `getWarmedEventForm(eventId)`, maintaining an in-memory cache of parsed event sign-up forms with a 3-minute TTL (`EVENT_FORM_TTL_MS = 180000`).
+  - Active warm-up requests are deduplicated in-flight (`activeWarmupPromises`) so concurrent triggers never double-scrape TroopWebHost.
+* **TWH Change-Tracking Integrity**:
+  - TroopWebHost forms use hidden change-tracking inputs (`OLDCB...`) and perform delta comparisons on the server, only updating rows whose values differ from their original state. Because unedited rows match their original state, saving from a pre-warmed form only commits the specific driver note edited by the coordinator, preventing accidental overwrite of untouched drivers or concurrent edits.
+* **Proactive Client-Side Trigger Hooks & Warmup Cycling (`coordinator.html`)**:
+  - The coordinator worksheet automatically triggers background warmup requests on page load, when opening any driver note modal, immediately post-save, and on window focus.
+  - A client-side background timer cycles warmup requests every 2.5 minutes while active, ensuring that when the coordinator clicks "Save to Website", the form is already pre-loaded in memory.
+  - Live benchmarks on Event 1985 show total save time dropped from ~10s down to **1.39s** (0ms GET + ~1000ms POST).
+* **Automatic Fallback on Stale Session / Form Rejection**:
+  - If a save submitted with a cached form fails or is rejected by TWH, the backend automatically invalidates the cached form and session, re-scrapes live from TroopWebHost, and retries the save transparently.
+
+### 9.28 Reverse Proxy Routing Compatibility & Manager Sync Resilience
+* **Reverse Proxy Mismatch Diagnosis**:
+  - On local development environments behind Nginx reverse proxies (such as Unraid / Selkies on port 3000), routing regex rules may contain legacy hyphenated aliases (e.g. `api/roster-summary`) rather than standard slashed paths (`api/roster/summary`), resulting in unexpected 404s when requests fall through to other container services.
+* **Multi-Layer Route Support & Fallback**:
+  - Express routes both `/api/roster/summary` and `/api/roster-summary` natively.
+  - The manager console frontend (`public/manager.html`) includes automatic 404 fallback to `/api/roster-summary`.
+* **Automated Sync Resilience & Manual Refresh**:
+  - `fetchRosterSummary()` includes automated exponential backoff retries (3s and 6s) during server cold-starts or wakeups.
+  - Added tab focus & visibility revalidation so switching back to the manager tab automatically heals failed sync states.
+  - Added an interactive `🔄 Sync Roster` button directly in the Roster Status card header.
+
 
 
 

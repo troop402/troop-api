@@ -229,6 +229,15 @@ K.6 Does not require prior authentication or application key.
   - Clicking directly on the toast itself.
   - Clicking anywhere off the toast (document click).
   - Pressing the Escape key.
+10.21 Pre-Warmed Event Sign-Up Form Caching & Sub-2s Save Latency:
+10.21.1 Pre-Warmed Form Cache: The backend service MUST maintain an in-memory cache of pre-fetched sign-up forms (`cachedEventForms`) keyed by `eventId` with a 3-minute TTL (`EVENT_FORM_TTL_MS = 180000`). Active warm-up requests MUST be deduplicated in-flight via `activeWarmupPromises`.
+10.21.2 Client-Side Warmup Cycling & Trigger Hooks: The coordinator client (`coordinator.html`) MUST proactively warm the event sign-up form on page load, on driver note modal open, immediately post-save, and on window focus, as well as maintaining a 2.5-minute client-side background timer to refresh the cache before expiry.
+10.21.3 TWH Delta Submission Integrity: Because TroopWebHost uses hidden `OLD...` inputs to compare changed values, submitting from a pre-warmed form only updates fields modified by the coordinator, preventing accidental overwrite of untouched drivers or concurrent edits.
+10.21.4 Automatic Save Fallback: If a save submitted with a pre-warmed form fails or is rejected, the service MUST automatically discard the cached form, perform a live re-scrape from TroopWebHost, and retry the update transparently.
+10.22 Reverse Proxy Routing Compatibility & Manager Sync Resilience:
+10.22.1 Roster Summary Endpoint Aliasing: The backend MUST handle both `/api/roster/summary` and `/api/roster-summary` interchangeably to support heterogeneous reverse proxy configurations (such as Nginx regex rules).
+10.22.2 Client-Side Route Fallback: The manager console MUST catch 404 responses on `/api/roster/summary` and fall back to `/api/roster-summary` before reporting errors.
+10.22.3 Auto-Retry & Revalidation: If a roster sync request fails, the manager console MUST retry automatically with backoff, re-check on tab focus/visibility, and provide manual retry controls (`🔄 Sync Roster` button and clickable status card).
 
 
 
