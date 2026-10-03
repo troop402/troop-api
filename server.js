@@ -2913,7 +2913,7 @@ app.post('/api/export-roster', requireAppAuth, async (req, res) => {
   }
 });
 
-app.get('/api/roster/summary', requireAppAuth, async (req, res) => {
+app.get(['/api/roster/summary', '/api/roster-summary'], requireAppAuth, async (req, res) => {
   const { forceRefresh } = req.query;
 
   try {

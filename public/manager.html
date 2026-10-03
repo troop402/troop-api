@@ -1071,7 +1071,10 @@
       // 2. Opportunistically fetch fresh copy and update seamlessly
       try {
         const url = `/api/roster/summary${forceRefresh ? '?forceRefresh=true' : ''}`;
-        const res = await managerFetch(url);
+        let res = await managerFetch(url);
+        if (!res.ok && res.status === 404) {
+          res = await managerFetch(`/api/roster-summary${forceRefresh ? '?forceRefresh=true' : ''}`);
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
