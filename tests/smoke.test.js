@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 import { app, createSignedToken, verifySignedToken, COORDINATOR_IDLE_TIMEOUT_MS, COORDINATOR_MAX_SESSION_MS } from '../server.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let server;
 let baseUrl;
@@ -251,6 +257,21 @@ describe('API smoke tests', () => {
     const response = await fetch(`${baseUrl}/manager`, { redirect: 'manual' });
     assert.equal(response.status, 302);
     assert.equal(response.headers.get('location'), '/manager.html');
+  });
+
+  it('ensures all HTML frontend scripts compile with zero syntax errors', () => {
+    const htmlFiles = ['public/manager.html', 'public/coordinator.html', 'public/carpool.html'];
+    for (const relPath of htmlFiles) {
+      const fullPath = path.join(__dirname, '..', relPath);
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const scripts = content.match(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi) || [];
+      scripts.forEach((tag, idx) => {
+        const code = tag.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '');
+        assert.doesNotThrow(() => {
+          new Function(code);
+        }, `Syntax error in ${relPath} script tag #${idx}`);
+      });
+    }
   });
 });
 

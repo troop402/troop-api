@@ -593,10 +593,6 @@
     let currentFilter = 'carpool'; // 'carpool' or 'all'
     let pendingAuthResolvers = [];
     let sessionExpiryTimeout = null;
-    let lastUserActivity = Date.now();
-
-    window.addEventListener('click', () => { lastUserActivity = Date.now(); });
-    window.addEventListener('keydown', () => { lastUserActivity = Date.now(); });
 
     const DEFAULT_TROOP_APP_KEY = 'troop402-app-access';
     function getTroopAppKey() {
