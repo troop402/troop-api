@@ -6248,8 +6248,8 @@
     async function triggerEventWarmup(force = false) {
       if (!eventId) return;
       const now = Date.now();
-      // Throttle non-forced warmups to at most once per 60 seconds
-      if (!force && (now - lastWarmupTime < 60000)) return;
+      // Throttle non-forced warmups to at most once per 30 seconds
+      if (!force && (now - lastWarmupTime < 30000)) return;
       lastWarmupTime = now;
       try {
         await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/warmup${force ? '?force=true' : ''}`, {
@@ -6260,10 +6260,10 @@
       }
     }
 
-    // Automatically pre-warm and cycle the TWH sign-up form every 4 minutes while coordinator tab is active
+    // Automatically pre-warm and cycle the TWH sign-up form every 2.5 minutes (3-minute TTL) while coordinator tab is active
     setInterval(() => {
       triggerEventWarmup();
-    }, 4 * 60 * 1000);
+    }, 2.5 * 60 * 1000);
 
     window.addEventListener('focus', async () => {
       const now = Date.now();

@@ -3157,7 +3157,7 @@ function areCommentsFunctionallyEquivalent(c1, c2) {
 
 const cachedEventForms = new Map(); // eventId -> { eventId, html, actionUrl, signupDetailUrl, fetchedAt, durationMs }
 const activeWarmupPromises = new Map(); // eventId -> Promise
-const EVENT_FORM_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const EVENT_FORM_TTL_MS = 3 * 60 * 1000; // 3 minutes
 
 async function getWarmedEventForm(eventId, forceFresh = false) {
   const normId = String(eventId);
