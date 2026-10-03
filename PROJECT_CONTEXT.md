@@ -13,6 +13,9 @@ The core vision established during early brainstorming:
 - **TroopWebHost as System of Record:** Read data from TWH directly rather than replacing it.
 - **Developer Workflow:** Developed in VS Code with AI pair programming on the user's local Unraid machine, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render on push to `origin/main`.
   - **Local Development Policy ("dev" = Local Unraid):** The user is only ever running "dev" on local. When the user says "dev", that explicitly and exclusively means their local Unraid development environment running via npm (`npm run dev`). By default, all active iteration, commits, refactoring, and testing remain strictly local in this development environment on the local `main` branch. The AI MUST NOT push to GitHub (`origin/main`), open a PR, or deploy to live/production (Render) unless the user explicitly instructs to push to live.
+  - **Summary URL Delivery:** Whenever changes are summarized, the AI assistant supplies clickable URLs to the relevant endpoints:
+    - **Local dev** (Unraid box): `http://unraid:3000/manager`, `http://unraid:3000/coordinator/:id`, `http://unraid:3000/carpool/:id`.
+    - **Live Render** (after PR merge): `https://troop402-api.onrender.com/manager`, `https://troop402-api.onrender.com/coordinator/:id`, `https://troop402-api.onrender.com/carpool/:id`.
 - **Alpha Framing:** The project is in active alpha development (`0.2.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
 
 ---
@@ -509,6 +512,21 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
   - Automatically retries network failures once with a 2.5s backoff if the Render web instance is cold-starting from idle.
 * **Authenticated Spreadsheet Downloads**:
   - Spreadsheet generation actions on the Manager Console route through authenticated `managerFetch`, downloading blobs directly and prompting for coordinator credentials if unauthorized rather than exposing raw unauthenticated endpoints.
+
+### 9.26 Persistent Download Toast Feedback & Multi-Mode Dismissal
+* **Cross-Browser & Safari Download Clarity**:
+  - Because browser download managers (especially Safari on macOS and iOS) route file downloads into subtle toolbar icons that users frequently overlook, report and spreadsheet generation actions now display a prominent, top-centered floating toast notification (`.download-toast`).
+* **Active Preparation & Completion States**:
+  - Displays `⏳ Preparing report (.xlsx)...` during backend generation, immediately communicating that server processing is occurring.
+  - Transitions to an emerald green success indicator (`📥 Downloaded! Saved to your Downloads folder.`) once the browser initiates file saving.
+* **Persistent Display with Multi-Mode Dismissal**:
+  - The completion toast remains visible until explicitly dismissed, preventing missed feedback.
+  - Users can dismiss the toast via:
+    1. Clicking the `✕` close button.
+    2. Clicking directly on the toast itself.
+    3. Clicking anywhere off the toast (document click).
+    4. Pressing the `Escape` key.
+  - Implemented uniformly across `manager.html`, `coordinator.html`, and `carpool.html`.
 
 
 

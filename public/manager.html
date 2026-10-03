@@ -334,8 +334,54 @@
       border-color: #a7f3d0 !important;
       font-weight: 700;
     }
-    .btn-coord-active:hover {
-      background: #d1fae5 !important;
+    .download-toast {
+      position: fixed;
+      top: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 0.75rem 1.25rem;
+      border-radius: 9999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+      display: none;
+      align-items: center;
+      gap: 0.65rem;
+      z-index: 999999;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      user-select: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .download-toast:hover {
+      filter: brightness(1.08);
+    }
+    .download-toast-done {
+      background: #065f46;
+      border-color: #10b981;
+    }
+    .download-toast-icon {
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+    .download-toast-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-size: 0.9rem;
+      line-height: 1;
+      margin-left: 0.25rem;
+      cursor: pointer;
+    }
+    .download-toast-close:hover {
+      background: rgba(255, 255, 255, 0.35);
     }
   </style>
 </head>
@@ -563,17 +609,13 @@
     }
 
     function getCoordinatorToken() {
-      const token = sessionStorage.getItem('twh_coordinator_token');
-      const expiresAt = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      const token = localStorage.getItem('twh_coordinator_token') || sessionStorage.getItem('twh_coordinator_token');
+      const expiresAt = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
       if (token && (!expiresAt || Date.now() < expiresAt)) {
         return token;
       }
       if (token && expiresAt && Date.now() >= expiresAt) {
-        sessionStorage.removeItem('twh_coordinator_token');
-        sessionStorage.removeItem('twh_coordinator_expires_at');
-        sessionStorage.removeItem('twh_coordinator_idle_ms');
-        sessionStorage.removeItem('twh_coordinator_max_ms');
-        updateCoordAuthUi();
+        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.', true);
       }
       return null;
     }
@@ -590,6 +632,159 @@
       return headers;
     }
 
+    let lastUserActivity = Date.now();
+    function recordUserActivity() {
+      const now = Date.now();
+      if (now - lastUserActivity > 2000) {
+        lastUserActivity = now;
+        maybeRefreshCoordinatorSession();
+      }
+    }
+
+    ['mousedown', 'keydown', 'touchstart', 'scroll'].forEach((evt) => {
+      window.addEventListener(evt, recordUserActivity, { passive: true });
+    });
+
+    // Proactive check when switching back to tab
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        const token = getCoordinatorToken();
+        if (token) {
+          const expiresAt = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+          const now = Date.now();
+          if (expiresAt && now >= expiresAt) {
+            lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.', true);
+          } else {
+            if (expiresAt) scheduleSessionExpiry(expiresAt);
+            maybeRefreshCoordinatorSession();
+          }
+        }
+        updateCoordAuthUi();
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      const token = getCoordinatorToken();
+      if (token) {
+        const expiresAt = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+        const now = Date.now();
+        if (expiresAt && now >= expiresAt) {
+          lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.', true);
+        } else if (expiresAt) {
+          scheduleSessionExpiry(expiresAt);
+        }
+      }
+      updateCoordAuthUi();
+    });
+
+    // Cross-tab synchronization via storage event
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'twh_coordinator_token' || e.key === 'twh_coordinator_expires_at') {
+        const token = getCoordinatorToken();
+        const expiresAt = parseInt(localStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+        updateCoordAuthUi();
+        if (token && expiresAt && Date.now() < expiresAt) {
+          const overlay = document.getElementById('coordinatorLockOverlay');
+          if (overlay && overlay.style.display !== 'none') {
+            overlay.style.display = 'none';
+            const resolvers = [...pendingAuthResolvers];
+            pendingAuthResolvers = [];
+            resolvers.forEach(({ resolve }) => resolve(token));
+          }
+          scheduleSessionExpiry(expiresAt);
+        } else if (!token) {
+          lockCoordinatorSession('', false);
+        }
+      }
+    });
+
+    let refreshPromise = null;
+    async function refreshCoordinatorSession() {
+      if (refreshPromise) return refreshPromise;
+      const currentToken = getCoordinatorToken();
+      if (!currentToken) return false;
+
+      refreshPromise = (async () => {
+        try {
+          const res = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${currentToken}`,
+              'x-troop-key': getTroopAppKey(),
+            },
+          });
+
+          if (!res.ok) {
+            let errMsg = 'Coordinator session expired. Please enter password.';
+            try {
+              const errData = await res.json();
+              if (errData && errData.error) errMsg = errData.error;
+            } catch {}
+            lockCoordinatorSession(errMsg, true);
+            return false;
+          }
+
+          const data = await res.json();
+          if (!data || !data.token) {
+            lockCoordinatorSession('Failed to refresh coordinator session.', true);
+            return false;
+          }
+
+          localStorage.setItem('twh_coordinator_token', data.token);
+          localStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
+          if (data.authAt) localStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
+          if (data.idleTimeoutMs) localStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
+          if (data.maxSessionMs) localStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+
+          sessionStorage.removeItem('twh_coordinator_token');
+          sessionStorage.removeItem('twh_coordinator_expires_at');
+          sessionStorage.removeItem('twh_coordinator_auth_at');
+          sessionStorage.removeItem('twh_coordinator_idle_ms');
+          sessionStorage.removeItem('twh_coordinator_max_ms');
+
+          updateCoordAuthUi();
+          scheduleSessionExpiry(data.expiresAt);
+          return true;
+        } catch (err) {
+          console.warn('Network error while refreshing coordinator session:', err);
+          return false;
+        } finally {
+          refreshPromise = null;
+        }
+      })();
+
+      return refreshPromise;
+    }
+
+    async function maybeRefreshCoordinatorSession(force = false) {
+      const token = getCoordinatorToken();
+      if (!token) return false;
+
+      const expiresAt = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+      const idleMs = parseInt(localStorage.getItem('twh_coordinator_idle_ms') || sessionStorage.getItem('twh_coordinator_idle_ms') || '1500000', 10);
+      const authAt = parseInt(localStorage.getItem('twh_coordinator_auth_at') || sessionStorage.getItem('twh_coordinator_auth_at') || '0', 10);
+      const maxMs = parseInt(localStorage.getItem('twh_coordinator_max_ms') || sessionStorage.getItem('twh_coordinator_max_ms') || '86400000', 10);
+
+      const now = Date.now();
+      if (authAt && (now - authAt > maxMs)) {
+        lockCoordinatorSession('Coordinator session reached maximum duration (24 hours). Please enter password again to continue.', true);
+        return false;
+      }
+
+      if (now >= expiresAt) {
+        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again to continue.', true);
+        return false;
+      }
+
+      const remainingMs = expiresAt - now;
+      const isUserActive = (now - lastUserActivity) < idleMs;
+      if (force || (isUserActive && remainingMs < (idleMs * 0.6))) {
+        return await refreshCoordinatorSession();
+      }
+      return true;
+    }
+
     function updateCoordAuthUi() {
       const token = getCoordinatorToken();
       const icon = document.getElementById('coordAuthStatusIcon');
@@ -599,7 +794,7 @@
 
       if (token) {
         icon.textContent = '🔓';
-        const exp = parseInt(sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
+        const exp = parseInt(localStorage.getItem('twh_coordinator_expires_at') || sessionStorage.getItem('twh_coordinator_expires_at') || '0', 10);
         const remMin = exp ? Math.max(1, Math.round((exp - Date.now()) / 60000)) : null;
         text.textContent = remMin ? `Coordinator Active (${remMin}m)` : 'Coordinator Active';
         btn.classList.add('btn-coord-active');
@@ -616,16 +811,33 @@
       if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
       const remainingMs = expiresAt - Date.now();
       if (remainingMs <= 0) {
-        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.');
+        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.', true);
         return;
       }
-      sessionExpiryTimeout = setTimeout(() => {
-        lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.');
-      }, remainingMs);
+      const checkDelayMs = remainingMs > 5000 ? remainingMs - 5000 : remainingMs;
+      sessionExpiryTimeout = setTimeout(async () => {
+        const idleMs = parseInt(localStorage.getItem('twh_coordinator_idle_ms') || sessionStorage.getItem('twh_coordinator_idle_ms') || '1500000', 10);
+        const timeSinceActivity = Date.now() - lastUserActivity;
+        if (timeSinceActivity < idleMs) {
+          const ok = await refreshCoordinatorSession();
+          if (!ok) {
+            lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.', true);
+          }
+        } else {
+          lockCoordinatorSession('Coordinator session expired due to inactivity. Please enter password again.', true);
+        }
+      }, checkDelayMs);
     }
 
-    function lockCoordinatorSession(reasonMsg = '') {
+    function lockCoordinatorSession(reasonMsg = '', broadcast = true) {
       if (sessionExpiryTimeout) clearTimeout(sessionExpiryTimeout);
+      if (broadcast) {
+        localStorage.removeItem('twh_coordinator_token');
+        localStorage.removeItem('twh_coordinator_expires_at');
+        localStorage.removeItem('twh_coordinator_auth_at');
+        localStorage.removeItem('twh_coordinator_idle_ms');
+        localStorage.removeItem('twh_coordinator_max_ms');
+      }
       sessionStorage.removeItem('twh_coordinator_token');
       sessionStorage.removeItem('twh_coordinator_expires_at');
       sessionStorage.removeItem('twh_coordinator_auth_at');
@@ -725,11 +937,18 @@
           throw new Error(data.error || 'Incorrect password.');
         }
 
-        sessionStorage.setItem('twh_coordinator_token', data.token);
-        sessionStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
-        if (data.authAt) sessionStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
-        if (data.idleTimeoutMs) sessionStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
-        if (data.maxSessionMs) sessionStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+        localStorage.setItem('twh_coordinator_token', data.token);
+        localStorage.setItem('twh_coordinator_expires_at', String(data.expiresAt));
+        if (data.authAt) localStorage.setItem('twh_coordinator_auth_at', String(data.authAt));
+        if (data.idleTimeoutMs) localStorage.setItem('twh_coordinator_idle_ms', String(data.idleTimeoutMs));
+        if (data.maxSessionMs) localStorage.setItem('twh_coordinator_max_ms', String(data.maxSessionMs));
+
+        sessionStorage.removeItem('twh_coordinator_token');
+        sessionStorage.removeItem('twh_coordinator_expires_at');
+        sessionStorage.removeItem('twh_coordinator_auth_at');
+        sessionStorage.removeItem('twh_coordinator_idle_ms');
+        sessionStorage.removeItem('twh_coordinator_max_ms');
+
         lastUserActivity = Date.now();
 
         updateCoordAuthUi();
@@ -754,6 +973,7 @@
       } finally {
         clearTimeout(wakeTimer1);
         clearTimeout(wakeTimer2);
+        if (spinNotice) spinNotice.style.display = 'none';
         if (btn) {
           btn.disabled = false;
           btn.innerHTML = 'Unlock Console';
@@ -779,16 +999,8 @@
       }
 
       if (res.status === 401 || res.status === 403) {
-        // Clear expired coordinator session if present
-        if (sessionStorage.getItem('twh_coordinator_token')) {
-          sessionStorage.removeItem('twh_coordinator_token');
-          sessionStorage.removeItem('twh_coordinator_expires_at');
-          sessionStorage.removeItem('twh_coordinator_idle_ms');
-          sessionStorage.removeItem('twh_coordinator_max_ms');
-          updateCoordAuthUi();
-        }
-
         if (options.requireCoordinator) {
+          lockCoordinatorSession('', true);
           let errorMsg = 'Session expired or coordinator authorization required.';
           try {
             const data = await res.clone().json();
@@ -1013,6 +1225,67 @@
       }
     }
 
+    let activeDownloadDismissHandler = null;
+    function showDownloadToast(msg, icon = '⏳', isDone = false) {
+      let toast = document.getElementById('downloadToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'downloadToast';
+        toast.className = 'download-toast';
+        document.body.appendChild(toast);
+      }
+
+      if (activeDownloadDismissHandler) {
+        document.removeEventListener('click', activeDownloadDismissHandler, true);
+        activeDownloadDismissHandler = null;
+      }
+
+      toast.innerHTML = `
+        <span class="download-toast-icon ${!isDone ? 'toast-spin' : ''}">${icon}</span>
+        <span class="download-toast-msg">${escapeHtml(msg)}</span>
+        ${isDone ? '<span class="download-toast-close" title="Dismiss" aria-label="Dismiss">&times;</span>' : ''}
+      `;
+      toast.style.display = 'inline-flex';
+
+      if (isDone) {
+        toast.classList.add('download-toast-done');
+        toast.title = 'Click to dismiss';
+
+        toast.onclick = () => {
+          dismissDownloadToast();
+        };
+
+        activeDownloadDismissHandler = (e) => {
+          if (!toast.contains(e.target)) {
+            dismissDownloadToast();
+          }
+        };
+
+        setTimeout(() => {
+          if (activeDownloadDismissHandler) {
+            document.addEventListener('click', activeDownloadDismissHandler, true);
+          }
+        }, 150);
+      } else {
+        toast.classList.remove('download-toast-done');
+        toast.title = '';
+        toast.onclick = null;
+      }
+    }
+
+    function dismissDownloadToast() {
+      const toast = document.getElementById('downloadToast');
+      if (toast) {
+        toast.style.display = 'none';
+        toast.classList.remove('download-toast-done');
+        toast.onclick = null;
+      }
+      if (activeDownloadDismissHandler) {
+        document.removeEventListener('click', activeDownloadDismissHandler, true);
+        activeDownloadDismissHandler = null;
+      }
+    }
+
     async function downloadCarpoolExcel() {
       const select = document.getElementById('eventSelect');
       const eventId = select ? select.value : '';
@@ -1027,6 +1300,7 @@
           btn.textContent = '⏳ Downloading...';
           btn.disabled = true;
         }
+        showDownloadToast('Preparing spreadsheet (.xlsx)...', '⏳', false);
         const res = await managerFetch(`/api/events/${encodeURIComponent(eventId)}/carpool.xlsx`);
         if (!res.ok) throw new Error('Failed to download carpool spreadsheet');
         const blob = await res.blob();
@@ -1040,7 +1314,9 @@
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
+        showDownloadToast('Downloaded! Saved to your Downloads folder.', '📥', true);
       } catch (err) {
+        dismissDownloadToast();
         if (!err.isAuthChallenge) {
           alert('Error downloading carpool spreadsheet: ' + err.message);
         }
@@ -1274,6 +1550,7 @@
           includeUnassigned,
         };
 
+        showDownloadToast('Preparing custom report (.xlsx)...', '⏳', false);
         const res = await managerFetch(`/api/events/${encodeURIComponent(eventId)}/tabular.xlsx`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1296,7 +1573,9 @@
         window.URL.revokeObjectURL(url);
 
         closeModal('tabularExportModal');
+        showDownloadToast('Downloaded! Saved to your Downloads folder.', '📥', true);
       } catch (err) {
+        dismissDownloadToast();
         if (!err.isAuthChallenge) {
           alert('Error downloading tabular spreadsheet: ' + err.message);
         }
@@ -1320,6 +1599,7 @@
       if (e.key === 'Escape') {
         closeModal('tabularExportModal');
         cancelCoordinatorAuthPrompt();
+        dismissDownloadToast();
       }
     });
 
