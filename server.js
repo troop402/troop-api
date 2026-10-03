@@ -423,8 +423,14 @@ async function downloadRosterExport({ client, rootUrl, loginUrl }) {
 }
 
 async function fetchRosterFromTroopWebHost(config) {
-  const session = await authenticateTroopWebHost(config);
-  return downloadRosterExport(session);
+  let session = await authenticateTroopWebHost(config);
+  try {
+    return await downloadRosterExport(session);
+  } catch (err) {
+    invalidateTwhSession();
+    session = await authenticateTroopWebHost(config, true);
+    return downloadRosterExport(session);
+  }
 }
 
 function computeRosterSummary(csvBuffer) {
@@ -682,7 +688,20 @@ async function fetchUpcomingEvents({ days = 90, forceRefresh = false } = {}) {
       timeout: { request: 20000 },
     });
 
-    const $ = cheerio.load(res.body);
+    let $ = cheerio.load(res.body);
+
+    // If tables are missing or redirected to landing page, session expired on TWH
+    if ($('table').length === 0 && !String(res.body ?? '').includes('FormList.aspx')) {
+      invalidateTwhSession();
+      const freshSession = await authenticateTroopWebHost(config, true);
+      const retryUrl = new URL('/FormList.aspx?Menu_Item_ID=45931&Stack=0', freshSession.loginUrl).toString();
+      const retryRes = await freshSession.client.get(retryUrl, {
+        headers: { Referer: `${freshSession.rootUrl}/Index.htm` },
+        timeout: { request: 20000 },
+      });
+      $ = cheerio.load(retryRes.body);
+    }
+
     const parsedEvents = [];
     const seenIds = new Set();
 
@@ -2445,12 +2464,24 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
     const { client, loginUrl, rootUrl } = session;
 
     // Fetch drivers (38199), adults (730), scouts (967), and adult training (1243) in parallel
-    const [driversCsv, adultsCsv, scoutsCsv, adultTrainingMap] = await Promise.all([
+    let [driversCsv, adultsCsv, scoutsCsv, adultTrainingMap] = await Promise.all([
       fetchEventSectionCsv({ client, loginUrl, rootUrl, eventId, sectionId: 38199 }),
       fetchEventSectionCsv({ client, loginUrl, rootUrl, eventId, sectionId: 730 }),
       fetchEventSectionCsv({ client, loginUrl, rootUrl, eventId, sectionId: 967 }),
       getAdultTrainingData(forceRefresh),
     ]);
+
+    // If all CSV reports are empty, session may have expired on TWH. Re-authenticate fresh and retry once
+    if (!driversCsv && !adultsCsv && !scoutsCsv) {
+      invalidateTwhSession();
+      const freshSession = await authenticateTroopWebHost(config, true);
+      [driversCsv, adultsCsv, scoutsCsv, adultTrainingMap] = await Promise.all([
+        fetchEventSectionCsv({ client: freshSession.client, loginUrl: freshSession.loginUrl, rootUrl: freshSession.rootUrl, eventId, sectionId: 38199 }),
+        fetchEventSectionCsv({ client: freshSession.client, loginUrl: freshSession.loginUrl, rootUrl: freshSession.rootUrl, eventId, sectionId: 730 }),
+        fetchEventSectionCsv({ client: freshSession.client, loginUrl: freshSession.loginUrl, rootUrl: freshSession.rootUrl, eventId, sectionId: 967 }),
+        getAdultTrainingData(true),
+      ]);
+    }
 
     const rawDrivers = parseCsv(driversCsv);
     const rawAdults = parseCsv(adultsCsv);
