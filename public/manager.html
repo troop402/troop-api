@@ -402,7 +402,12 @@
 
     <!-- Roster Status Card -->
     <div class="card">
-      <div class="card-title">👥 Troop Roster &amp; Member Sync</div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div class="card-title" style="margin-bottom: 0;">👥 Troop Roster &amp; Member Sync</div>
+        <button id="refreshRosterBtn" class="btn" onclick="fetchRosterSummary(true)" title="Force sync fresh roster from TroopWebHost" style="font-size: 0.8rem; padding: 0.3rem 0.75rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+          🔄 Sync Roster
+        </button>
+      </div>
       <div class="stat-grid">
         <div class="stat-box">
           <div class="number" id="totalMembers">-</div>
@@ -416,7 +421,7 @@
           <div class="number" id="adultsCount">-</div>
           <div class="label">Adult Leaders</div>
         </div>
-        <div class="stat-box">
+        <div class="stat-box" id="cacheAgeBox" onclick="onCacheBoxClick()" style="cursor: pointer;" title="TroopWebHost roster synchronization status (click to retry if needed)">
           <div class="number" id="cacheAge" style="font-size: 1.1rem; padding-top: 0.35rem;">-</div>
           <div class="label" id="cacheLabel">Cache Status</div>
         </div>
@@ -656,6 +661,10 @@
           }
         }
         updateCoordAuthUi();
+        const label = document.getElementById('cacheLabel')?.textContent || '';
+        if (label.includes('Sync Failed') || document.getElementById('totalMembers')?.textContent === '-') {
+          fetchRosterSummary(false);
+        }
       }
     });
 
@@ -671,6 +680,10 @@
         }
       }
       updateCoordAuthUi();
+      const label = document.getElementById('cacheLabel')?.textContent || '';
+      if (label.includes('Sync Failed') || document.getElementById('totalMembers')?.textContent === '-') {
+        fetchRosterSummary(false);
+      }
     });
 
     // Cross-tab synchronization via storage event
@@ -1033,11 +1046,21 @@
       }
     }
 
-    async function fetchRosterSummary() {
+    let rosterFetchRetries = 0;
+    const MAX_ROSTER_RETRIES = 2;
+
+    async function fetchRosterSummary(forceRefresh = false) {
+      const btn = document.getElementById('refreshRosterBtn');
+      const origBtnHtml = btn ? btn.innerHTML : '';
+      if (forceRefresh && btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="toast-spin" style="display:inline-block; margin-right:0.25rem;">⏳</span> Syncing...';
+      }
+
       // 1. Immediately render cached summary if available (0ms instant display)
       try {
         const cachedStr = localStorage.getItem('twh_manager_roster_summary');
-        if (cachedStr) {
+        if (cachedStr && !forceRefresh) {
           const cached = JSON.parse(cachedStr);
           if (cached && cached.totalMembers !== undefined) {
             renderRosterSummary(cached, true);
@@ -1047,19 +1070,49 @@
 
       // 2. Opportunistically fetch fresh copy and update seamlessly
       try {
-        const res = await managerFetch('/api/roster/summary');
+        const url = `/api/roster/summary${forceRefresh ? '?forceRefresh=true' : ''}`;
+        const res = await managerFetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
         localStorage.setItem('twh_manager_roster_summary', JSON.stringify(data));
         renderRosterSummary(data, false);
+        rosterFetchRetries = 0;
       } catch (err) {
         console.warn('Roster summary background fetch:', err);
         const cachedStr = localStorage.getItem('twh_manager_roster_summary');
-        if (!cachedStr) {
-          document.getElementById('cacheAge').textContent = 'Error';
-          document.getElementById('cacheLabel').textContent = 'Sync Failed';
+        if (cachedStr) {
+          document.getElementById('cacheLabel').textContent = 'Sync Failed (Cached)';
+        } else {
+          document.getElementById('cacheAge').textContent = 'Retry';
+          document.getElementById('cacheLabel').textContent = 'Sync Failed (Click)';
+          // Auto-retry with backoff if initial cold start failed
+          if (rosterFetchRetries < MAX_ROSTER_RETRIES) {
+            rosterFetchRetries++;
+            const retryDelay = rosterFetchRetries * 3000;
+            console.log(`Scheduling automatic roster summary retry #${rosterFetchRetries} in ${retryDelay}ms...`);
+            setTimeout(() => {
+              fetchRosterSummary(false);
+            }, retryDelay);
+          }
         }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origBtnHtml || '🔄 Sync Roster';
+        }
+      }
+    }
+
+    function onCacheBoxClick() {
+      const label = document.getElementById('cacheLabel')?.textContent || '';
+      if (label.includes('Sync Failed') || label.includes('Error') || label.includes('Retry')) {
+        rosterFetchRetries = 0;
+        const ageEl = document.getElementById('cacheAge');
+        if (ageEl) ageEl.textContent = '...';
+        const lblEl = document.getElementById('cacheLabel');
+        if (lblEl) lblEl.textContent = 'Connecting...';
+        fetchRosterSummary(false);
       }
     }
 

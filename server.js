@@ -419,6 +419,7 @@ async function downloadRosterExport({ client, rootUrl, loginUrl }) {
         headers: {
           Referer: `${rootUrl}/Index.htm`,
         },
+        timeout: { request: 25000 },
       });
 
       const reportBody = reportResponse.body ?? reportResponse.rawBody;
@@ -2931,6 +2932,7 @@ app.get('/api/roster/summary', requireAppAuth, async (req, res) => {
       fresh: data.fresh,
     });
   } catch (error) {
+    console.warn('[Roster Summary] Failed to retrieve roster summary:', error.message || error);
     return res.status(500).json({ error: error.message || 'Failed to retrieve roster summary.' });
   }
 });
