@@ -279,6 +279,28 @@ let cachedTwhSessionExpiresAt = 0;
 let cachedTwhSessionKey = '';
 const TWH_SESSION_TTL_MS = 20 * 60 * 1000; // 20 minutes
 
+let twhKeepAliveInterval = null;
+
+function ensureTwhKeepAlive() {
+  if (twhKeepAliveInterval) return;
+  // Proactive background keep-alive every 5 minutes:
+  // If session exists and has less than 8 minutes of TTL remaining, refresh it in the background
+  twhKeepAliveInterval = setInterval(async () => {
+    try {
+      if (cachedTwhSession && Date.now() > (cachedTwhSessionExpiresAt - 8 * 60 * 1000)) {
+        const config = getTroopWebHostConfig();
+        await authenticateTroopWebHost(config, true);
+        console.log('[TWH Session] Proactively refreshed background session.');
+      }
+    } catch {
+      // Background refresh is best-effort
+    }
+  }, 5 * 60 * 1000);
+  if (twhKeepAliveInterval.unref) {
+    twhKeepAliveInterval.unref();
+  }
+}
+
 function invalidateTwhSession() {
   cachedTwhSession = null;
   cachedTwhSessionExpiresAt = 0;
@@ -378,6 +400,7 @@ async function authenticateTroopWebHost({ troopUrl, username, password }, forceF
   cachedTwhSession = sessionResult;
   cachedTwhSessionKey = sessionKey;
   cachedTwhSessionExpiresAt = Date.now() + TWH_SESSION_TTL_MS;
+  ensureTwhKeepAlive();
 
   return sessionResult;
 }
@@ -3142,6 +3165,7 @@ async function updateEventDriverInTWH({
   baselineComment,
   force = false,
 }) {
+  const tSaveStart = Date.now();
   const config = getTroopWebHostConfig();
   let session = await authenticateTroopWebHost(config);
   let { client, rootUrl, loginUrl } = session;
@@ -3151,10 +3175,12 @@ async function updateEventDriverInTWH({
     loginUrl,
   ).toString();
 
+  const tGetStart = Date.now();
   let getRes = await client.get(signupDetailUrl, {
     headers: { Referer: `${rootUrl}/Index.htm` },
     timeout: { request: 25000 },
   });
+  let getDuration = Date.now() - tGetStart;
 
   let $ = cheerio.load(getRes.body);
   let form = $('form#easyform');
@@ -3299,12 +3325,15 @@ async function updateEventDriverInTWH({
   payload.Selected_Action = 'save exit';
   payload.Selected_Button_ID = 'BUTTON36';
 
+  const tPostStart = Date.now();
   const postRes = await client.post(actionUrl, {
     form: payload,
     followRedirect: false,
     headers: { Referer: signupDetailUrl },
     timeout: { request: 25000 },
   });
+  const postDuration = Date.now() - tPostStart;
+  const totalDuration = Date.now() - tSaveStart;
 
   const isRedirect = postRes.statusCode === 302 || Boolean(postRes.headers?.location);
   const isInitError = (postRes.body && typeof postRes.body === 'string' && postRes.body.includes('Initialization Error'));
@@ -3318,6 +3347,7 @@ async function updateEventDriverInTWH({
   }
 
   cache.carpoolByEventId.delete(String(eventId));
+  console.log(`[TWH Save] Event ${eventId} driver "${foundMemberName || driverName}": Form GET took ${getDuration}ms, POST save took ${postDuration}ms (total: ${totalDuration}ms)`);
 
   return {
     success: true,
