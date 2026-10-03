@@ -274,9 +274,25 @@ function getTroopWebHostRootUrl(troopUrl) {
   return `${url.origin}${pathname}`;
 }
 
-async function authenticateTroopWebHost({ troopUrl, username, password }) {
+let cachedTwhSession = null;
+let cachedTwhSessionExpiresAt = 0;
+let cachedTwhSessionKey = '';
+const TWH_SESSION_TTL_MS = 20 * 60 * 1000; // 20 minutes
+
+function invalidateTwhSession() {
+  cachedTwhSession = null;
+  cachedTwhSessionExpiresAt = 0;
+  cachedTwhSessionKey = '';
+}
+
+async function authenticateTroopWebHost({ troopUrl, username, password }, forceFresh = false) {
   if (!troopUrl || !username || !password) {
     throw new Error('Missing troopUrl, username, or password.');
+  }
+
+  const sessionKey = `${troopUrl}|${username}`;
+  if (!forceFresh && cachedTwhSession && cachedTwhSessionKey === sessionKey && Date.now() < cachedTwhSessionExpiresAt) {
+    return cachedTwhSession;
   }
 
   const client = makeClient();
@@ -343,6 +359,7 @@ async function authenticateTroopWebHost({ troopUrl, username, password }) {
     },
   });
 
+  let sessionResult;
   if (loginPostResponse.statusCode >= 300 && loginPostResponse.statusCode < 400) {
     const redirectUrl = loginPostResponse.headers.location;
     if (!redirectUrl) {
@@ -353,10 +370,16 @@ async function authenticateTroopWebHost({ troopUrl, username, password }) {
       followRedirect: false,
     });
 
-    return { client, rootUrl, loginUrl: authenticatedResponse.url, authenticatedResponse };
+    sessionResult = { client, rootUrl, loginUrl: authenticatedResponse.url, authenticatedResponse };
+  } else {
+    sessionResult = { client, rootUrl, loginUrl: loginResponse.url, authenticatedResponse: loginPostResponse };
   }
 
-  return { client, rootUrl, loginUrl: loginResponse.url, authenticatedResponse: loginPostResponse };
+  cachedTwhSession = sessionResult;
+  cachedTwhSessionKey = sessionKey;
+  cachedTwhSessionExpiresAt = Date.now() + TWH_SESSION_TTL_MS;
+
+  return sessionResult;
 }
 
 async function downloadRosterExport({ client, rootUrl, loginUrl }) {
@@ -3089,21 +3112,42 @@ async function updateEventDriverInTWH({
   force = false,
 }) {
   const config = getTroopWebHostConfig();
-  const session = await authenticateTroopWebHost(config);
-  const { client, rootUrl, loginUrl } = session;
+  let session = await authenticateTroopWebHost(config);
+  let { client, rootUrl, loginUrl } = session;
 
-  const signupDetailUrl = new URL(
+  let signupDetailUrl = new URL(
     `/FormDetail.aspx?Menu_Item_ID=45926&Form_ID=3707&FK=0&ID=${eventId}&Stack=2`,
     loginUrl,
   ).toString();
 
-  const getRes = await client.get(signupDetailUrl, {
+  let getRes = await client.get(signupDetailUrl, {
     headers: { Referer: `${rootUrl}/Index.htm` },
     timeout: { request: 25000 },
   });
 
-  const $ = cheerio.load(getRes.body);
-  const form = $('form#easyform');
+  let $ = cheerio.load(getRes.body);
+  let form = $('form#easyform');
+
+  // If easyform is missing (e.g. session expired on TWH), refresh session and retry once
+  if (form.length === 0) {
+    session = await authenticateTroopWebHost(config, true);
+    client = session.client;
+    rootUrl = session.rootUrl;
+    loginUrl = session.loginUrl;
+
+    signupDetailUrl = new URL(
+      `/FormDetail.aspx?Menu_Item_ID=45926&Form_ID=3707&FK=0&ID=${eventId}&Stack=2`,
+      loginUrl,
+    ).toString();
+
+    getRes = await client.get(signupDetailUrl, {
+      headers: { Referer: `${rootUrl}/Index.htm` },
+      timeout: { request: 25000 },
+    });
+    $ = cheerio.load(getRes.body);
+    form = $('form#easyform');
+  }
+
   const actionUrl = new URL(form.attr('action') || '/FormDetail.aspx', signupDetailUrl).toString();
 
   function normName(n) {
@@ -3235,6 +3279,7 @@ async function updateEventDriverInTWH({
   const isInitError = (postRes.body && typeof postRes.body === 'string' && postRes.body.includes('Initialization Error'));
 
   if (!isRedirect || isInitError) {
+    invalidateTwhSession();
     const detail = isInitError
       ? 'TroopWebHost rejected the update with an "Initialization Error" (comment exceeds 100-character limit or session timed out).'
       : `TroopWebHost did not save the changes (returned HTTP ${postRes.statusCode}).`;
@@ -3363,6 +3408,7 @@ app.get('/manager', (req, res) => {
 export {
   app,
   authenticateTroopWebHost,
+  invalidateTwhSession,
   downloadRosterExport,
   parseCsv,
   computeRosterSummary,
