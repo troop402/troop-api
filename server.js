@@ -274,9 +274,47 @@ function getTroopWebHostRootUrl(troopUrl) {
   return `${url.origin}${pathname}`;
 }
 
-async function authenticateTroopWebHost({ troopUrl, username, password }) {
+let cachedTwhSession = null;
+let cachedTwhSessionExpiresAt = 0;
+let cachedTwhSessionKey = '';
+const TWH_SESSION_TTL_MS = 20 * 60 * 1000; // 20 minutes
+
+let twhKeepAliveInterval = null;
+
+function ensureTwhKeepAlive() {
+  if (twhKeepAliveInterval) return;
+  // Proactive background keep-alive every 5 minutes:
+  // If session exists and has less than 8 minutes of TTL remaining, refresh it in the background
+  twhKeepAliveInterval = setInterval(async () => {
+    try {
+      if (cachedTwhSession && Date.now() > (cachedTwhSessionExpiresAt - 8 * 60 * 1000)) {
+        const config = getTroopWebHostConfig();
+        await authenticateTroopWebHost(config, true);
+        console.log('[TWH Session] Proactively refreshed background session.');
+      }
+    } catch {
+      // Background refresh is best-effort
+    }
+  }, 5 * 60 * 1000);
+  if (twhKeepAliveInterval.unref) {
+    twhKeepAliveInterval.unref();
+  }
+}
+
+function invalidateTwhSession() {
+  cachedTwhSession = null;
+  cachedTwhSessionExpiresAt = 0;
+  cachedTwhSessionKey = '';
+}
+
+async function authenticateTroopWebHost({ troopUrl, username, password }, forceFresh = false) {
   if (!troopUrl || !username || !password) {
     throw new Error('Missing troopUrl, username, or password.');
+  }
+
+  const sessionKey = `${troopUrl}|${username}`;
+  if (!forceFresh && cachedTwhSession && cachedTwhSessionKey === sessionKey && Date.now() < cachedTwhSessionExpiresAt) {
+    return cachedTwhSession;
   }
 
   const client = makeClient();
@@ -343,6 +381,7 @@ async function authenticateTroopWebHost({ troopUrl, username, password }) {
     },
   });
 
+  let sessionResult;
   if (loginPostResponse.statusCode >= 300 && loginPostResponse.statusCode < 400) {
     const redirectUrl = loginPostResponse.headers.location;
     if (!redirectUrl) {
@@ -353,10 +392,17 @@ async function authenticateTroopWebHost({ troopUrl, username, password }) {
       followRedirect: false,
     });
 
-    return { client, rootUrl, loginUrl: authenticatedResponse.url, authenticatedResponse };
+    sessionResult = { client, rootUrl, loginUrl: authenticatedResponse.url, authenticatedResponse };
+  } else {
+    sessionResult = { client, rootUrl, loginUrl: loginResponse.url, authenticatedResponse: loginPostResponse };
   }
 
-  return { client, rootUrl, loginUrl: loginResponse.url, authenticatedResponse: loginPostResponse };
+  cachedTwhSession = sessionResult;
+  cachedTwhSessionKey = sessionKey;
+  cachedTwhSessionExpiresAt = Date.now() + TWH_SESSION_TTL_MS;
+  ensureTwhKeepAlive();
+
+  return sessionResult;
 }
 
 async function downloadRosterExport({ client, rootUrl, loginUrl }) {
@@ -373,6 +419,7 @@ async function downloadRosterExport({ client, rootUrl, loginUrl }) {
         headers: {
           Referer: `${rootUrl}/Index.htm`,
         },
+        timeout: { request: 25000 },
       });
 
       const reportBody = reportResponse.body ?? reportResponse.rawBody;
@@ -400,8 +447,14 @@ async function downloadRosterExport({ client, rootUrl, loginUrl }) {
 }
 
 async function fetchRosterFromTroopWebHost(config) {
-  const session = await authenticateTroopWebHost(config);
-  return downloadRosterExport(session);
+  let session = await authenticateTroopWebHost(config);
+  try {
+    return await downloadRosterExport(session);
+  } catch (err) {
+    invalidateTwhSession();
+    session = await authenticateTroopWebHost(config, true);
+    return downloadRosterExport(session);
+  }
 }
 
 function computeRosterSummary(csvBuffer) {
@@ -659,7 +712,20 @@ async function fetchUpcomingEvents({ days = 90, forceRefresh = false } = {}) {
       timeout: { request: 20000 },
     });
 
-    const $ = cheerio.load(res.body);
+    let $ = cheerio.load(res.body);
+
+    // If tables are missing or redirected to landing page, session expired on TWH
+    if ($('table').length === 0 && !String(res.body ?? '').includes('FormList.aspx')) {
+      invalidateTwhSession();
+      const freshSession = await authenticateTroopWebHost(config, true);
+      const retryUrl = new URL('/FormList.aspx?Menu_Item_ID=45931&Stack=0', freshSession.loginUrl).toString();
+      const retryRes = await freshSession.client.get(retryUrl, {
+        headers: { Referer: `${freshSession.rootUrl}/Index.htm` },
+        timeout: { request: 20000 },
+      });
+      $ = cheerio.load(retryRes.body);
+    }
+
     const parsedEvents = [];
     const seenIds = new Set();
 
@@ -2422,12 +2488,24 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
     const { client, loginUrl, rootUrl } = session;
 
     // Fetch drivers (38199), adults (730), scouts (967), and adult training (1243) in parallel
-    const [driversCsv, adultsCsv, scoutsCsv, adultTrainingMap] = await Promise.all([
+    let [driversCsv, adultsCsv, scoutsCsv, adultTrainingMap] = await Promise.all([
       fetchEventSectionCsv({ client, loginUrl, rootUrl, eventId, sectionId: 38199 }),
       fetchEventSectionCsv({ client, loginUrl, rootUrl, eventId, sectionId: 730 }),
       fetchEventSectionCsv({ client, loginUrl, rootUrl, eventId, sectionId: 967 }),
       getAdultTrainingData(forceRefresh),
     ]);
+
+    // If all CSV reports are empty, session may have expired on TWH. Re-authenticate fresh and retry once
+    if (!driversCsv && !adultsCsv && !scoutsCsv) {
+      invalidateTwhSession();
+      const freshSession = await authenticateTroopWebHost(config, true);
+      [driversCsv, adultsCsv, scoutsCsv, adultTrainingMap] = await Promise.all([
+        fetchEventSectionCsv({ client: freshSession.client, loginUrl: freshSession.loginUrl, rootUrl: freshSession.rootUrl, eventId, sectionId: 38199 }),
+        fetchEventSectionCsv({ client: freshSession.client, loginUrl: freshSession.loginUrl, rootUrl: freshSession.rootUrl, eventId, sectionId: 730 }),
+        fetchEventSectionCsv({ client: freshSession.client, loginUrl: freshSession.loginUrl, rootUrl: freshSession.rootUrl, eventId, sectionId: 967 }),
+        getAdultTrainingData(true),
+      ]);
+    }
 
     const rawDrivers = parseCsv(driversCsv);
     const rawAdults = parseCsv(adultsCsv);
@@ -2835,7 +2913,7 @@ app.post('/api/export-roster', requireAppAuth, async (req, res) => {
   }
 });
 
-app.get('/api/roster/summary', requireAppAuth, async (req, res) => {
+app.get(['/api/roster/summary', '/api/roster-summary'], requireAppAuth, async (req, res) => {
   const { forceRefresh } = req.query;
 
   try {
@@ -2854,6 +2932,7 @@ app.get('/api/roster/summary', requireAppAuth, async (req, res) => {
       fresh: data.fresh,
     });
   } catch (error) {
+    console.warn('[Roster Summary] Failed to retrieve roster summary:', error.message || error);
     return res.status(500).json({ error: error.message || 'Failed to retrieve roster summary.' });
   }
 });
@@ -3078,6 +3157,92 @@ function areCommentsFunctionallyEquivalent(c1, c2) {
   return normalizeCommentForComparison(c1).toLowerCase() === normalizeCommentForComparison(c2).toLowerCase();
 }
 
+const cachedEventForms = new Map(); // eventId -> { eventId, html, actionUrl, signupDetailUrl, fetchedAt, durationMs }
+const activeWarmupPromises = new Map(); // eventId -> Promise
+const EVENT_FORM_TTL_MS = 3 * 60 * 1000; // 3 minutes
+
+async function getWarmedEventForm(eventId, forceFresh = false) {
+  const normId = String(eventId);
+  const cached = cachedEventForms.get(normId);
+  const now = Date.now();
+  if (!forceFresh && cached && (now - cached.fetchedAt < EVENT_FORM_TTL_MS)) {
+    return { form: cached, fromCache: true, ageMs: now - cached.fetchedAt };
+  }
+
+  if (activeWarmupPromises.has(normId)) {
+    const form = await activeWarmupPromises.get(normId);
+    return { form, fromCache: false, ageMs: 0 };
+  }
+
+  const warmupPromise = (async () => {
+    try {
+      const config = getTroopWebHostConfig();
+      let session = await authenticateTroopWebHost(config);
+      let { client, rootUrl, loginUrl } = session;
+
+      let signupDetailUrl = new URL(
+        `/FormDetail.aspx?Menu_Item_ID=45926&Form_ID=3707&FK=0&ID=${eventId}&Stack=2`,
+        loginUrl,
+      ).toString();
+
+      const t0 = Date.now();
+      let getRes = await client.get(signupDetailUrl, {
+        headers: { Referer: `${rootUrl}/Index.htm` },
+        timeout: { request: 25000 },
+      });
+
+      let $ = cheerio.load(getRes.body);
+      let form = $('form#easyform');
+
+      // If easyform is missing (e.g. session expired on TWH), refresh session and retry once
+      if (form.length === 0) {
+        invalidateTwhSession();
+        session = await authenticateTroopWebHost(config, true);
+        client = session.client;
+        rootUrl = session.rootUrl;
+        loginUrl = session.loginUrl;
+
+        signupDetailUrl = new URL(
+          `/FormDetail.aspx?Menu_Item_ID=45926&Form_ID=3707&FK=0&ID=${eventId}&Stack=2`,
+          loginUrl,
+        ).toString();
+
+        getRes = await client.get(signupDetailUrl, {
+          headers: { Referer: `${rootUrl}/Index.htm` },
+          timeout: { request: 25000 },
+        });
+        $ = cheerio.load(getRes.body);
+        form = $('form#easyform');
+      }
+
+      if (form.length === 0) {
+        throw new Error('TroopWebHost event sign-up form was not found.');
+      }
+
+      const actionUrl = new URL(form.attr('action') || '/FormDetail.aspx', signupDetailUrl).toString();
+
+      const warmed = {
+        eventId: normId,
+        html: getRes.body,
+        actionUrl,
+        signupDetailUrl,
+        fetchedAt: Date.now(),
+        durationMs: Date.now() - t0,
+      };
+
+      cachedEventForms.set(normId, warmed);
+      console.log(`[TWH Warmup] Event ${eventId} form pre-warmed in ${warmed.durationMs}ms`);
+      return warmed;
+    } finally {
+      activeWarmupPromises.delete(normId);
+    }
+  })();
+
+  activeWarmupPromises.set(normId, warmupPromise);
+  const form = await warmupPromise;
+  return { form, fromCache: false, ageMs: 0 };
+}
+
 async function updateEventDriverInTWH({
   eventId,
   driverName,
@@ -3088,23 +3253,18 @@ async function updateEventDriverInTWH({
   baselineComment,
   force = false,
 }) {
+  const tSaveStart = Date.now();
   const config = getTroopWebHostConfig();
-  const session = await authenticateTroopWebHost(config);
-  const { client, rootUrl, loginUrl } = session;
+  let session = await authenticateTroopWebHost(config);
+  let { client } = session;
 
-  const signupDetailUrl = new URL(
-    `/FormDetail.aspx?Menu_Item_ID=45926&Form_ID=3707&FK=0&ID=${eventId}&Stack=2`,
-    loginUrl,
-  ).toString();
+  const { form: warmedForm, fromCache, ageMs } = await getWarmedEventForm(eventId, Boolean(force && !cachedEventForms.has(String(eventId))));
+  const getDuration = fromCache ? 0 : (warmedForm.durationMs || 0);
 
-  const getRes = await client.get(signupDetailUrl, {
-    headers: { Referer: `${rootUrl}/Index.htm` },
-    timeout: { request: 25000 },
-  });
-
-  const $ = cheerio.load(getRes.body);
-  const form = $('form#easyform');
-  const actionUrl = new URL(form.attr('action') || '/FormDetail.aspx', signupDetailUrl).toString();
+  let $ = cheerio.load(warmedForm.html);
+  let form = $('form#easyform');
+  const actionUrl = warmedForm.actionUrl;
+  const signupDetailUrl = warmedForm.signupDetailUrl;
 
   function normName(n) {
     return (n || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -3224,17 +3384,38 @@ async function updateEventDriverInTWH({
   payload.Selected_Action = 'save exit';
   payload.Selected_Button_ID = 'BUTTON36';
 
+  const tPostStart = Date.now();
   const postRes = await client.post(actionUrl, {
     form: payload,
     followRedirect: false,
     headers: { Referer: signupDetailUrl },
     timeout: { request: 25000 },
   });
+  const postDuration = Date.now() - tPostStart;
+  const totalDuration = Date.now() - tSaveStart;
 
   const isRedirect = postRes.statusCode === 302 || Boolean(postRes.headers?.location);
   const isInitError = (postRes.body && typeof postRes.body === 'string' && postRes.body.includes('Initialization Error'));
 
   if (!isRedirect || isInitError) {
+    cachedEventForms.delete(String(eventId));
+    invalidateTwhSession();
+
+    // Auto-recovery: if we used a cached form and TWH rejected it, retry fresh once
+    if (fromCache) {
+      console.log(`[TWH Save] Form submission with cached form failed (HTTP ${postRes.statusCode}), retrying fresh...`);
+      return updateEventDriverInTWH({
+        eventId,
+        driverName,
+        updatedComment,
+        passengerSeats,
+        drivingToFrom,
+        isDriver,
+        baselineComment,
+        force: true,
+      });
+    }
+
     const detail = isInitError
       ? 'TroopWebHost rejected the update with an "Initialization Error" (comment exceeds 100-character limit or session timed out).'
       : `TroopWebHost did not save the changes (returned HTTP ${postRes.statusCode}).`;
@@ -3242,6 +3423,11 @@ async function updateEventDriverInTWH({
   }
 
   cache.carpoolByEventId.delete(String(eventId));
+  // Invalidate old cached form and immediately pre-warm in the background with fresh state
+  cachedEventForms.delete(String(eventId));
+  getWarmedEventForm(eventId, true).catch(() => {});
+
+  console.log(`[TWH Save] Event ${eventId} driver "${foundMemberName || driverName}": Form GET took ${getDuration}ms (cached: ${fromCache}), POST save took ${postDuration}ms (total: ${totalDuration}ms)`);
 
   return {
     success: true,
@@ -3308,6 +3494,33 @@ app.post('/api/events/:id/driver-update', requireCoordinatorAuth, async (req, re
   }
 });
 
+app.post('/api/events/:id/warmup', requireCoordinatorAuth, async (req, res) => {
+  const eventId = req.params.id;
+  if (!eventId || !/^\d+$/.test(eventId)) {
+    return res.status(400).json({ error: 'Valid numeric event ID is required.' });
+  }
+
+  try {
+    getTroopWebHostConfig();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  try {
+    const force = Boolean(req.query.force === 'true' || req.body?.force);
+    const { form, fromCache, ageMs } = await getWarmedEventForm(eventId, force);
+    return res.json({
+      success: true,
+      eventId,
+      fromCache,
+      ageMs,
+      cachedAt: form.fetchedAt,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to warm up event form.' });
+  }
+});
+
 app.get('/api/events/:id/twh-status', requireAppAuth, async (req, res) => {
   const eventId = req.params.id;
   if (!eventId || !/^\d+$/.test(eventId)) {
@@ -3363,6 +3576,7 @@ app.get('/manager', (req, res) => {
 export {
   app,
   authenticateTroopWebHost,
+  invalidateTwhSession,
   downloadRosterExport,
   parseCsv,
   computeRosterSummary,
@@ -3385,6 +3599,9 @@ export {
   COORDINATOR_MAX_SESSION_MS,
   COORDINATOR_IDLE_TIMEOUT_MINUTES,
   COORDINATOR_MAX_SESSION_HOURS,
+  getWarmedEventForm,
+  cachedEventForms,
+  EVENT_FORM_TTL_MS,
 };
 
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;

@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 import { app, createSignedToken, verifySignedToken, COORDINATOR_IDLE_TIMEOUT_MS, COORDINATOR_MAX_SESSION_MS } from '../server.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let server;
 let baseUrl;
@@ -212,6 +218,18 @@ describe('API smoke tests', () => {
     assert.ok(body.error.includes('100-character maximum limit'));
   });
 
+  it('rejects invalid event ID for warmup with 400', async () => {
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/warmup`, {
+      method: 'POST',
+      headers: COORD_AUTH_HEADER,
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
+  });
+
   it('rejects invalid event ID for twh-status with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/not-an-id/twh-status`, {
       headers: TROOP_KEY_HEADER,
@@ -239,6 +257,21 @@ describe('API smoke tests', () => {
     const response = await fetch(`${baseUrl}/manager`, { redirect: 'manual' });
     assert.equal(response.status, 302);
     assert.equal(response.headers.get('location'), '/manager.html');
+  });
+
+  it('ensures all HTML frontend scripts compile with zero syntax errors', () => {
+    const htmlFiles = ['public/manager.html', 'public/coordinator.html', 'public/carpool.html'];
+    for (const relPath of htmlFiles) {
+      const fullPath = path.join(__dirname, '..', relPath);
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const scripts = content.match(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi) || [];
+      scripts.forEach((tag, idx) => {
+        const code = tag.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '');
+        assert.doesNotThrow(() => {
+          new Function(code);
+        }, `Syntax error in ${relPath} script tag #${idx}`);
+      });
+    }
   });
 });
 
@@ -392,6 +425,40 @@ describe('Authentication and authorization', () => {
         'Authorization': `Bearer ${validCoordToken}`,
       },
       body: JSON.stringify({ driverName: 'Doe, John' }),
+    });
+    assert.equal(resValidToken.status, 400);
+    assert.deepEqual(await resValidToken.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
+  });
+
+  it('protects warmup with coordinator role requirements', async () => {
+    const resNoToken = await fetch(`${baseUrl}/api/events/1957/warmup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    assert.equal(resNoToken.status, 401);
+
+    const viewerToken = createSignedToken({ role: 'viewer' });
+    const resForbidden = await fetch(`${baseUrl}/api/events/1957/warmup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${viewerToken}`,
+      },
+    });
+    assert.equal(resForbidden.status, 403);
+    assert.deepEqual(await resForbidden.json(), {
+      error: 'Forbidden: Coordinator privileges required.',
+    });
+
+    const validCoordToken = createSignedToken({ role: 'coordinator' });
+    const resValidToken = await fetch(`${baseUrl}/api/events/not-an-id/warmup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${validCoordToken}`,
+      },
     });
     assert.equal(resValidToken.status, 400);
     assert.deepEqual(await resValidToken.json(), {

@@ -851,6 +851,88 @@ paths:
                   error:
                     type: string
 
+  /api/events/{id}/warmup:
+    post:
+      operationId: warmupEventForm
+      summary: Pre-warm event sign-up form in memory
+      description: Pre-loads and caches the 1.46MB TroopWebHost event sign-up form in server memory to accelerate subsequent driver saves.
+      security:
+        - CoordinatorBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The TroopWebHost event ID
+          schema:
+            type: string
+            example: '1957'
+        - name: force
+          in: query
+          required: false
+          description: Force a fresh fetch from TroopWebHost, bypassing the cache
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Form pre-warmed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  eventId:
+                    type: string
+                    example: '1957'
+                  fromCache:
+                    type: boolean
+                    example: true
+                  ageMs:
+                    type: integer
+                    example: 45000
+                  cachedAt:
+                    type: integer
+                    example: 1727915000000
+        '400':
+          description: Missing or invalid request parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '401':
+          description: Missing or invalid coordinator authentication
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '403':
+          description: Coordinator role required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Failed to pre-warm event form
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
   /api/events/{id}/twh-status:
     get:
       operationId: getEventTwhStatus
