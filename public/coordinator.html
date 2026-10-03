@@ -1934,7 +1934,12 @@
 
   <script>
     const params = new URLSearchParams(window.location.search);
-    const eventId = params.get('id');
+    let eventId = params.get('id') || params.get('eventId');
+    if (!eventId) {
+      const match = window.location.pathname.match(/(?:coordinator|carpool)(?:\.html)?\/(\d+)/i) ||
+                    window.location.pathname.match(/\/(\d+)(?:\.html)?$/);
+      if (match) eventId = match[1];
+    }
 
     // Storage keys conforming to Contract 10.6
     const carpoolStorageKey = `twh_event_carpool_${eventId}`;
