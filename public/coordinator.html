@@ -3056,6 +3056,7 @@
         loadUndoHistory();
         renderPage();
         updateSyncBadge('idle', 'Website Connected');
+        triggerEventWarmup();
       } catch (err) {
         if (err.isAuthChallenge) {
           return;
@@ -4739,6 +4740,7 @@
       isNoteModalSaving = false;
       activeNoteDriverName = driverName;
       closeDriverUndoMenu();
+      triggerEventWarmup();
       const norm = normalizeName(driverName);
       const driver = (localDraft?.toDrivers || []).find(d => normalizeName(d.name) === norm) ||
                      (localDraft?.fromDrivers || []).find(d => normalizeName(d.name) === norm);
@@ -5628,6 +5630,7 @@
         } catch (e) {}
 
         updateSyncBadge('success', '✓ Saved to Website');
+        triggerEventWarmup(true);
         return true;
       } catch (err) {
         console.error('Failed to persist driver change to TWH:', err);
@@ -6240,8 +6243,31 @@
       lastBlurTime = Date.now();
     });
 
+    // Background TWH Sign-up Form Warm-up System
+    let lastWarmupTime = 0;
+    async function triggerEventWarmup(force = false) {
+      if (!eventId) return;
+      const now = Date.now();
+      // Throttle non-forced warmups to at most once per 60 seconds
+      if (!force && (now - lastWarmupTime < 60000)) return;
+      lastWarmupTime = now;
+      try {
+        await coordinatorFetch(`/api/events/${encodeURIComponent(eventId)}/warmup${force ? '?force=true' : ''}`, {
+          method: 'POST',
+        });
+      } catch (err) {
+        // Background warmup is silent and best-effort
+      }
+    }
+
+    // Automatically pre-warm and cycle the TWH sign-up form every 4 minutes while coordinator tab is active
+    setInterval(() => {
+      triggerEventWarmup();
+    }, 4 * 60 * 1000);
+
     window.addEventListener('focus', async () => {
       const now = Date.now();
+      triggerEventWarmup();
       if (now - lastBlurTime >= 15000 && now - lastFocusCheckTime >= 15000) {
         lastFocusCheckTime = now;
         await checkTwhDisparity();

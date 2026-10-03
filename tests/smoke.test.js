@@ -212,6 +212,18 @@ describe('API smoke tests', () => {
     assert.ok(body.error.includes('100-character maximum limit'));
   });
 
+  it('rejects invalid event ID for warmup with 400', async () => {
+    const response = await fetch(`${baseUrl}/api/events/not-an-id/warmup`, {
+      method: 'POST',
+      headers: COORD_AUTH_HEADER,
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
+  });
+
   it('rejects invalid event ID for twh-status with 400', async () => {
     const response = await fetch(`${baseUrl}/api/events/not-an-id/twh-status`, {
       headers: TROOP_KEY_HEADER,
@@ -392,6 +404,40 @@ describe('Authentication and authorization', () => {
         'Authorization': `Bearer ${validCoordToken}`,
       },
       body: JSON.stringify({ driverName: 'Doe, John' }),
+    });
+    assert.equal(resValidToken.status, 400);
+    assert.deepEqual(await resValidToken.json(), {
+      error: 'Valid numeric event ID is required.',
+    });
+  });
+
+  it('protects warmup with coordinator role requirements', async () => {
+    const resNoToken = await fetch(`${baseUrl}/api/events/1957/warmup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    assert.equal(resNoToken.status, 401);
+
+    const viewerToken = createSignedToken({ role: 'viewer' });
+    const resForbidden = await fetch(`${baseUrl}/api/events/1957/warmup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${viewerToken}`,
+      },
+    });
+    assert.equal(resForbidden.status, 403);
+    assert.deepEqual(await resForbidden.json(), {
+      error: 'Forbidden: Coordinator privileges required.',
+    });
+
+    const validCoordToken = createSignedToken({ role: 'coordinator' });
+    const resValidToken = await fetch(`${baseUrl}/api/events/not-an-id/warmup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${validCoordToken}`,
+      },
     });
     assert.equal(resValidToken.status, 400);
     assert.deepEqual(await resValidToken.json(), {
