@@ -607,6 +607,150 @@
       }
       a { text-decoration: none; color: black; }
     }
+
+    /* Person Detail Micro-Popover Card */
+    .person-card-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 0.25rem;
+      padding: 0 0.22rem;
+      color: #64748b;
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 4px;
+      line-height: 1;
+      user-select: none;
+      vertical-align: middle;
+      white-space: nowrap;
+      transition: color 0.15s, background-color 0.15s, transform 0.15s;
+    }
+    .person-card-trigger:hover,
+    .person-card-trigger.active {
+      color: #0284c7;
+      background-color: #e0f2fe;
+      transform: translateX(1px);
+    }
+    .person-popover {
+      position: fixed;
+      z-index: 10000;
+      width: 310px;
+      max-width: calc(100vw - 2rem);
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 0.82rem;
+      color: #1e293b;
+      pointer-events: auto;
+      text-align: left;
+      animation: popoverFadeIn 0.15s ease-out;
+    }
+    @keyframes popoverFadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .person-popover-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.65rem 0.75rem;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+    }
+    .person-popover-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #0284c7;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.88rem;
+      flex-shrink: 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .person-popover-avatar.adult {
+      background: #7c3aed;
+    }
+    .person-popover-title-wrap {
+      flex: 1;
+      min-width: 0;
+    }
+    .person-popover-name {
+      font-weight: 700;
+      font-size: 0.94rem;
+      color: #0f172a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .person-popover-role {
+      font-size: 0.74rem;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .person-popover-close {
+      background: transparent;
+      border: none;
+      font-size: 1.35rem;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0 0.2rem;
+      line-height: 1;
+      border-radius: 4px;
+    }
+    .person-popover-close:hover {
+      color: #0f172a;
+      background-color: #e2e8f0;
+    }
+    .person-popover-body {
+      padding: 0.65rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .person-popover-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .person-popover-section-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 0.1rem;
+    }
+    .person-popover-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.45rem;
+      line-height: 1.35;
+      font-size: 0.8rem;
+    }
+    .person-popover-icon {
+      font-size: 0.85rem;
+      flex-shrink: 0;
+      line-height: 1.35;
+    }
+    .person-popover-link {
+      color: #0284c7;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .person-popover-link:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -681,15 +825,12 @@
         </div>
       </div>
 
-      <!-- Driver Clarifications & Ambiguity Alert -->
+      <!-- Driver Clarifications & Attendance Warnings Alert -->
       <div id="clarificationsBanner" class="card" style="display: none; background: #fffbeb; border-color: #fde68a; color: #92400e; margin-bottom: 1.5rem;">
         <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
-          <span>⚠️ Driver Note Clarifications Needed</span>
+          <span>⚠️ Clarifications Needed</span>
           <span class="badge badge-warning" id="clarificationsBadge">0</span>
         </div>
-        <p style="font-size: 0.875rem; margin-bottom: 0.5rem;">
-          The following driver notes mention first names that are shared by multiple attending scouts. Please confirm full names with drivers:
-        </p>
         <ul id="clarificationsList" style="margin-left: 1.25rem; font-size: 0.85rem; line-height: 1.6;">
         </ul>
       </div>
@@ -794,7 +935,7 @@
           <table>
             <thead>
               <tr>
-                <th class="sortable" id="th-name" onclick="toggleScoutSort('name')" title="Click to sort by Scout Name">Scout Name <span id="sort-name" class="sort-indicator">↕</span></th>
+                <th class="sortable" id="th-name" onclick="toggleScoutSort('name')" style="min-width: 180px;" title="Click to sort by Scout Name">Scout Name <span id="sort-name" class="sort-indicator">↕</span></th>
                 <th class="sortable" id="th-patrol" onclick="toggleScoutSort('patrol')" title="Click to sort by Patrol">Patrol <span id="sort-patrol" class="sort-indicator">↕</span></th>
                 <th class="sortable" id="th-rideTo" onclick="toggleScoutSort('rideTo')" title="Click to sort by Outbound Ride">Ride TO <span id="sort-rideTo" class="sort-indicator">↕</span></th>
                 <th class="sortable" id="th-rideFrom" onclick="toggleScoutSort('rideFrom')" title="Click to sort by Return Ride">Ride FROM <span id="sort-rideFrom" class="sort-indicator">↕</span></th>
@@ -1229,7 +1370,31 @@
       return fullName;
     }
 
+    function formatLastFirst(fullName) {
+      return toDisplayName(fullName);
+    }
+
+    function normalizeName(str) {
+      if (!str) return '';
+      return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function renderNameWithTrigger(fullName, typeHint = 'scout') {
+      if (!fullName) return '';
+      const trigger = renderPersonCardTrigger(fullName, typeHint);
+      const trimmed = fullName.trim();
+      const spaceIdx = trimmed.lastIndexOf(' ');
+      if (spaceIdx === -1) {
+        return `<span style="white-space: nowrap;"><strong>${escapeHtml(trimmed)}</strong>${trigger}</span>`;
+      }
+      const firstPart = trimmed.slice(0, spaceIdx);
+      const lastWord = trimmed.slice(spaceIdx + 1);
+      return `<strong>${escapeHtml(firstPart)} <span style="white-space: nowrap;">${escapeHtml(lastWord)}${trigger}</span></strong>`;
+    }
+
     function renderPage(data, meta, customCachedAt) {
+      window.currentData = data;
+      currentData = data;
       const { stats, drivers = [], adults = [], scouts = [] } = data;
       const combinedMeta = { ...(data.meta || {}), ...(meta || {}) };
       const effectiveCachedAt = customCachedAt || data.cachedAt;
@@ -1308,21 +1473,57 @@
         desc.textContent = `Only ${stats.totalSeatsOffered} seats offered for ${stats.totalAttendingScouts} scouts and ${stats.adultRidersCount} adult riders. ${stats.unassignedScoutsCount} scouts still need a ride.`;
       }
 
-      // Driver Clarifications Banner
+      // Driver Clarifications & Attendance Warnings Banner
       const clarBanner = document.getElementById('clarificationsBanner');
       const clarList = document.getElementById('clarificationsList');
       const clarBadge = document.getElementById('clarificationsBadge');
       const clarifications = stats.clarificationsNeeded || [];
 
-      if (clarifications.length > 0) {
-        clarBadge.textContent = `${clarifications.length} Note${clarifications.length === 1 ? '' : 's'}`;
-        clarList.innerHTML = clarifications.map(c => `
-          <li>
-            <strong>${escapeHtml(c.driverName)}:</strong> Mentioned <em>"${escapeHtml(c.token)}"</em> without last name. 
-            Candidates: <strong>${escapeHtml(c.candidates.join(' or '))}</strong>.
-            <span style="color:#b45309;">(Please ask driver to clarify with full name)</span>
-          </li>
-        `).join('');
+      // Non-attending riders who have assigned seats
+      const notAttendingRiders = (scouts || []).filter(s => s.attending === 'N' && (s.assignedDriver || s.assignedDriverTo || s.assignedDriverFrom));
+
+      // Drivers registered with seats who are not attending / unconfirmed
+      const notAttendingDrivers = (drivers || []).filter(d => d.attending && d.attending !== 'Y' && (parseInt(d.seats, 10) > 0 || (d.drivingToFrom && d.drivingToFrom.toLowerCase() !== 'none')));
+
+      const totalAlerts = clarifications.length + notAttendingRiders.length + notAttendingDrivers.length;
+
+      if (totalAlerts > 0) {
+        clarBadge.textContent = `${totalAlerts} Alert${totalAlerts === 1 ? '' : 's'}`;
+        const itemsHtml = [];
+
+        clarifications.forEach(c => {
+          itemsHtml.push(`
+            <li>
+              <strong>${escapeHtml(c.driverName)}:</strong> Mentioned <em>"${escapeHtml(c.token)}"</em> without last name. 
+              Candidates: <strong>${escapeHtml(c.candidates.join(' or '))}</strong>.
+              <span style="color:#b45309;">(Please ask driver to clarify with full name)</span>
+            </li>
+          `);
+        });
+
+        notAttendingRiders.forEach(s => {
+          const riderName = typeof formatLastFirst === 'function' ? formatLastFirst(s.name) : (s.displayName || s.name);
+          itemsHtml.push(`
+            <li>
+              <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.15rem 0.4rem; font-size:0.75rem; font-weight:700; margin-right:0.35rem;">⚠️ Rider</span>
+              <strong>${escapeHtml(riderName)}:</strong> Not Attending &amp; has seat
+            </li>
+          `);
+        });
+
+        notAttendingDrivers.forEach(d => {
+          const driverName = typeof formatLastFirst === 'function' ? formatLastFirst(d.name) : (d.displayName || d.name);
+          const statusLabel = d.attending === '?' ? 'Driver Attendance Unconfirmed' : 'Driver Not Attending';
+          const seatsNotice = d.seats ? ` (${d.seats} seat${d.seats === 1 ? '' : 's'})` : '';
+          itemsHtml.push(`
+            <li>
+              <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:0.15rem 0.4rem; font-size:0.75rem; font-weight:700; margin-right:0.35rem;">⚠️ Driver</span>
+              <strong>${escapeHtml(driverName)}:</strong> ${statusLabel}${seatsNotice}
+            </li>
+          `);
+        });
+
+        clarList.innerHTML = itemsHtml.join('');
         clarBanner.style.display = 'block';
       } else {
         clarBanner.style.display = 'none';
@@ -1426,7 +1627,7 @@
 
         tr.innerHTML = `
           <td>
-            <strong>${escapeHtml(d.name)}</strong>
+            ${renderNameWithTrigger(d.name, 'driver')}
             ${contactSubline}
             ${isOneWay ? `<div style="margin-top:0.25rem;"><span class="badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; font-size:0.7rem; font-weight:700;">🔄 One-Way: ${escapeHtml(d.drivingToFrom)} Only</span></div>` : ''}
             ${!d.isCompliant ? '<div style="margin-top:0.25rem;"><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span></div>' : ''}
@@ -1508,14 +1709,15 @@
         const tags = [];
         ridersForDir.forEach(r => {
           const rName = typeof r === 'string' ? r : (r.displayName || r.compactName || r.name);
+          const rawName = typeof r === 'string' ? r : (r.name || r.displayName || rName);
           if (r.type === 'adult') {
-            tags.push(`<span class="badge badge-adult">Adult: ${escapeHtml(r.displayName || rName)}</span>`);
+            tags.push(`<span class="badge badge-adult">Adult: ${escapeHtml(r.displayName || rName)}${renderPersonCardTrigger(rawName, 'adult')}</span>`);
           } else if (r.type === 'ambiguous') {
             tags.push(`<span class="badge badge-warning" title="${escapeHtml(r.note || '')}">⚠️ Ambiguous "${escapeHtml(r.token || rName)}"</span>`);
           } else {
             const scStatus = typeof r === 'string' ? 'confirmed' : r.status;
             const isFam = scStatus === 'family_match';
-            tags.push(`<span class="badge badge-scout">Scout: ${escapeHtml(r.displayName || rName)}${isFam ? ' (Family)' : ''}</span>`);
+            tags.push(`<span class="badge badge-scout">Scout: ${escapeHtml(r.displayName || rName)}${isFam ? ' (Family)' : ''}${renderPersonCardTrigger(rawName, 'scout')}</span>`);
           }
         });
 
@@ -1546,7 +1748,7 @@
 
         tr.innerHTML = `
           <td>
-            <strong>${escapeHtml(d.name)}</strong>
+            ${renderNameWithTrigger(d.name, 'driver')}
             ${contactSubline}
             ${oneWayBadge}
             ${!d.isCompliant ? '<div style="margin-top:0.25rem;"><span class="badge badge-danger" style="font-size:0.7rem;">Safety Non-Compliant</span></div>' : ''}
@@ -1902,7 +2104,7 @@
         }
 
         tr.innerHTML = `
-          <td><strong>${escapeHtml(s.name)}</strong></td>
+          <td>${renderNameWithTrigger(s.name, 'scout')}</td>
           <td>${escapeHtml(s.patrol || 'Unassigned')}</td>
           <td>${rideToBadge}</td>
           <td>${rideFromBadge}</td>
@@ -1948,7 +2150,7 @@
             tr.style.backgroundColor = '#fffbeb';
           }
           tr.innerHTML = `
-            <td><strong>${escapeHtml(a.name)}</strong></td>
+            <td>${renderNameWithTrigger(a.name, 'adult')}</td>
             <td>${escapeHtml(a.leadership || 'Adult Leader')}</td>
             <td>${sytBadge}</td>
             <td>${stateBadge}</td>
@@ -2257,12 +2459,375 @@
         closeModal('tabularExportModal');
         closeModal('noteModal');
         dismissDownloadToast();
+        hidePersonPopover(true);
       }
     });
+
+    /* --- Person Detail Micro-Popover Card Logic --- */
+    let popoverHideTimer = null;
+    let activeTriggerEl = null;
+
+    function setupPersonPopover() {
+      const popover = document.getElementById('personDetailPopover');
+      if (!popover) return;
+
+      popover.addEventListener('mouseenter', () => {
+        if (popoverHideTimer) {
+          clearTimeout(popoverHideTimer);
+          popoverHideTimer = null;
+        }
+      });
+
+      popover.addEventListener('mouseleave', () => {
+        if (window.matchMedia && window.matchMedia('(hover: none)').matches) return;
+        schedulePopoverHide(300);
+      });
+
+      const closeBtn = document.getElementById('popoverCloseBtn');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          hidePersonPopover(true);
+        });
+      }
+
+      document.addEventListener('click', (e) => {
+        if (!popover.contains(e.target) && !e.target.closest('.person-card-trigger')) {
+          hidePersonPopover(true);
+        }
+      });
+
+      window.addEventListener('scroll', () => {
+        if (popover.style.display !== 'none') {
+          hidePersonPopover(true);
+        }
+      }, { passive: true });
+    }
+
+    function schedulePopoverHide(ms = 300) {
+      if (popoverHideTimer) clearTimeout(popoverHideTimer);
+      popoverHideTimer = setTimeout(() => {
+        hidePersonPopover();
+      }, ms);
+    }
+
+    function hidePersonPopover(force = false) {
+      if (popoverHideTimer) {
+        clearTimeout(popoverHideTimer);
+        popoverHideTimer = null;
+      }
+      const popover = document.getElementById('personDetailPopover');
+      if (popover) {
+        popover.style.display = 'none';
+        popover.setAttribute('aria-hidden', 'true');
+      }
+      if (activeTriggerEl) {
+        activeTriggerEl.classList.remove('active');
+        activeTriggerEl = null;
+      }
+    }
+
+    function handleTriggerHover(el) {
+      if (window.matchMedia && window.matchMedia('(hover: none)').matches) return;
+      if (popoverHideTimer) {
+        clearTimeout(popoverHideTimer);
+        popoverHideTimer = null;
+      }
+      const name = el.getAttribute('data-person-name');
+      const type = el.getAttribute('data-person-type') || 'scout';
+      showPersonPopover(el, name, type);
+    }
+
+    function handleTriggerLeave(el) {
+      if (window.matchMedia && window.matchMedia('(hover: none)').matches) return;
+      schedulePopoverHide(300);
+    }
+
+    function handleTriggerClick(e, el) {
+      e.stopPropagation();
+      const popover = document.getElementById('personDetailPopover');
+      if (activeTriggerEl === el && popover && popover.style.display !== 'none') {
+        hidePersonPopover(true);
+      } else {
+        const name = el.getAttribute('data-person-name');
+        const type = el.getAttribute('data-person-type') || 'scout';
+        showPersonPopover(el, name, type);
+      }
+    }
+
+    function getInitials(name) {
+      if (!name) return '?';
+      const clean = (typeof formatLastFirst === 'function' ? formatLastFirst(name) : name).trim();
+      const parts = clean.split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+
+    function cleanPhone(phone) {
+      return (phone || '').replace(/[^0-9+]/g, '');
+    }
+
+    function renderPersonCardTrigger(personName, typeHint = 'scout') {
+      if (!personName) return '';
+      const escapedName = escapeHtml(personName);
+      return `<span class="person-card-trigger no-print" data-person-name="${escapedName}" data-person-type="${typeHint}" onmouseenter="handleTriggerHover(this)" onmouseleave="handleTriggerLeave(this)" onclick="handleTriggerClick(event, this)" title="View details and contacts">&rsaquo;</span>`;
+    }
+
+    function nameMatches(candidateName, searchName) {
+      if (!candidateName || !searchName) return false;
+      const n1 = normalizeName(candidateName);
+      const n2 = normalizeName(searchName);
+      if (n1 === n2) return true;
+      const d1 = normalizeName(typeof formatLastFirst === 'function' ? formatLastFirst(candidateName) : candidateName);
+      const d2 = normalizeName(typeof formatLastFirst === 'function' ? formatLastFirst(searchName) : searchName);
+      return d1 === n2 || n1 === d2 || d1 === d2;
+    }
+
+    function findPersonData(personName, typeHint) {
+      const data = (typeof currentData !== 'undefined' && currentData)
+        ? currentData
+        : (window.currentData || {});
+      if (!data) return { name: personName, _category: typeHint || 'scout' };
+
+      if (typeHint === 'driver') {
+        const d = (data.drivers || []).find(x => nameMatches(x.name, personName) || nameMatches(x.displayName, personName));
+        if (d) return { ...d, _category: 'driver' };
+      }
+      if (typeHint === 'adult') {
+        const a = (data.adults || []).find(x => nameMatches(x.name, personName) || nameMatches(x.displayName, personName));
+        if (a) return { ...a, _category: 'adult' };
+      }
+
+      const sc = (data.scouts || []).find(x => nameMatches(x.name, personName) || nameMatches(x.displayName, personName));
+      if (sc) return { ...sc, _category: 'scout' };
+
+      const d = (data.drivers || []).find(x => nameMatches(x.name, personName) || nameMatches(x.displayName, personName));
+      if (d) return { ...d, _category: 'driver' };
+
+      const a = (data.adults || []).find(x => nameMatches(x.name, personName) || nameMatches(x.displayName, personName));
+      if (a) return { ...a, _category: 'adult' };
+
+      const r = (data.roster || []).find(x => nameMatches(x.name, personName));
+      if (r) return { ...r, _category: r.isAdult ? 'adult' : 'scout' };
+
+      return { name: personName, _category: typeHint || 'scout' };
+    }
+
+    function showPersonPopover(triggerEl, personName, typeHint) {
+      const popover = document.getElementById('personDetailPopover');
+      if (!popover) return;
+
+      if (activeTriggerEl && activeTriggerEl !== triggerEl) {
+        activeTriggerEl.classList.remove('active');
+      }
+      activeTriggerEl = triggerEl;
+      activeTriggerEl.classList.add('active');
+
+      const person = findPersonData(personName, typeHint);
+      const isAdult = person._category === 'driver' || person._category === 'adult' || Boolean(person.isAdult);
+      const displayName = typeof formatLastFirst === 'function' ? formatLastFirst(person.name) : person.name;
+
+      const avatarEl = document.getElementById('popoverAvatar');
+      if (avatarEl) {
+        avatarEl.textContent = getInitials(displayName);
+        avatarEl.className = `person-popover-avatar ${isAdult ? 'adult' : 'scout'}`;
+      }
+
+      const nameEl = document.getElementById('popoverName');
+      if (nameEl) nameEl.textContent = displayName;
+
+      const roleEl = document.getElementById('popoverRole');
+      if (roleEl) {
+        if (isAdult) {
+          roleEl.textContent = person.leadership || (person._category === 'driver' ? 'Parent Driver' : 'Adult Leader');
+        } else {
+          const parts = ['Scout'];
+          if (person.patrol) parts.push(person.patrol);
+          if (person.rank) parts.push(person.rank);
+          roleEl.textContent = parts.join(' • ');
+        }
+      }
+
+      const bodyEl = document.getElementById('popoverBody');
+      let bodyHtml = '';
+
+      if (!isAdult) {
+        // Scout Card
+        let parentsHtml = '';
+        if (person.parents && person.parents.length > 0) {
+          parentsHtml = person.parents.map(p => {
+            const pDisplay = p.displayName || (typeof formatLastFirst === 'function' ? formatLastFirst(p.name) : p.name);
+            const phoneLink = p.phone ? `<a href="tel:${cleanPhone(p.phone)}" class="person-popover-link">📞 ${escapeHtml(p.phone)}</a>` : '';
+            const emailLink = p.email ? `<a href="mailto:${escapeHtml(p.email)}" class="person-popover-link">✉️ ${escapeHtml(p.email)}</a>` : '';
+            const contactLine = [phoneLink, emailLink].filter(Boolean).join(' • ');
+            const relBadge = p.relationship && p.relationship !== 'Parent' ? `<span style="color:#64748b; font-size:0.75rem;"> (${escapeHtml(p.relationship)})</span>` : '';
+            return `
+              <div class="person-popover-item">
+                <span class="person-popover-icon">👤</span>
+                <div>
+                  <strong>${escapeHtml(pDisplay)}</strong>${relBadge}
+                  ${contactLine ? `<div style="font-size:0.75rem; margin-top:0.1rem;">${contactLine}</div>` : ''}
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else if (person.parentNames) {
+          const phoneLink = person.parentPhone ? `<a href="tel:${cleanPhone(person.parentPhone)}" class="person-popover-link">📞 ${escapeHtml(person.parentPhone)}</a>` : '';
+          parentsHtml = `
+            <div class="person-popover-item">
+              <span class="person-popover-icon">👤</span>
+              <div>
+                <strong>${escapeHtml(typeof formatLastFirst === 'function' ? formatLastFirst(person.parentNames) : person.parentNames)}</strong>
+                ${phoneLink ? `<div style="font-size:0.75rem; margin-top:0.1rem;">${phoneLink}</div>` : ''}
+              </div>
+            </div>
+          `;
+        } else {
+          parentsHtml = `<div class="person-popover-item"><span class="person-popover-icon">👤</span><span style="color:#94a3b8;">No parent contact on website</span></div>`;
+        }
+
+        bodyHtml += `
+          <div class="person-popover-section">
+            <div class="person-popover-section-label">Parents & Emergency Contacts</div>
+            ${parentsHtml}
+          </div>
+        `;
+
+        if (person.phone || person.email) {
+          const links = [];
+          if (person.phone) links.push(`<a href="tel:${cleanPhone(person.phone)}" class="person-popover-link">📞 ${escapeHtml(person.phone)}</a>`);
+          if (person.email) links.push(`<a href="mailto:${escapeHtml(person.email)}" class="person-popover-link">✉️ ${escapeHtml(person.email)}</a>`);
+          bodyHtml += `
+            <div class="person-popover-section">
+              <div class="person-popover-section-label">Scout Contact</div>
+              <div class="person-popover-item">
+                <span class="person-popover-icon">📱</span>
+                <div>${links.join(' • ')}</div>
+              </div>
+            </div>
+          `;
+        }
+
+        const detailTokens = [];
+        if (person.age) detailTokens.push(`Age ${escapeHtml(person.age)}`);
+        if (person.grade) detailTokens.push(`Grade ${escapeHtml(person.grade)}`);
+        if (person.swimLevel) detailTokens.push(`Swim: ${escapeHtml(person.swimLevel)}`);
+        if (detailTokens.length > 0) {
+          bodyHtml += `
+            <div class="person-popover-section">
+              <div class="person-popover-section-label">Details</div>
+              <div style="font-size:0.75rem; color:#64748b;">${detailTokens.join(' • ')}</div>
+            </div>
+          `;
+        }
+      } else {
+        // Adult / Driver Card
+        let scoutsHtml = '';
+        if (person.relatedScouts && person.relatedScouts.length > 0) {
+          scoutsHtml = person.relatedScouts.map(sc => {
+            const scDisplay = sc.displayName || (typeof formatLastFirst === 'function' ? formatLastFirst(sc.name) : sc.name);
+            return `
+              <div class="person-popover-item">
+                <span class="person-popover-icon">👧</span>
+                <div>
+                  <strong>${escapeHtml(scDisplay)}</strong>
+                  ${sc.patrol ? `<span style="color:#64748b; font-size:0.75rem;"> (${escapeHtml(sc.patrol)})</span>` : ''}
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          scoutsHtml = `<div class="person-popover-item"><span class="person-popover-icon">👧</span><span style="color:#94a3b8;">No scout children linked in troop</span></div>`;
+        }
+
+        bodyHtml += `
+          <div class="person-popover-section">
+            <div class="person-popover-section-label">Scout(s) in Troop</div>
+            ${scoutsHtml}
+          </div>
+        `;
+
+        const contactLinks = [];
+        if (person.phone) contactLinks.push(`<a href="tel:${cleanPhone(person.phone)}" class="person-popover-link">📞 ${escapeHtml(person.phone)}</a>`);
+        if (person.email) contactLinks.push(`<a href="mailto:${escapeHtml(person.email)}" class="person-popover-link">✉️ ${escapeHtml(person.email)}</a>`);
+        if (contactLinks.length > 0) {
+          bodyHtml += `
+            <div class="person-popover-section">
+              <div class="person-popover-section-label">Contact</div>
+              <div class="person-popover-item">
+                <span class="person-popover-icon">💬</span>
+                <div>${contactLinks.join(' • ')}</div>
+              </div>
+            </div>
+          `;
+        }
+
+        if (person.vehicle || person.registeredVehicle || person.licensePlate) {
+          const vText = [person.vehicle || person.registeredVehicle, person.licensePlate ? `(${person.licensePlate})` : ''].filter(Boolean).join(' ');
+          bodyHtml += `
+            <div class="person-popover-section">
+              <div class="person-popover-section-label">Vehicle</div>
+              <div class="person-popover-item">
+                <span class="person-popover-icon">🚗</span>
+                <div style="font-size:0.75rem;">${escapeHtml(vText)}</div>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      bodyEl.innerHTML = bodyHtml;
+
+      popover.style.display = 'block';
+      popover.setAttribute('aria-hidden', 'false');
+      positionPopover(triggerEl, popover);
+    }
+
+    function positionPopover(triggerEl, popoverEl) {
+      const rect = triggerEl.getBoundingClientRect();
+      const popoverWidth = 310;
+      const popoverHeight = popoverEl.offsetHeight || 220;
+      const margin = 8;
+
+      let left = rect.right + margin;
+      if (left + popoverWidth > window.innerWidth - 10) {
+        left = rect.left - popoverWidth - margin;
+      }
+      if (left < 10) left = 10;
+
+      let top = rect.top - 10;
+      if (top + popoverHeight > window.innerHeight - 10) {
+        top = window.innerHeight - popoverHeight - 10;
+      }
+      if (top < 10) top = 10;
+
+      popoverEl.style.left = `${left}px`;
+      popoverEl.style.top = `${top}px`;
+    }
+
+    document.addEventListener('DOMContentLoaded', setupPersonPopover);
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setupPersonPopover();
+    }
 
     // Auto-load on page ready
     loadCarpool();
   </script>
+
+  <!-- Person Detail Micro-Popover Card -->
+  <div id="personDetailPopover" class="person-popover no-print" style="display:none;" role="dialog" aria-hidden="true">
+    <div class="person-popover-header">
+      <div class="person-popover-avatar" id="popoverAvatar">?</div>
+      <div class="person-popover-title-wrap">
+        <div class="person-popover-name" id="popoverName">Name</div>
+        <div class="person-popover-role" id="popoverRole">Role</div>
+      </div>
+      <button type="button" class="person-popover-close" id="popoverCloseBtn" title="Close card">&times;</button>
+    </div>
+    <div class="person-popover-body" id="popoverBody"></div>
+  </div>
 </body>
 </html>
 

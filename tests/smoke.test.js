@@ -1918,6 +1918,157 @@ describe('Scout and roster enrichment unit test', () => {
     assert.equal(enriched.swimDate, '6/26/2026');
     assert.equal(enriched.assignedDriver, 'Ayers, Elena');
   });
+
+  it('extracts detailed contact, address, and name fields in computeRosterSummary for family linking', async () => {
+    const { computeRosterSummary } = await import('../server.js');
+
+    const csvContent = [
+      'Adult,Name,FIrst Name,Last Name,Spouse,Address,Mailing Address Line 1,City,Cell Phone,Home Phone,Email,Email #2',
+      'Y,"Chan, Eunice",Eunice,Chan,,"629 Appaloosa Dr Walnut Creek, CA",629 Appaloosa Dr,Walnut Creek,,(626) 230-9518,eunice@test.com,',
+      'N,"Ruan, Calista",Calista,Ruan,,,"629 Appaloosa Dr",Walnut Creek,(626) 230-9518,,calistaruan@test.com,',
+      'Y,"Hoover, Brad",Brad,Hoover,,,,,"(510) 229 9312",,bhooves78@test.com,',
+      'N,"Hoover, Miyako",Miyako,Hoover,,,,,"(510) 229 9312",,bhooves78@test.com,',
+    ].join('\n');
+
+    const summary = computeRosterSummary(Buffer.from(csvContent, 'utf8'));
+    assert.equal(summary.totalMembers, 4);
+    assert.equal(summary.adultsCount, 2);
+    assert.equal(summary.scoutsCount, 2);
+
+    const eunice = summary.membersByName.get('chan, eunice');
+    assert.ok(eunice);
+    assert.equal(eunice.lastName, 'Chan');
+    assert.equal(eunice.homePhone, '(626) 230-9518');
+    assert.equal(eunice.city, 'Walnut Creek');
+
+    const calista = summary.membersByName.get('ruan, calista');
+    assert.ok(calista);
+    assert.equal(calista.lastName, 'Ruan');
+    assert.equal(calista.mailingAddress, '629 Appaloosa Dr');
+
+    const brad = summary.membersByName.get('hoover, brad');
+    assert.ok(brad);
+    assert.equal(brad.cellPhone, '(510) 229-9312');
+    assert.equal(brad.email, 'bhooves78@test.com');
+  });
+
+  it('correctly maps bidirectional relationships using official TroopWebHost cross-reference reports', async () => {
+    const { computeRosterSummary } = await import('../server.js');
+
+    const rosterCsv = [
+      'Adult,Name,FIrst Name,Last Name,Cell Phone,Home Phone,Email,Patrol,Rank,Age,Grade',
+      'Y,"Chan, Eunice",Eunice,Chan,,(626) 230-9518,eunicecchan@gmail.com,,,',
+      'N,"Ruan, Calista",Calista,Ruan,,,,Owl,Life,15,10',
+      'Y,"Hoover, Brad",Brad,Hoover,(510) 229-9312,,bhooves78@gmail.com,,,',
+      'N,"Hoover, Miyako",Miyako,Hoover,,,,Owlet,Scout,12,7',
+      'N,"Goudarzi, Elina",Elina,Goudarzi,,,,Falcon,Star,13,8',
+      'Y,"Yousefi, Fatemeh",Fatemeh,Yousefi,(949) 886-4197,,f.yousefi5@gmail.com,,,',
+      'Y,"Shafer, Cindy",Cynthia,Shafer,,(510) 823-9677,cmshafer@yahoo.com,,,',
+      'N,"Schonfeld, Rachael",Rachael,Schonfeld,,,,Athena,Life,15,10',
+    ].join('\n');
+
+    // 52053: Scout Parent Cross Reference With Contact Info
+    const crossRef52053 = [
+      'Scout,Parent/Guardian,Relationship,"Parent\'s Phone","Parent\'s E-Mail"',
+      '"Ruan, Calista","Chan, Eunice",Parent,"H: (626) 230-9518",eunicecchan@gmail.com',
+      '"Hoover, Miyako","Hoover, Brad",Parent,"C: (510) 229-9312",bhooves78@gmail.com',
+      '"Goudarzi, Elina","Yousefi, Fatemeh",Parent,"(949) 886-4197",f.yousefi5@gmail.com',
+      '"Schonfeld, Rachael","Shafer, Cynthia ""Cindy""",Parent,"H: (510) 823-9677",cmshafer@yahoo.com',
+    ].join('\n');
+
+    // 52055: Parent Scout Cross Reference
+    const crossRef52055 = [
+      'Parent/Guardian,Scout,Relationship',
+      '"Chan, Eunice","Ruan, Calista",Parent',
+      '"Hoover, Brad","Hoover, Miyako",Parent',
+      '"Yousefi, Fatemeh","Goudarzi, Elina",Parent',
+      '"Shafer, Cynthia ""Cindy""","Schonfeld, Rachael",Parent',
+    ].join('\n');
+
+    const summary = computeRosterSummary(
+      Buffer.from(rosterCsv, 'utf8'),
+      Buffer.from(crossRef52053, 'utf8'),
+      Buffer.from(crossRef52055, 'utf8'),
+    );
+
+    assert.ok(summary.crossRef);
+    const { scoutToParents, adultToScouts } = summary.crossRef;
+
+    // Check Eunice Chan -> Calista Ruan
+    const euniceScouts = adultToScouts.get('eunice chan');
+    assert.ok(euniceScouts);
+    assert.equal(euniceScouts.length, 1);
+    assert.equal(euniceScouts[0].name, 'Ruan, Calista');
+    assert.equal(euniceScouts[0].patrol, 'Owl');
+    assert.equal(euniceScouts[0].rank, 'Life');
+    assert.equal(euniceScouts[0].age, '15');
+    assert.equal(euniceScouts[0].grade, '10');
+
+    // Check Calista Ruan -> Eunice Chan
+    const calistaParents = scoutToParents.get('calista ruan');
+    assert.ok(calistaParents);
+    assert.equal(calistaParents.length, 1);
+    assert.equal(calistaParents[0].name, 'Chan, Eunice');
+    assert.equal(calistaParents[0].email, 'eunicecchan@gmail.com');
+    assert.equal(calistaParents[0].phone, '(626) 230-9518');
+
+    // Check Brad Hoover -> Miyako Hoover
+    const bradScouts = adultToScouts.get('brad hoover');
+    assert.ok(bradScouts);
+    assert.equal(bradScouts.length, 1);
+    assert.equal(bradScouts[0].name, 'Hoover, Miyako');
+    assert.equal(bradScouts[0].patrol, 'Owlet');
+
+    // Check Elina Goudarzi -> Fatemeh Yousefi
+    const elinaParents = scoutToParents.get('elina goudarzi');
+    assert.ok(elinaParents);
+    assert.equal(elinaParents.length, 1);
+    assert.equal(elinaParents[0].name, 'Yousefi, Fatemeh');
+    assert.equal(elinaParents[0].phone, '(949) 886-4197');
+
+    // Check Cindy Shafer -> Rachael Schonfeld with nickname and quotes
+    const cindyScouts = adultToScouts.get('cindy shafer');
+    assert.ok(cindyScouts, 'Cindy Shafer should resolve Rachael Schonfeld');
+    assert.equal(cindyScouts.length, 1);
+    assert.equal(cindyScouts[0].name, 'Schonfeld, Rachael');
+    assert.equal(cindyScouts[0].displayName, 'Rachael Schonfeld');
+
+    // Check Rachael Schonfeld -> Cindy Shafer
+    const rachaelParents = scoutToParents.get('rachael schonfeld');
+    assert.ok(rachaelParents, 'Rachael Schonfeld should resolve Cindy Shafer');
+    assert.equal(rachaelParents.length, 1);
+    assert.equal(rachaelParents[0].phone, '(510) 823-9677');
+  });
+
+  it('safely deduplicates contact info and emergency contacts without erroneous merges', async () => {
+    const { cleanAndDedupePhones, areExactSamePersonName } = await import('../server.js');
+
+    // Consolidates identical Home and Cell numbers
+    assert.equal(cleanAndDedupePhones('H: (408) 660-5499 C: (408) 660-5499'), '(408) 660-5499');
+    assert.equal(cleanAndDedupePhones('H: 4155356600 C: (415) 535 6600'), '(415) 535-6600');
+
+    // Preserves distinct numbers
+    assert.equal(
+      cleanAndDedupePhones('H: 9253309224 C: (925) 239-6610 W: 9252396610'),
+      '(925) 330-9224 / (925) 239-6610'
+    );
+    assert.equal(
+      cleanAndDedupePhones('(415) 722-4453', '415-722-5925'),
+      '(415) 722-4453 / (415) 722-5925'
+    );
+
+    // Exact same person names in different order match
+    assert.ok(areExactSamePersonName('Adams, Melanie', 'Melanie Adams'));
+    assert.ok(areExactSamePersonName('Aguillon, Tammy', 'Tammy aguillon'));
+    assert.ok(areExactSamePersonName('Ayers, Elena', 'Elena Ayers'));
+    assert.ok(areExactSamePersonName('Bronson, Darren', 'Darren Bronson'));
+
+    // Nicknames vs full names are conservatively NOT merged to prevent incorrect assumptions
+    assert.equal(areExactSamePersonName('Anderson, Kimberly', 'Kim Anderson'), false);
+    assert.equal(areExactSamePersonName('Bronson, Jacqueline', 'Jackie Bronson'), false);
+    assert.equal(areExactSamePersonName('Anderson, Charles', 'Chuck Anderson'), false);
+    assert.equal(areExactSamePersonName('Aguillon, Tammy', 'armando aguillon'), false);
+  });
 });
 
 describe('Tabular Cartesian Excel export unit test', () => {

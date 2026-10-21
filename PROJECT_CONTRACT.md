@@ -239,6 +239,27 @@ K.6 Does not require prior authentication or application key.
 10.22.2 Client-Side Route Fallback: The manager console MUST catch 404 responses on `/api/roster/summary` and fall back to `/api/roster-summary` before reporting errors.
 10.22.3 Auto-Retry & Revalidation: If a roster sync request fails, the manager console MUST retry automatically with backoff, re-check on tab focus/visibility, and provide manual retry controls (`🔄 Sync Roster` button and clickable status card).
 
-
-
-
+## 11. Authoritative Family Relationship Linking & Contact Integrity Contract
+11.1 Authoritative Relational Sources (Zero Heuristic Ambiguity):
+11.1.1 Relationship data between scouts and adults MUST be ingested directly from official TroopWebHost relational reports:
+  - **Menu_Item_ID=52053**: *Scout Parent Cross Reference With Contact Info* (authoritative mapping from scout to official parents/guardians, with primary phone and email).
+  - **Menu_Item_ID=52055**: *Parent Scout Cross Reference* (authoritative bidirectional mapping from parent/guardian to scout children).
+  - **Menu_Item_ID=45897**: *Troop Roster Export* (authoritative membership details including patrol, rank, age, grade, vehicle, and emergency contacts).
+11.1.2 Heuristic or fuzzy guessing (such as matching by street address, phone area code, or shared last name) is strictly forbidden for establishing family relationships. The system relies entirely on TWH's relational tables for zero-ambiguity linking.
+11.2 Discrete Object Structures for People & Relationships:
+11.2.1 Scouts MUST carry a discrete `parents` array containing structured parent/contact objects:
+  `{ name: string, displayName: string, relationship: string, phone: string, email: string, isEmergencyContact: boolean }`.
+11.2.2 Adults and drivers MUST carry a discrete `relatedScouts` array containing structured scout child objects:
+  `{ name: string, displayName: string, relationship: string, patrol: string, rank: string, age: string, grade: string, phone: string, email: string }`.
+11.2.3 All person records MUST supply both a canonical identifier (`name`, e.g. `"Last, First"`) and a cleaned human-readable representation (`displayName`, e.g. `"First Last"`) to ensure uniform, unfragmented presentation across tables and hover cards.
+11.3 Nickname & Quote Resolution for Cross-Referenced Entities:
+11.3.1 TWH cross-reference reports often encapsulate nicknames in quotes (`Last, First "Nickname"`, e.g. `Shafer, Cynthia "Cindy"` or `Anderson, Charles "Chuck "Smokey""`). The name variation resolver MUST parse quoted tokens and register both formal names (`Cynthia Shafer`) and nickname aliases (`Cindy Shafer`).
+11.3.2 Roster indexing (`membersByName`) MUST index member objects under both raw names, display names, and known nickname variations (`NICKNAMES`), ensuring that parents registered on events under nicknames (e.g. `Cindy Shafer`) deterministically resolve their cross-referenced children (`Rachael Schonfeld`).
+11.4 Safe Merging & Erroneous Duplication Elimination:
+11.4.1 Exact Token Matching: When a scout's emergency contact name consists of the exact same word tokens as an official parent from report 52053 (e.g. `Adams, Melanie` $\leftrightarrow$ `Melanie Adams`, or `Aguillon, Tammy` $\leftrightarrow$ `Tammy aguillon`), the system MUST safely merge them into a single parent entry rather than duplicating.
+11.4.2 Conservative Nickname Preservation: When an emergency contact name differs from a parent name by nickname (e.g. `Kim Anderson` vs `Anderson, Kimberly`, or `Jackie Bronson` vs `Bronson, Jacqueline`), the system MUST NOT combine them. Both entries are preserved distinctly to prevent erroneous assumptions.
+11.4.3 Multi-Source Contact Coalescing: When merging an emergency contact with an existing parent, any additional phone numbers or email addresses are merged into the parent record.
+11.5 Phone Number Deduplication & Formatting:
+11.5.1 Redundant phone listings from TWH (e.g. `H: (408) 660-5499 C: (408) 660-5499` where identical numbers are saved for multiple phone types) MUST be deduplicated by their 10-digit number.
+11.5.2 All phone numbers MUST be standardized into clean `(XXX) XXX-XXXX` format.
+11.5.3 Genuinely distinct phone numbers (e.g. distinct home and cell lines) are preserved and separated with a clean delimiter (`(415) 722-4453 / (415) 722-5925`).
