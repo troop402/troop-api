@@ -405,13 +405,240 @@ async function authenticateTroopWebHost({ troopUrl, username, password }, forceF
   return sessionResult;
 }
 
-async function downloadRosterExport({ client, rootUrl, loginUrl }) {
+function getFirstAndLast(rawName) {
+  if (!rawName) return { first: '', last: '' };
+  const trimmed = rawName.trim();
+  if (trimmed.includes(',')) {
+    const parts = trimmed.split(',').map((s) => s.trim().toLowerCase());
+    return { last: parts[0] || '', first: parts.slice(1).join(' ') || '' };
+  }
+  const parts = trimmed.split(/\s+/).map((s) => s.toLowerCase());
+  return { first: parts.slice(0, parts.length - 1).join(' ') || '', last: parts[parts.length - 1] || '' };
+}
+
+const NICKNAMES = {
+  tom: ['thomas', 'tommy'],
+  thomas: ['tom', 'tommy'],
+  tommy: ['tom', 'thomas'],
+  mike: ['michael', 'mikey'],
+  michael: ['mike', 'mikey'],
+  mikey: ['mike', 'michael'],
+  chris: ['christopher', 'christina', 'christine'],
+  christopher: ['chris'],
+  dan: ['daniel', 'danny'],
+  daniel: ['dan', 'danny'],
+  dave: ['david', 'davey'],
+  david: ['dave', 'davey'],
+  matt: ['matthew'],
+  matthew: ['matt'],
+  ben: ['benjamin', 'benny'],
+  benjamin: ['ben', 'benny'],
+  alex: ['alexander', 'alexandra', 'alexis'],
+  alexander: ['alex'],
+  alexandra: ['alex', 'ally', 'allie'],
+  sam: ['samuel', 'samantha', 'sammy'],
+  samuel: ['sam', 'sammy'],
+  samantha: ['sam', 'sammy'],
+  nick: ['nicholas'],
+  nicholas: ['nick'],
+  kate: ['katherine', 'catherine', 'katie'],
+  katie: ['katherine', 'catherine', 'kate'],
+  katherine: ['kate', 'katie', 'kathy'],
+  catherine: ['kate', 'katie', 'cathy'],
+  liz: ['elizabeth', 'lizzie', 'beth', 'ellie'],
+  beth: ['elizabeth'],
+  ellie: ['elizabeth', 'eleanor', 'ellen'],
+  elizabeth: ['liz', 'lizzie', 'beth', 'ellie'],
+  jen: ['jennifer', 'jenny'],
+  jenny: ['jennifer', 'jen'],
+  jennifer: ['jen', 'jenny'],
+  em: ['emily', 'emma'],
+  emily: ['em'],
+  emma: ['em'],
+  madi: ['madison', 'madelaine', 'madeline', 'maddie', 'maddy'],
+  maddie: ['madison', 'madelaine', 'madeline', 'madi', 'maddy'],
+  maddy: ['madison', 'madelaine', 'madeline', 'maddie', 'madi'],
+  madison: ['madi', 'maddie', 'maddy'],
+  madeline: ['madi', 'maddie', 'maddy'],
+  madelaine: ['madi', 'maddie', 'maddy'],
+  will: ['william', 'bill', 'billy', 'liam'],
+  bill: ['william', 'will', 'billy'],
+  william: ['will', 'bill', 'billy', 'liam'],
+  rob: ['robert', 'bob', 'bobby'],
+  bob: ['robert', 'rob', 'bobby'],
+  robert: ['rob', 'bob', 'bobby'],
+  jim: ['james', 'jimmy'],
+  james: ['jim', 'jimmy'],
+  joe: ['joseph', 'joey'],
+  joseph: ['joe', 'joey'],
+  jon: ['jonathan', 'john'],
+  john: ['jon', 'johnny', 'jonathan'],
+  jonathan: ['jon', 'john'],
+  greg: ['gregory'],
+  gregory: ['greg'],
+  steve: ['steven', 'stephen'],
+  steven: ['steve'],
+  stephen: ['steve'],
+  andy: ['andrew', 'drew'],
+  andrew: ['andy', 'drew'],
+  zach: ['zachary', 'zack'],
+  zachary: ['zach', 'zack'],
+  josh: ['joshua'],
+  joshua: ['josh'],
+  tim: ['timothy', 'timmy'],
+  timothy: ['tim', 'timmy'],
+  ken: ['kenneth', 'kenny'],
+  kenneth: ['ken', 'kenny'],
+  tony: ['anthony'],
+  anthony: ['tony'],
+  cindy: ['cynthia'],
+  cynthia: ['cindy'],
+  chuck: ['charles'],
+  charles: ['chuck'],
+  sandy: ['sandra'],
+  sandra: ['sandy'],
+  kim: ['kimberly'],
+  kimberly: ['kim'],
+  jackie: ['jacqueline'],
+  jacqueline: ['jackie'],
+  penny: ['penelope'],
+  penelope: ['penny'],
+  katrina: ['ekaterina'],
+  ekaterina: ['katrina'],
+};
+
+function normalizeFullName(name) {
+  return (name || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim().replace(/\s+/g, ' ');
+}
+
+function toDisplayName(rawName) {
+  if (!rawName) return '';
+  const trimmed = rawName.trim();
+  if (trimmed.includes(',')) {
+    const parts = trimmed.split(',').map((s) => s.trim());
+    const last = parts[0] || '';
+    const first = parts.slice(1).join(' ') || '';
+    return `${first} ${last}`.trim();
+  }
+  return trimmed;
+}
+
+function cleanAndDedupePhones(...phoneInputs) {
+  const rawList = phoneInputs.filter(Boolean).join(' ');
+  if (!rawList) return '';
+
+  const phoneRegex = /(?:([HCW]):\s*)?(\+?1?[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/gi;
+  const found = [];
+  let match;
+  while ((match = phoneRegex.exec(rawList)) !== null) {
+    const rawNum = match[2];
+    const digits = rawNum.replace(/\D/g, '').slice(-10);
+    if (digits.length === 10) {
+      found.push({ rawNum: rawNum.trim(), digits });
+    }
+  }
+
+  if (found.length === 0) {
+    return rawList.replace(/\s+/g, ' ').trim();
+  }
+
+  const seenDigits = new Set();
+  const unique = [];
+  for (const item of found) {
+    if (!seenDigits.has(item.digits)) {
+      seenDigits.add(item.digits);
+      const formatted = `(${item.digits.slice(0, 3)}) ${item.digits.slice(3, 6)}-${item.digits.slice(6)}`;
+      unique.push(formatted);
+    }
+  }
+  return unique.join(' / ');
+}
+
+function areExactSamePersonName(nameA, nameB) {
+  if (!nameA || !nameB) return false;
+  const tokensA = normalizeFullName(nameA).split(' ').filter(Boolean).sort();
+  const tokensB = normalizeFullName(nameB).split(' ').filter(Boolean).sort();
+  if (tokensA.length === 0 || tokensB.length === 0) return false;
+  if (tokensA.length !== tokensB.length) return false;
+  return tokensA.every((t, i) => t === tokensB[i]);
+}
+
+function getNameVariations(rawName) {
+  if (!rawName) return [];
+  const trimmed = rawName.trim();
+  const set = new Set();
+
+  function addPair(last, first) {
+    if (!last && !first) return;
+    if (last && first) {
+      set.add(normalizeFullName(`${last} ${first}`));
+      set.add(normalizeFullName(`${first} ${last}`));
+    } else if (last) {
+      set.add(normalizeFullName(last));
+    }
+  }
+
+  // Raw normalized representation
+  set.add(normalizeFullName(trimmed));
+
+  // Extract quoted nicknames (e.g. Shafer, Cynthia "Cindy" or Anderson, Charles "Chuck "Smokey"")
+  const nicknames = [];
+  const quoteRegex = /"([^"]+)"/g;
+  let qMatch;
+  while ((qMatch = quoteRegex.exec(trimmed)) !== null) {
+    const n = qMatch[1].trim();
+    if (n) nicknames.push(n);
+  }
+
+  const unquoted = trimmed.replace(/"[^"]*"/g, ' ').replace(/\s+/g, ' ').trim();
+
+  let lastName = '';
+  let firstName = '';
+  if (unquoted.includes(',')) {
+    const parts = unquoted.split(',').map((s) => s.trim());
+    lastName = parts[0] || '';
+    firstName = parts.slice(1).join(' ') || '';
+    addPair(lastName, firstName);
+  } else {
+    const parts = unquoted.split(/\s+/);
+    if (parts.length >= 2) {
+      lastName = parts[parts.length - 1];
+      firstName = parts.slice(0, -1).join(' ');
+      addPair(lastName, firstName);
+    }
+  }
+
+  // Add variations for each quoted nickname
+  for (const nick of nicknames) {
+    const cleanNicks = nick.replace(/"/g, ' ').split(/\s+/).filter(Boolean);
+    for (const cn of cleanNicks) {
+      if (lastName) {
+        addPair(lastName, cn);
+      }
+    }
+  }
+
+  // Add variations for known dictionary nicknames
+  if (firstName && lastName) {
+    const fnTokens = firstName.toLowerCase().split(/\s+/);
+    for (const tok of fnTokens) {
+      const aliases = NICKNAMES[tok] || [];
+      for (const alias of aliases) {
+        addPair(lastName, alias);
+      }
+    }
+  }
+
+  return Array.from(set).filter(Boolean);
+}
+
+async function downloadReportExport({ client, rootUrl, loginUrl }, menuItemId) {
   let lastError;
 
   for (const format of ['CSV', 'XLS']) {
     try {
       const reportUrl = new URL(
-        `/FormReport.aspx?Menu_Item_ID=45897&Stack=1&ReportFormat=${format}`,
+        `/FormReport.aspx?Menu_Item_ID=${menuItemId}&Stack=1&ReportFormat=${format}`,
         loginUrl,
       ).toString();
       const reportResponse = await client.get(reportUrl, {
@@ -437,27 +664,147 @@ async function downloadRosterExport({ client, rootUrl, loginUrl }) {
         return reportBuffer;
       }
 
-      lastError = new Error(`TroopWebHost returned an unusable ${format} export response.`);
+      lastError = new Error(`TroopWebHost returned an unusable ${format} export response for menu item ${menuItemId}.`);
     } catch (error) {
       lastError = error;
     }
   }
 
-  throw new Error(lastError?.message || 'Authentication failed or the export could not be retrieved.');
+  return null;
+}
+
+async function downloadRosterExport(session) {
+  const buf = await downloadReportExport(session, 45897);
+  if (!buf) {
+    throw new Error('TroopWebHost roster export (Menu_Item_ID=45897) could not be retrieved.');
+  }
+  return buf;
 }
 
 async function fetchRosterFromTroopWebHost(config) {
   let session = await authenticateTroopWebHost(config);
   try {
-    return await downloadRosterExport(session);
+    const [rosterBuffer, crossRef52053Buffer, crossRef52055Buffer] = await Promise.all([
+      downloadRosterExport(session),
+      downloadReportExport(session, 52053).catch(() => null),
+      downloadReportExport(session, 52055).catch(() => null),
+    ]);
+    return { rosterBuffer, crossRef52053Buffer, crossRef52055Buffer };
   } catch (err) {
     invalidateTwhSession();
     session = await authenticateTroopWebHost(config, true);
-    return downloadRosterExport(session);
+    const [rosterBuffer, crossRef52053Buffer, crossRef52055Buffer] = await Promise.all([
+      downloadRosterExport(session),
+      downloadReportExport(session, 52053).catch(() => null),
+      downloadReportExport(session, 52055).catch(() => null),
+    ]);
+    return { rosterBuffer, crossRef52053Buffer, crossRef52055Buffer };
   }
 }
 
-function computeRosterSummary(csvBuffer) {
+function computeCrossReferenceMaps(crossRef52053Buffer, crossRef52055Buffer, membersByName) {
+  const scoutToParents = new Map();
+  const adultToScouts = new Map();
+
+  function addLink(scoutName, parentName, relationship, parentPhone = '', parentEmail = '') {
+    if (!scoutName || !parentName) return;
+    const sVars = getNameVariations(scoutName);
+    const aVars = getNameVariations(parentName);
+
+    let sInfo = membersByName?.get(scoutName.toLowerCase()) || null;
+    if (!sInfo && membersByName) {
+      for (const sv of sVars) {
+        if (membersByName.has(sv)) {
+          sInfo = membersByName.get(sv);
+          break;
+        }
+      }
+    }
+
+    let aInfo = membersByName?.get(parentName.toLowerCase()) || null;
+    if (!aInfo && membersByName) {
+      for (const av of aVars) {
+        if (membersByName.has(av)) {
+          aInfo = membersByName.get(av);
+          break;
+        }
+      }
+    }
+
+    const pPhone = cleanAndDedupePhones(aInfo?.phone || aInfo?.cellPhone || aInfo?.homePhone || parentPhone || '');
+    const pEmail = aInfo?.email || parentEmail || '';
+
+    // Add to scoutToParents
+    for (const sv of sVars) {
+      const list = scoutToParents.get(sv) || [];
+      const already = list.some((p) => {
+        const pVars = getNameVariations(p.name);
+        return aVars.some((av) => pVars.includes(av));
+      });
+      if (!already) {
+        list.push({
+          name: aInfo?.name || parentName,
+          displayName: aInfo?.name ? toDisplayName(aInfo.name) : toDisplayName(parentName),
+          relationship: relationship || 'Parent',
+          phone: pPhone,
+          email: pEmail,
+        });
+      }
+      scoutToParents.set(sv, list);
+    }
+
+    // Add to adultToScouts
+    for (const av of aVars) {
+      const list = adultToScouts.get(av) || [];
+      const already = list.some((s) => {
+        const sVarsList = getNameVariations(s.name);
+        return sVars.some((sv) => sVarsList.includes(sv));
+      });
+      if (!already) {
+        list.push({
+          name: sInfo?.name || scoutName,
+          displayName: sInfo?.name ? toDisplayName(sInfo.name) : toDisplayName(scoutName),
+          relationship: relationship || 'Parent',
+          patrol: sInfo?.patrol || '',
+          rank: sInfo?.rank || '',
+          age: sInfo?.age || '',
+          grade: sInfo?.grade || '',
+          phone: cleanAndDedupePhones(sInfo?.phone || sInfo?.cellPhone || ''),
+          email: sInfo?.email || '',
+        });
+      }
+      adultToScouts.set(av, list);
+    }
+  }
+
+  if (crossRef52053Buffer) {
+    const text = crossRef52053Buffer.toString('utf8');
+    const records = parseCsv(text);
+    for (const row of records) {
+      const sName = (row.Scout || '').trim();
+      const pName = (row['Parent/Guardian'] || '').trim();
+      const rel = (row.Relationship || '').trim();
+      const pPhone = (row["Parent's Phone"] || '').trim();
+      const pEmail = (row["Parent's E-Mail"] || '').trim();
+      addLink(sName, pName, rel, pPhone, pEmail);
+    }
+  }
+
+  if (crossRef52055Buffer) {
+    const text = crossRef52055Buffer.toString('utf8');
+    const records = parseCsv(text);
+    for (const row of records) {
+      const sName = (row.Scout || '').trim();
+      const pName = (row['Parent/Guardian'] || '').trim();
+      const rel = (row.Relationship || '').trim();
+      addLink(sName, pName, rel);
+    }
+  }
+
+  return { scoutToParents, adultToScouts };
+}
+
+function computeRosterSummary(csvBuffer, crossRef52053Buffer = null, crossRef52055Buffer = null) {
   const text = csvBuffer.toString('utf8');
   const records = parseCsv(text);
 
@@ -483,26 +830,51 @@ function computeRosterSummary(csvBuffer) {
       const parentNames = [parent1, parent2].filter(Boolean).join(' / ');
       const parentPhone = [parentPhone1, parentPhone2].filter(Boolean).join(' / ');
 
-      membersByName.set(name.toLowerCase(), {
+      const rawCell = row['Cell Phone'] || '';
+      const rawHome = row['Home Phone'] || '';
+      const rawWork = row['Business Phone'] || row['Work Phone'] || '';
+      const rawEmail = row.Email || '';
+      const rawEmail2 = row['Email #2'] || '';
+      const rawAddress = row.Address || '';
+      const rawMailing = row['Mailing Address Line 1'] || '';
+      const rawCity = row.City || '';
+      let rawLastName = (row['Last Name'] || '').trim();
+      let rawFirstName = (row['FIrst Name'] || row['First Name'] || '').trim();
+      if (!rawLastName && name.includes(',')) rawLastName = name.split(',')[0].trim();
+      if (!rawFirstName && name.includes(',')) rawFirstName = name.split(',')[1].trim();
+      const rawSpouse = row.Spouse || '';
+
+      const memberObj = {
         name,
+        displayName: toDisplayName(name),
         isAdult,
         leadership: row.Leadership || '',
         patrol: row.Patrol || '',
         rank: row.Rank || '',
         age: row.Age || '',
         grade: row.Grade || '',
-        phone: row['Cell Phone'] || row['Home Phone'] || '',
-        email: row.Email || '',
+        phone: cleanAndDedupePhones(rawCell, rawHome),
+        cellPhone: cleanAndDedupePhones(rawCell),
+        homePhone: cleanAndDedupePhones(rawHome),
+        workPhone: cleanAndDedupePhones(rawWork),
+        email: rawEmail,
+        email2: rawEmail2,
+        address: rawAddress,
+        mailingAddress: rawMailing,
+        city: rawCity,
+        lastName: rawLastName,
+        firstName: rawFirstName,
+        spouse: rawSpouse,
         seatBelts: parseInt(row['Seat Belts'], 10) || 0,
         vehicle: row['Make/Model/Year'] || '',
         licensePlate: row['License Plate'] || '',
         driverLicense: row["Driver's License"] || '',
         parentNames,
-        parentPhone,
+        parentPhone: cleanAndDedupePhones(parentPhone),
         emergencyContact1: parent1,
-        emergencyContact1Phone: parentPhone1,
+        emergencyContact1Phone: cleanAndDedupePhones(parentPhone1),
         emergencyContact2: parent2,
-        emergencyContact2Phone: parentPhone2,
+        emergencyContact2Phone: cleanAndDedupePhones(parentPhone2),
         allergies: row.Allergies || '',
         dietary: row['Dietary Restrictions'] || '',
         swimLevel: row['Swim Level'] || '',
@@ -512,15 +884,30 @@ function computeRosterSummary(csvBuffer) {
         medicalPartA: row['Medical Part A'] || '',
         medicalPartB: row['Medical Part B'] || '',
         medicalPartC: row['Medical Part C'] || '',
-      });
+      };
+
+      membersByName.set(name.toLowerCase(), memberObj);
+      const allVars = new Set([
+        ...getNameVariations(name),
+        ...getNameVariations(`${rawLastName}, ${rawFirstName}`),
+        ...getNameVariations(`${rawFirstName} ${rawLastName}`),
+      ]);
+      for (const v of allVars) {
+        if (!membersByName.has(v)) {
+          membersByName.set(v, memberObj);
+        }
+      }
     }
   }
+
+  const crossRef = computeCrossReferenceMaps(crossRef52053Buffer, crossRef52055Buffer, membersByName);
 
   return {
     totalMembers: records.length,
     scoutsCount,
     adultsCount,
     membersByName,
+    crossRef,
   };
 }
 
@@ -540,15 +927,20 @@ async function getRosterData(forceRefresh = false) {
 
   activeRosterPromise = (async () => {
     const config = getTroopWebHostConfig();
-    const buffer = await fetchRosterFromTroopWebHost(config);
-    const summary = computeRosterSummary(buffer);
+    const fetchResult = await fetchRosterFromTroopWebHost(config);
+    const rosterBuffer = Buffer.isBuffer(fetchResult) ? fetchResult : fetchResult.rosterBuffer;
+    const crossRef52053Buffer = fetchResult.crossRef52053Buffer || null;
+    const crossRef52055Buffer = fetchResult.crossRef52055Buffer || null;
+    const summary = computeRosterSummary(rosterBuffer, crossRef52053Buffer, crossRef52055Buffer);
 
-    cache.rosterBuffer = buffer;
+    cache.rosterBuffer = rosterBuffer;
+    cache.crossRef52053Buffer = crossRef52053Buffer;
+    cache.crossRef52055Buffer = crossRef52055Buffer;
     cache.rosterSummary = summary;
     cache.rosterTimestamp = Date.now();
 
     return {
-      buffer,
+      buffer: rosterBuffer,
       summary,
       cachedAt: new Date(cache.rosterTimestamp).toISOString(),
       fresh: false,
@@ -817,83 +1209,6 @@ function filterEventsByDays(events, days) {
     })
     .map(({ startDateObj, endDateObj, ...rest }) => rest);
 }
-
-const NICKNAMES = {
-  tom: ['thomas', 'tommy'],
-  thomas: ['tom', 'tommy'],
-  tommy: ['tom', 'thomas'],
-  mike: ['michael', 'mikey'],
-  michael: ['mike', 'mikey'],
-  mikey: ['mike', 'michael'],
-  chris: ['christopher', 'christina', 'christine'],
-  christopher: ['chris'],
-  dan: ['daniel', 'danny'],
-  daniel: ['dan', 'danny'],
-  dave: ['david', 'davey'],
-  david: ['dave', 'davey'],
-  matt: ['matthew'],
-  matthew: ['matt'],
-  ben: ['benjamin', 'benny'],
-  benjamin: ['ben', 'benny'],
-  alex: ['alexander', 'alexandra', 'alexis'],
-  alexander: ['alex'],
-  alexandra: ['alex', 'ally', 'allie'],
-  sam: ['samuel', 'samantha', 'sammy'],
-  samuel: ['sam', 'sammy'],
-  samantha: ['sam', 'sammy'],
-  nick: ['nicholas'],
-  nicholas: ['nick'],
-  kate: ['katherine', 'catherine', 'katie'],
-  katie: ['katherine', 'catherine', 'kate'],
-  katherine: ['kate', 'katie', 'kathy'],
-  catherine: ['kate', 'katie', 'cathy'],
-  liz: ['elizabeth', 'lizzie', 'beth', 'ellie'],
-  beth: ['elizabeth'],
-  ellie: ['elizabeth', 'eleanor', 'ellen'],
-  elizabeth: ['liz', 'lizzie', 'beth', 'ellie'],
-  jen: ['jennifer', 'jenny'],
-  jenny: ['jennifer', 'jen'],
-  jennifer: ['jen', 'jenny'],
-  em: ['emily', 'emma'],
-  emily: ['em'],
-  emma: ['em'],
-  madi: ['madison', 'madelaine', 'madeline', 'maddie', 'maddy'],
-  maddie: ['madison', 'madelaine', 'madeline', 'madi', 'maddy'],
-  maddy: ['madison', 'madelaine', 'madeline', 'maddie', 'madi'],
-  madison: ['madi', 'maddie', 'maddy'],
-  madeline: ['madi', 'maddie', 'maddy'],
-  madelaine: ['madi', 'maddie', 'maddy'],
-  will: ['william', 'bill', 'billy', 'liam'],
-  bill: ['william', 'will', 'billy'],
-  william: ['will', 'bill', 'billy', 'liam'],
-  rob: ['robert', 'bob', 'bobby'],
-  bob: ['robert', 'rob', 'bobby'],
-  robert: ['rob', 'bob', 'bobby'],
-  jim: ['james', 'jimmy'],
-  james: ['jim', 'jimmy'],
-  joe: ['joseph', 'joey'],
-  joseph: ['joe', 'joey'],
-  jon: ['jonathan', 'john'],
-  john: ['jon', 'johnny', 'jonathan'],
-  jonathan: ['jon', 'john'],
-  greg: ['gregory'],
-  gregory: ['greg'],
-  steve: ['steven', 'stephen'],
-  steven: ['steve'],
-  stephen: ['steve'],
-  andy: ['andrew', 'drew'],
-  andrew: ['andy', 'drew'],
-  zach: ['zachary', 'zack'],
-  zachary: ['zach', 'zack'],
-  josh: ['joshua'],
-  joshua: ['josh'],
-  tim: ['timothy', 'timmy'],
-  timothy: ['tim', 'timmy'],
-  ken: ['kenneth', 'kenny'],
-  kenneth: ['ken', 'kenny'],
-  tony: ['anthony'],
-  anthony: ['tony'],
-};
 
 function firstMatches(token, candidateFirst) {
   if (!token || !candidateFirst) return false;
@@ -2511,13 +2826,17 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
     const rawAdults = parseCsv(adultsCsv);
     const rawScouts = parseCsv(scoutsCsv);
 
-    // Get roster members map if available to enrich contact details
+    // Get roster members map and cross-reference maps if available to enrich contact details
     let membersMap = new Map();
     let rosterMembers = [];
+    let crossRefMaps = { scoutToParents: new Map(), adultToScouts: new Map() };
     try {
       const rosterData = await getRosterData(false);
       membersMap = rosterData.summary.membersByName;
       rosterMembers = Array.from(rosterData.summary.membersByName.values());
+      if (rosterData.summary.crossRef) {
+        crossRefMaps = rosterData.summary.crossRef;
+      }
     } catch {
       // Enrichment is best-effort
     }
@@ -2656,6 +2975,126 @@ async function fetchEventCarpoolDetails({ eventId, forceRefresh = false }) {
 
     // Scout-centric seat balance: passenger seats offered vs (scouts + adult ride-alongs)
     const seatBalance = totalSeatsOffered - (totalAttendingScouts + adultRidersCount);
+
+    // Enrich drivers with relatedScouts from official TWH cross-reference data
+    for (const d of drivers) {
+      const vars = getNameVariations(d.name);
+      let related = [];
+      for (const v of vars) {
+        const found = crossRefMaps.adultToScouts.get(v);
+        if (found && found.length > 0) {
+          related = found;
+          break;
+        }
+      }
+      d.relatedScouts = related;
+    }
+
+    // Enrich adults with relatedScouts from official TWH cross-reference data
+    for (const a of adults) {
+      const vars = getNameVariations(a.name);
+      let related = [];
+      for (const v of vars) {
+        const found = crossRefMaps.adultToScouts.get(v);
+        if (found && found.length > 0) {
+          related = found;
+          break;
+        }
+      }
+      a.relatedScouts = related;
+    }
+
+    // Enrich all scouts with full parent objects & contact details from official TWH cross-reference data
+    for (const s of scouts) {
+      const rosterInfo = membersMap.get(s.name.toLowerCase()) || {};
+      const sVars = getNameVariations(s.name);
+
+      let matchedParents = [];
+      for (const v of sVars) {
+        const found = crossRefMaps.scoutToParents.get(v);
+        if (found && found.length > 0) {
+          matchedParents = found;
+          break;
+        }
+      }
+
+      // Deduplicate parent contacts from official cross-reference
+      const dedupedParents = [];
+      for (const p of matchedParents) {
+        const cleanPhone = cleanAndDedupePhones(p.phone);
+        const existing = dedupedParents.find((x) => areExactSamePersonName(x.name, p.name));
+        if (existing) {
+          existing.phone = cleanAndDedupePhones(existing.phone, cleanPhone);
+          if (!existing.email && p.email) existing.email = p.email;
+        } else {
+          dedupedParents.push({
+            name: p.name,
+            displayName: p.displayName || toDisplayName(p.name),
+            relationship: p.relationship || 'Parent',
+            phone: cleanPhone,
+            email: p.email || '',
+            isEmergencyContact: false,
+          });
+        }
+      }
+
+      // Merge external emergency contacts from scout record if not already present
+      const p1 = s.emergencyContact1 || rosterInfo.emergencyContact1 || '';
+      const p1Phone = cleanAndDedupePhones(s.emergencyContact1Phone || rosterInfo.emergencyContact1Phone || '');
+      const p2 = s.emergencyContact2 || rosterInfo.emergencyContact2 || '';
+      const p2Phone = cleanAndDedupePhones(s.emergencyContact2Phone || rosterInfo.emergencyContact2Phone || '');
+
+      if (p1) {
+        const existing = dedupedParents.find((p) => areExactSamePersonName(p.name, p1));
+        if (existing) {
+          existing.phone = cleanAndDedupePhones(existing.phone, p1Phone);
+        } else {
+          dedupedParents.push({
+            name: p1,
+            displayName: toDisplayName(p1),
+            relationship: 'Emergency Contact',
+            phone: p1Phone,
+            email: '',
+            isEmergencyContact: true,
+          });
+        }
+      }
+
+      if (p2) {
+        const existing = dedupedParents.find((p) => areExactSamePersonName(p.name, p2));
+        if (existing) {
+          existing.phone = cleanAndDedupePhones(existing.phone, p2Phone);
+        } else {
+          dedupedParents.push({
+            name: p2,
+            displayName: toDisplayName(p2),
+            relationship: 'Emergency Contact',
+            phone: p2Phone,
+            email: '',
+            isEmergencyContact: true,
+          });
+        }
+      }
+
+      s.emergencyContact1 = p1;
+      s.emergencyContact1Phone = p1Phone;
+      s.emergencyContact2 = p2;
+      s.emergencyContact2Phone = p2Phone;
+      s.phone = cleanAndDedupePhones(s.phone || rosterInfo.phone || rosterInfo.cellPhone || '');
+      s.email = s.email || rosterInfo.email || '';
+      s.rank = s.rank || rosterInfo.rank || '';
+      s.age = s.age || rosterInfo.age || '';
+      s.grade = s.grade || rosterInfo.grade || '';
+
+      s.parents = dedupedParents;
+      if (dedupedParents.length > 0) {
+        s.parentNames = dedupedParents.map((p) => p.displayName || toDisplayName(p.name)).join(' / ');
+        s.parentPhone = cleanAndDedupePhones(...dedupedParents.map((p) => p.phone));
+      } else {
+        s.parentNames = s.parentNames || rosterInfo.parentNames || [p1, p2].filter(Boolean).map(toDisplayName).join(' / ');
+        s.parentPhone = s.parentPhone || rosterInfo.parentPhone || cleanAndDedupePhones(p1Phone, p2Phone);
+      }
+    }
 
     let meta = {
       id: eventId,
@@ -3602,6 +4041,8 @@ export {
   getWarmedEventForm,
   cachedEventForms,
   EVENT_FORM_TTL_MS,
+  cleanAndDedupePhones,
+  areExactSamePersonName,
 };
 
 const isMainModule = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;

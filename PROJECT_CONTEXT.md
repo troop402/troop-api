@@ -551,13 +551,23 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
 * **Automated Sync Resilience & Manual Refresh**:
   - `fetchRosterSummary()` includes automated exponential backoff retries (3s and 6s) during server cold-starts or wakeups.
   - Added tab focus & visibility revalidation so switching back to the manager tab automatically heals failed sync states.
-  - Added an interactive `🔄 Sync Roster` button directly in the Roster Status card header.
-
-
-
-
-
-
-
-
-
+### 9.29 Authoritative Family Relationships, Nickname Resolution & Safe Contact Deduplication
+* **Elimination of Heuristic Linking in Favor of Official TWH Relational Reports**:
+  - Previously, family linking attempted heuristic matches (shared address stems, phone area code guessing, surname matching), which was prone to omissions when data entry was incomplete or when maiden names were used (e.g. Eunice Chan & Calista Ruan).
+  - The architecture was overhauled to ingest official TroopWebHost relational tables:
+    - `Menu_Item_ID=52053`: **Scout Parent Cross Reference With Contact Info** (authoritative scout-to-parent mapping, with phone and email).
+    - `Menu_Item_ID=52055`: **Parent Scout Cross Reference** (authoritative parent-to-scout mapping).
+    - `Menu_Item_ID=45897`: **Troop Roster Export** (authoritative member details and emergency contacts).
+  - Fetched in parallel via `fetchRosterFromTroopWebHost()` and compiled into bidirectional Maps (`scoutToParents`, `adultToScouts`).
+* **Quoted Nicknames & Dual-Name Ingestion**:
+  - In TroopWebHost, cross-reference reports format names with quoted nicknames (e.g. `Shafer, Cynthia "Cindy"` or `Anderson, Charles "Chuck "Smokey""`), while roster records and event driver signups use informal names (e.g. `Shafer, Cindy`).
+  - `getNameVariations()` was enhanced to parse quoted nicknames into discrete tokens, generating variations for both the formal name (`Cynthia Shafer`), the nickname (`Cindy Shafer`), and the raw normalized string (`shafer cynthia cindy`).
+  - `membersByName` indexes members across both their primary display name, formal first/last name, and known nickname mappings (`NICKNAMES`), enabling deterministic resolution for adults signed up under any name variant (e.g. Cindy Shafer resolving her daughter Rachael Schonfeld).
+* **Discrete Object Structures**:
+  - Scouts carry a structured `parents` array (`{ name, displayName, relationship, phone, email, isEmergencyContact }`).
+  - Adults/drivers carry a structured `relatedScouts` array (`{ name, displayName, relationship, patrol, rank, age, grade, phone, email }`).
+  - UI components format names using `displayName` (`First Last`) rather than raw comma-separated strings.
+* **Safe Merging & Erroneous Duplication Elimination**:
+  - **Exact Token Matching (`areExactSamePersonName`)**: When a scout's emergency contact name contains the exact same word tokens as an official parent (e.g. `Adams, Melanie` $\leftrightarrow$ `Melanie Adams`), the system merges them into a single parent entry rather than duplicating.
+  - **Conservative Nickname Preservation**: When an emergency contact name differs from a parent name by nickname (e.g. `Kim Anderson` vs `Anderson, Kimberly`, or `Jackie Bronson` vs `Bronson, Jacqueline`), the system intentionally avoids combining them to preserve distinctions and prevent incorrect assumptions.
+  - **Phone Deduplication (`cleanAndDedupePhones`)**: Strips redundant phone listings within an individual's records (e.g. identical numbers entered for Home and Cell), formats them uniformly as `(XXX) XXX-XXXX`, and preserves genuinely distinct numbers (`(415) 722-4453 / (415) 722-5925`).
