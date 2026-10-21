@@ -4419,7 +4419,21 @@
           cFirst = parts[0].toLowerCase();
         }
 
-        const isFamily = Boolean(driverLast && cLast === driverLast);
+        let driverObj = null;
+        if (typeof carpoolBaseline !== 'undefined' && carpoolBaseline && carpoolBaseline.drivers) {
+          driverObj = carpoolBaseline.drivers.find(d => normalizeName(d.name) === normalizeName(driverName));
+        }
+        if (!driverObj && typeof localDraft !== 'undefined' && localDraft) {
+          driverObj = (localDraft.toDrivers || []).find(d => normalizeName(d.name) === normalizeName(driverName))
+            || (localDraft.fromDrivers || []).find(d => normalizeName(d.name) === normalizeName(driverName));
+        }
+
+        const isRelatedScout = Boolean(driverObj && (driverObj.relatedScouts || []).some(rs => {
+          const rsName = rs.name || rs.originalName || rs.displayName || '';
+          return normalizeName(rsName) === norm;
+        }));
+
+        const isFamily = Boolean(isRelatedScout || (driverLast && cLast === driverLast));
         const firstMatch = tokNicknames.includes(cFirst);
         const lastMatch = Boolean(tokClean && cLast.includes(tokClean));
 

@@ -740,6 +740,66 @@ describe('Driver comment parsing unit test', () => {
     assert.equal(result.clarificationsNeeded.length, 0);
   });
 
+  it('prioritizes authoritative connected scouts over surnames when disambiguating ambiguous rider first names', async () => {
+    const { parseDriverComments } = await import('../server.js');
+
+    const drivers = [
+      {
+        name: 'Chan, Eunice',
+        attending: 'Y',
+        seats: 4,
+        comment: 'Taking Calista',
+        relatedScouts: [
+          { name: 'Ruan, Calista', displayName: 'Calista Ruan', relationship: 'Parent' },
+        ],
+      },
+      {
+        name: 'Hoover, Brad',
+        attending: 'Y',
+        seats: 4,
+        comment: 'Driving Elina',
+        relatedScouts: [
+          { name: 'Goudarzi, Elina', displayName: 'Elina Goudarzi', relationship: 'Parent' },
+        ],
+      },
+    ];
+
+    const scouts = [
+      { name: 'Ruan, Calista', patrol: 'Falcon' },
+      { name: 'Smith, Calista', patrol: 'Dragon' },
+    ];
+
+    const adults = [
+      { name: 'Chan, Eunice', leadership: 'Adult' },
+      { name: 'Hoover, Brad', leadership: 'Adult' },
+    ];
+
+    const rosterMembers = [
+      { name: 'Goudarzi, Elina', isAdult: false, patrol: 'Falcon' },
+    ];
+
+    const result = parseDriverComments(drivers, scouts, adults, rosterMembers);
+
+    // Calista Ruan resolved via authoritative relationship with driver Eunice Chan despite different surnames
+    const calistaRuan = result.enrichedScouts.find((s) => s.name === 'Ruan, Calista');
+    assert.equal(calistaRuan.assignedDriver, 'Chan, Eunice');
+    assert.equal(calistaRuan.rideStatus, 'family_match');
+
+    // Calista Smith left unassigned and NOT flagged as ambiguous collision for Eunice
+    const calistaSmith = result.enrichedScouts.find((s) => s.name === 'Smith, Calista');
+    assert.equal(calistaSmith.assignedDriver, null);
+    assert.equal(calistaSmith.rideStatus, 'unassigned');
+
+    // Elina Goudarzi resolved as non-attending roster scout for Brad Hoover despite different surnames
+    const driverHoover = result.enrichedDrivers.find((d) => d.name === 'Hoover, Brad');
+    const elinaClaim = driverHoover.claimedScouts.find((s) => s.name === 'Elina Goudarzi' || s.originalName === 'Goudarzi, Elina');
+    assert.ok(elinaClaim, 'Elina Goudarzi should be matched to Brad Hoover');
+    assert.equal(elinaClaim.notAttending, true);
+
+    // No clarifications needed because both were successfully resolved via official connections
+    assert.equal(result.clarificationsNeeded.length, 0);
+  });
+
   it('resolves adult nicknames, prevents token re-use, and handles capacity', async () => {
     const { parseDriverComments } = await import('../server.js');
 
