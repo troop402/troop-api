@@ -14,8 +14,14 @@ The core vision established during early brainstorming:
 - **Developer Workflow:** Developed in VS Code with AI pair programming on the user's local Unraid machine, version-controlled via GitHub (`main` branch), protected by CI, and auto-deployed to Render on push to `origin/main`.
   - **Local Development Policy ("dev" = Local Unraid):** The user is only ever running "dev" on local. When the user says "dev", that explicitly and exclusively means their local Unraid development environment running via npm (`npm run dev`). By default, all active iteration, commits, refactoring, and testing remain strictly local in this development environment on the local `main` branch. The AI MUST NOT push to GitHub (`origin/main`), open a PR, or deploy to live/production (Render) unless the user explicitly instructs to push to live.
   - **Summary URL Delivery:** Whenever changes are summarized, the AI assistant supplies clickable URLs to the relevant endpoints:
-    - **Local dev** (Unraid box): `http://unraid:3000/manager`, `http://unraid:3000/coordinator/:id`, `http://unraid:3000/carpool/:id`.
-    - **Live Render** (after PR merge): `https://troop402-api.onrender.com/manager`, `https://troop402-api.onrender.com/coordinator/:id`, `https://troop402-api.onrender.com/carpool/:id`.
+    - **Local dev** (Unraid box on **PORT 3080**, query parameter `?id=:id` required):
+      - Coordinator: `http://unraid:3080/coordinator.html?id=:id`
+      - Carpool View: `http://unraid:3080/carpool.html?id=:id`
+      - Manager Console: `http://unraid:3080/manager.html`
+    - **Live Render** (after PR merge):
+      - Coordinator: `https://troop402-api.onrender.com/coordinator.html?id=:id`
+      - Carpool View: `https://troop402-api.onrender.com/carpool.html?id=:id`
+      - Manager Console: `https://troop402-api.onrender.com/manager.html`
 - **Alpha Framing:** The project is in active alpha development (`0.2.0-alpha`). Breaking changes to internal routes or contracts are acceptable when intentional and documented.
 
 ---
@@ -571,3 +577,14 @@ During `0.1.0-alpha` development, an alternative architecture was explored and p
   - **Exact Token Matching (`areExactSamePersonName`)**: When a scout's emergency contact name contains the exact same word tokens as an official parent (e.g. `Adams, Melanie` $\leftrightarrow$ `Melanie Adams`), the system merges them into a single parent entry rather than duplicating.
   - **Conservative Nickname Preservation**: When an emergency contact name differs from a parent name by nickname (e.g. `Kim Anderson` vs `Anderson, Kimberly`, or `Jackie Bronson` vs `Bronson, Jacqueline`), the system intentionally avoids combining them to preserve distinctions and prevent incorrect assumptions.
   - **Phone Deduplication (`cleanAndDedupePhones`)**: Strips redundant phone listings within an individual's records (e.g. identical numbers entered for Home and Cell), formats them uniformly as `(XXX) XXX-XXXX`, and preserves genuinely distinct numbers (`(415) 722-4453 / (415) 722-5925`).
+### 9.30 Authoritative Relationship Prioritization in Driver Comment Disambiguation
+* **Cross-Reference Over Shared Surnames**:
+  - Previously, when multiple attendees shared a first name (e.g. "Calista"), the comment parser looked only at `c.last === driverLast` to auto-resolve a "family match". If a driver and scout had different surnames (blended families, different last names), the system failed to match the child and flagged an ambiguous collision.
+  - The comment parser (`matchAttendeesInText` and `parseDriverComments`) now accepts and prioritizes official parent-scout links (`relatedScouts` from TWH reports 52053 & 52055) across all passes:
+    - **Pass 3A (Primary First Name Collision)**: If multiple attending scouts share a first name, the parser matches the candidate officially connected to the driver via `isOfficialConnectedScout(c)` with status `'family_match'`, without triggering an ambiguity warning.
+    - **Pass 3B (Nickname Collision)**: Same prioritization for nickname matches.
+    - **Pass 6 (Non-Attending Roster Members)**: When evaluating driver claims of non-attending scouts on the troop roster, connected scouts in `relatedScouts` are recognized as family matches, resolving claims without requiring a shared surname.
+  - **Shared Surname Fallback**: If no candidate has an authoritative cross-reference link to the driver, the system safely falls back to matching driver surname, preserving 100% backward compatibility.
+* **Ambiguity Resolution Modal Enrichment (`coordinator.html`)**:
+  - `buildAmbiguityCandidateList` now inspects the driver's `relatedScouts` in addition to surnames. Connected scouts with different surnames are tagged with `isFamily: true`, displayed with the `Family Match` badge, and sorted to the top (`priority: 1`).
+

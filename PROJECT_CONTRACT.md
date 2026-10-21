@@ -78,7 +78,7 @@ E.5.2 Name Collision & Ambiguity: If a commented name matches the primary name o
 E.5.3 Nickname Fallback: Nicknames (e.g. Tom ↔ Thomas, Maddie ↔ Madison) are evaluated strictly as a secondary fallback only when NO attending scout possesses that name as their primary name in TroopWebHost.
 E.5.4 Token Occurrence Enforcement: Tokens in a driver comment are tracked by occurrence (`countTokenOccurrences`). A word token can only be consumed once per appearance in the text, preventing multiple scouts from claiming the same word occurrence.
 E.5.5 Migration to Primary Website Representation: Any editing, seat assignment by button press, or text compacting MUST seek to migrate a scout's name to the official representation used on the website (`First L` or `First Last` if collision, derived from the scout's primary TWH roster name).
-E.5.6 Full-name matches and family matches (matching driver surname) are confirmed automatically.
+E.5.6 Full-name matches and family matches are confirmed automatically. Family matching prioritizes scouts with an authoritative connection to the driver (`relatedScouts` or cross-reference linking), supporting scouts with different surnames, and falls back to matching driver surname when cross-reference data is not available.
 E.5.7 Explicit open-seat notes in driver comments (e.g. "and 2 more") override derived calculations.
 E.5.8 Tokens consumed by scout assignments are not re-claimed for adult passengers to prevent duplicate attributions.
 E.5.9 Driver self-references (driver's own name, "myself", "me") account for the driver seat and do not occupy passenger seats. Available passenger seats are derived as `Math.max(0, seats - 1)`.
@@ -263,3 +263,9 @@ K.6 Does not require prior authentication or application key.
 11.5.1 Redundant phone listings from TWH (e.g. `H: (408) 660-5499 C: (408) 660-5499` where identical numbers are saved for multiple phone types) MUST be deduplicated by their 10-digit number.
 11.5.2 All phone numbers MUST be standardized into clean `(XXX) XXX-XXXX` format.
 11.5.3 Genuinely distinct phone numbers (e.g. distinct home and cell lines) are preserved and separated with a clean delimiter (`(415) 722-4453 / (415) 722-5925`).
+11.6 Authoritative Relationship Prioritization in Comment Disambiguation:
+11.6.1 First-Name & Nickname Collision Resolution: When a driver mentions a first name or nickname that matches multiple attendee candidates, the parser MUST prioritize any candidate having an authoritative parent-child relationship to the driver (`relatedScouts` / cross-reference linking), regardless of whether they share the driver's surname (e.g. blended families or different last names).
+11.6.2 Surname Fallback: Only when no candidate possesses an authoritative cross-reference link to the driver does the parser evaluate shared driver surname as a secondary fallback.
+11.6.3 Non-Attending Troop Roster Matching (Pass 6): When evaluating driver mentions of non-attending troop members, scouts with an authoritative link to the driver in `relatedScouts` are recognized as family matches, resolving claims without requiring shared surnames.
+11.6.4 Coordinator Ambiguity Resolution: The Ambiguity Resolution Modal surfaces authoritatively connected scouts with top priority (`priority: 1`) and the `Family Match` badge, regardless of last name.
+
